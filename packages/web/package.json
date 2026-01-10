@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@second-brain/shared": "workspace:*",
+    "@tanstack/react-query": "^5.90.16",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-router-dom": "^7.0.0"

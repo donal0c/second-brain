@@ -1,15 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  tasks,
-  projects,
-  ideas,
-  fix,
   type Task,
   type Project,
   type Idea,
   type ApiError,
   type EntityType,
 } from "../lib/api";
+import {
+  useTasks,
+  useProjects,
+  useIdeas,
+  useUpdateTask,
+  useUpdateProject,
+  useUpdateIdea,
+  useInterpretTask,
+  useInterpretProject,
+  useInterpretIdea,
+  useFixEntity,
+  useDeleteTask,
+  useDeleteProject,
+  useDeleteIdea,
+} from "../lib/queries";
 
 type TabType = "tasks" | "projects" | "ideas";
 type EditingEntity =
@@ -20,60 +31,66 @@ type EditingEntity =
 
 export function Browse() {
   const [activeTab, setActiveTab] = useState<TabType>("tasks");
-  const [taskList, setTaskList] = useState<Task[]>([]);
-  const [projectList, setProjectList] = useState<Project[]>([]);
-  const [ideaList, setIdeaList] = useState<Idea[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingEntity>(null);
-  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
+  // Fetch data with React Query
+  const tasksQuery = useTasks();
+  const projectsQuery = useProjects();
+  const ideasQuery = useIdeas();
 
-    try {
-      const [tasksRes, projectsRes, ideasRes] = await Promise.all([
-        tasks.list(),
-        projects.list(),
-        ideas.list(),
-      ]);
-      setTaskList(tasksRes.items);
-      setProjectList(projectsRes.items);
-      setIdeaList(ideasRes.items);
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load data");
-    } finally {
-      setLoading(false);
-    }
+  // Mutations
+  const updateTask = useUpdateTask();
+  const updateProject = useUpdateProject();
+  const updateIdea = useUpdateIdea();
+  const interpretTask = useInterpretTask();
+  const interpretProject = useInterpretProject();
+  const interpretIdea = useInterpretIdea();
+  const fixEntity = useFixEntity();
+  const deleteTask = useDeleteTask();
+  const deleteProject = useDeleteProject();
+  const deleteIdea = useDeleteIdea();
+
+  // Derive state from queries
+  const taskList = tasksQuery.data?.items ?? [];
+  const projectList = projectsQuery.data?.items ?? [];
+  const ideaList = ideasQuery.data?.items ?? [];
+  const loading = tasksQuery.isLoading || projectsQuery.isLoading || ideasQuery.isLoading;
+  const error = tasksQuery.error || projectsQuery.error || ideasQuery.error;
+  const saving =
+    updateTask.isPending ||
+    updateProject.isPending ||
+    updateIdea.isPending ||
+    interpretTask.isPending ||
+    interpretProject.isPending ||
+    interpretIdea.isPending ||
+    fixEntity.isPending ||
+    deleteTask.isPending ||
+    deleteProject.isPending ||
+    deleteIdea.isPending;
+
+  const loadData = () => {
+    tasksQuery.refetch();
+    projectsQuery.refetch();
+    ideasQuery.refetch();
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const handleSave = async (data: Record<string, unknown>) => {
     if (!editing) return;
 
-    setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
     try {
       if (editing.type === "task") {
-        const updated = await tasks.update(editing.item.id, data as Partial<Task>);
-        setTaskList((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        const updated = await updateTask.mutateAsync({ id: editing.item.id, data: data as Partial<Task> });
         setEditing({ type: "task", item: updated });
       } else if (editing.type === "project") {
-        const updated = await projects.update(editing.item.id, data as Partial<Project>);
-        setProjectList((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        const updated = await updateProject.mutateAsync({ id: editing.item.id, data: data as Partial<Project> });
         setEditing({ type: "project", item: updated });
       } else if (editing.type === "idea") {
-        const updated = await ideas.update(editing.item.id, data as Partial<Idea>);
-        setIdeaList((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+        const updated = await updateIdea.mutateAsync({ id: editing.item.id, data: data as Partial<Idea> });
         setEditing({ type: "idea", item: updated });
       }
       setSaveSuccess(true);
@@ -81,30 +98,24 @@ export function Browse() {
     } catch (err) {
       const apiError = err as ApiError;
       setSaveError(apiError.message || apiError.error || "Failed to save");
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleInterpret = async (instruction: string) => {
     if (!editing) return;
 
-    setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
     try {
       if (editing.type === "task") {
-        const result = await tasks.interpret(editing.item.id, instruction);
-        setTaskList((prev) => prev.map((t) => (t.id === result.entity.id ? result.entity : t)));
+        const result = await interpretTask.mutateAsync({ id: editing.item.id, instruction });
         setEditing({ type: "task", item: result.entity });
       } else if (editing.type === "project") {
-        const result = await projects.interpret(editing.item.id, instruction);
-        setProjectList((prev) => prev.map((p) => (p.id === result.entity.id ? result.entity : p)));
+        const result = await interpretProject.mutateAsync({ id: editing.item.id, instruction });
         setEditing({ type: "project", item: result.entity });
       } else if (editing.type === "idea") {
-        const result = await ideas.interpret(editing.item.id, instruction);
-        setIdeaList((prev) => prev.map((i) => (i.id === result.entity.id ? result.entity : i)));
+        const result = await interpretIdea.mutateAsync({ id: editing.item.id, instruction });
         setEditing({ type: "idea", item: result.entity });
       }
       setSaveSuccess(true);
@@ -112,15 +123,12 @@ export function Browse() {
     } catch (err) {
       const apiError = err as ApiError;
       setSaveError(apiError.message || apiError.error || "Failed to interpret");
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleFix = async (correction: string) => {
     if (!editing) return;
 
-    setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
@@ -132,30 +140,18 @@ export function Browse() {
       };
 
       const entityType = entityTypeMap[editing.type];
-      const result = await fix.entity(entityType, editing.item.id, correction);
+      const result = await fixEntity.mutateAsync({ entityType, id: editing.item.id, correction });
 
-      // Update the lists - remove old entity, add new entity
-      if (editing.type === "task") {
-        setTaskList((prev) => prev.filter((t) => t.id !== result.oldEntity.id));
-      } else if (editing.type === "project") {
-        setProjectList((prev) => prev.filter((p) => p.id !== result.oldEntity.id));
-      } else if (editing.type === "idea") {
-        setIdeaList((prev) => prev.filter((i) => i.id !== result.oldEntity.id));
-      }
-
-      // Add new entity to the appropriate list
+      // Update editing state with new entity
       const newEntity = result.newEntity as Task | Project | Idea;
       if ("title" in newEntity && "nextAction" in newEntity) {
         // It's a task
-        setTaskList((prev) => [newEntity as Task, ...prev]);
         setEditing({ type: "task", item: newEntity as Task });
       } else if ("name" in newEntity) {
         // It's a project
-        setProjectList((prev) => [newEntity as Project, ...prev]);
         setEditing({ type: "project", item: newEntity as Project });
       } else {
         // It's an idea
-        setIdeaList((prev) => [newEntity as Idea, ...prev]);
         setEditing({ type: "idea", item: newEntity as Idea });
       }
 
@@ -164,8 +160,6 @@ export function Browse() {
     } catch (err) {
       const apiError = err as ApiError;
       setSaveError(apiError.message || apiError.error || "Failed to fix");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -180,26 +174,20 @@ export function Browse() {
       return;
     }
 
-    setSaving(true);
     setSaveError(null);
 
     try {
       if (editing.type === "task") {
-        await tasks.delete(editing.item.id);
-        setTaskList((prev) => prev.filter((t) => t.id !== editing.item.id));
+        await deleteTask.mutateAsync(editing.item.id);
       } else if (editing.type === "project") {
-        await projects.delete(editing.item.id);
-        setProjectList((prev) => prev.filter((p) => p.id !== editing.item.id));
+        await deleteProject.mutateAsync(editing.item.id);
       } else if (editing.type === "idea") {
-        await ideas.delete(editing.item.id);
-        setIdeaList((prev) => prev.filter((i) => i.id !== editing.item.id));
+        await deleteIdea.mutateAsync(editing.item.id);
       }
       setEditing(null);
     } catch (err) {
       const apiError = err as ApiError;
       setSaveError(apiError.message || apiError.error || "Failed to delete");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -245,7 +233,7 @@ export function Browse() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+          {(error as ApiError).message || (error as ApiError).error || "Failed to load data"}
           <button onClick={loadData} className="ml-2 underline hover:no-underline">
             Retry
           </button>
