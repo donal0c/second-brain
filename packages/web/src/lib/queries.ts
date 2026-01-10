@@ -4,6 +4,7 @@ import {
   projects,
   ideas,
   fix,
+  process,
   type Task,
   type Project,
   type Idea,
@@ -201,6 +202,26 @@ export function useFixEntity() {
       id: string;
       correction: string;
     }) => fix.entity(entityType, id, correction),
+    onSuccess: (_result: unknown) => {
+      // Invalidate all queries since the entity type might have changed
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ideas });
+    },
+  });
+}
+
+export function useReprocessEntity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      entityType,
+      id,
+    }: {
+      entityType: EntityType;
+      id: string;
+    }) => process.reprocess(entityType, id),
     onSuccess: (_result: unknown) => {
       // Invalidate all queries since the entity type might have changed
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks });

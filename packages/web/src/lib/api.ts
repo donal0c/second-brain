@@ -84,6 +84,7 @@ export interface Task {
   dueDate: string | null;
   context: string | null;
   status: "active" | "completed" | "waiting" | "someday";
+  sourceInboxItemId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -137,6 +138,7 @@ export interface Project {
   desiredOutcome: string | null;
   nextAction: string | null;
   status: "active" | "completed" | "on_hold" | "someday";
+  sourceInboxItemId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -181,6 +183,7 @@ export interface Idea {
   title: string;
   summary: string | null;
   links: string[];
+  sourceInboxItemId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -409,11 +412,60 @@ export interface ProcessStatus {
   message: string;
 }
 
+export interface ProcessResult {
+  inboxItemId: string;
+  classification: {
+    classification: string;
+    extractedFields: Record<string, unknown>;
+    confidenceScore: number;
+    reasoning: string;
+  };
+  action: "filed" | "flagged" | "clarify";
+  receipt: Receipt;
+  entity?: {
+    type: "task" | "project" | "idea" | "person";
+    id: string;
+    data: Record<string, unknown>;
+  };
+  clarification?: {
+    id: string;
+    question: string;
+    options: string[] | null;
+  };
+}
+
 export const process = {
   status: () => request<ProcessStatus>("/process/status"),
 
   single: (id: string) =>
-    request<unknown>(`/process/${id}`, { method: "POST" }),
+    request<ProcessResult>(`/process/${id}`, { method: "POST" }),
+
+  reprocess: async (entityType: EntityType, entityId: string, signal?: AbortSignal): Promise<ProcessResult> => {
+    // Fetch the entity to get its sourceInboxItemId
+    let entity: Entity;
+    if (entityType === "tasks") {
+      entity = await tasks.get(entityId, signal);
+    } else if (entityType === "projects") {
+      entity = await projects.get(entityId, signal);
+    } else {
+      entity = await ideas.get(entityId, signal);
+    }
+
+    if (!entity.sourceInboxItemId) {
+      throw { error: "No source inbox item", message: "This entity has no original inbox item to reprocess" };
+    }
+
+    // Fetch the original inbox item
+    const originalInboxItem = await inbox.get(entity.sourceInboxItemId, signal);
+
+    // Create a new inbox item with the same rawText
+    const newInboxItem = await inbox.capture(originalInboxItem.rawText, "reprocess", signal);
+
+    // Process the new inbox item
+    const result = await request<ProcessResult>(`/process/${newInboxItem.id}`, { method: "POST", signal });
+
+    return result;
+  },
 };
 
 // =============================================================================

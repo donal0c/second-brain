@@ -17,6 +17,7 @@ import {
   useInterpretProject,
   useInterpretIdea,
   useFixEntity,
+  useReprocessEntity,
   useDeleteTask,
   useDeleteProject,
   useDeleteIdea,
@@ -48,6 +49,7 @@ export function Browse() {
   const interpretProject = useInterpretProject();
   const interpretIdea = useInterpretIdea();
   const fixEntity = useFixEntity();
+  const reprocessEntity = useReprocessEntity();
   const deleteTask = useDeleteTask();
   const deleteProject = useDeleteProject();
   const deleteIdea = useDeleteIdea();
@@ -66,6 +68,7 @@ export function Browse() {
     interpretProject.isPending ||
     interpretIdea.isPending ||
     fixEntity.isPending ||
+    reprocessEntity.isPending ||
     deleteTask.isPending ||
     deleteProject.isPending ||
     deleteIdea.isPending;
@@ -188,6 +191,39 @@ export function Browse() {
     } catch (err) {
       const apiError = err as ApiError;
       setSaveError(apiError.message || apiError.error || "Failed to delete");
+    }
+  };
+
+  const handleReprocess = async () => {
+    if (!editing) return;
+
+    const entityName = editing.type === "task" ? editing.item.title :
+                       editing.type === "project" ? editing.item.name :
+                       editing.item.title;
+
+    if (!window.confirm(`Reprocess "${entityName}" with AI? This will send the original text through classification again and may change the entity type.`)) {
+      return;
+    }
+
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const entityTypeMap: Record<string, EntityType> = {
+        task: "tasks",
+        project: "projects",
+        idea: "ideas",
+      };
+
+      const entityType = entityTypeMap[editing.type];
+      await reprocessEntity.mutateAsync({ entityType, id: editing.item.id });
+
+      setEditing(null);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setSaveError(apiError.message || apiError.error || "Failed to reprocess");
     }
   };
 
@@ -411,6 +447,7 @@ export function Browse() {
                   onSave={handleSave}
                   onInterpret={handleInterpret}
                   onFix={handleFix}
+                  onReprocess={handleReprocess}
                   onDelete={handleDelete}
                   onCancel={() => setEditing(null)}
                   saving={saving}
@@ -423,6 +460,7 @@ export function Browse() {
                   onSave={handleSave}
                   onInterpret={handleInterpret}
                   onFix={handleFix}
+                  onReprocess={handleReprocess}
                   onDelete={handleDelete}
                   onCancel={() => setEditing(null)}
                   saving={saving}
@@ -435,6 +473,7 @@ export function Browse() {
                   onSave={handleSave}
                   onInterpret={handleInterpret}
                   onFix={handleFix}
+                  onReprocess={handleReprocess}
                   onDelete={handleDelete}
                   onCancel={() => setEditing(null)}
                   saving={saving}
@@ -457,6 +496,7 @@ function TaskEditForm({
   onSave,
   onInterpret,
   onFix,
+  onReprocess,
   onDelete,
   onCancel,
   saving,
@@ -465,6 +505,7 @@ function TaskEditForm({
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
   onFix: (correction: string) => void;
+  onReprocess: () => void;
   onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
@@ -582,6 +623,26 @@ function TaskEditForm({
           Use this to make corrections that might change the entity type
         </p>
       </form>
+
+      {/* Reprocess with AI */}
+      {task.sourceInboxItemId && (
+        <div className="border-t border-gray-200 pt-4">
+          <label className="block text-xs font-medium text-purple-600 mb-2">
+            Reprocess with AI
+          </label>
+          <button
+            type="button"
+            onClick={onReprocess}
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            disabled={saving}
+          >
+            {saving ? "..." : "Reprocess"}
+          </button>
+          <p className="mt-1 text-xs text-gray-500">
+            Send the original text through AI classification again. May change entity type.
+          </p>
+        </div>
+      )}
 
       {/* Delete - Moved above "Show all fields" for better visibility */}
       <div className="border-t border-gray-200 pt-4">
@@ -703,6 +764,7 @@ function ProjectEditForm({
   onSave,
   onInterpret,
   onFix,
+  onReprocess,
   onDelete,
   onCancel,
   saving,
@@ -711,6 +773,7 @@ function ProjectEditForm({
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
   onFix: (correction: string) => void;
+  onReprocess: () => void;
   onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
@@ -827,6 +890,26 @@ function ProjectEditForm({
         </p>
       </form>
 
+      {/* Reprocess with AI */}
+      {project.sourceInboxItemId && (
+        <div className="border-t border-gray-200 pt-4">
+          <label className="block text-xs font-medium text-purple-600 mb-2">
+            Reprocess with AI
+          </label>
+          <button
+            type="button"
+            onClick={onReprocess}
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            disabled={saving}
+          >
+            {saving ? "..." : "Reprocess"}
+          </button>
+          <p className="mt-1 text-xs text-gray-500">
+            Send the original text through AI classification again. May change entity type.
+          </p>
+        </div>
+      )}
+
       {/* Delete - Moved above "Show all fields" for better visibility */}
       <div className="border-t border-gray-200 pt-4">
         <button
@@ -935,6 +1018,7 @@ function IdeaEditForm({
   onSave,
   onInterpret,
   onFix,
+  onReprocess,
   onDelete,
   onCancel,
   saving,
@@ -943,6 +1027,7 @@ function IdeaEditForm({
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
   onFix: (correction: string) => void;
+  onReprocess: () => void;
   onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
@@ -1027,6 +1112,26 @@ function IdeaEditForm({
           Use this to make corrections that might change the entity type
         </p>
       </form>
+
+      {/* Reprocess with AI */}
+      {idea.sourceInboxItemId && (
+        <div className="border-t border-gray-200 pt-4">
+          <label className="block text-xs font-medium text-purple-600 mb-2">
+            Reprocess with AI
+          </label>
+          <button
+            type="button"
+            onClick={onReprocess}
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            disabled={saving}
+          >
+            {saving ? "..." : "Reprocess"}
+          </button>
+          <p className="mt-1 text-xs text-gray-500">
+            Send the original text through AI classification again. May change entity type.
+          </p>
+        </div>
+      )}
 
       {/* Delete - Moved above "Show all fields" for better visibility */}
       <div className="border-t border-gray-200 pt-4">
