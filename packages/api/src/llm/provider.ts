@@ -9,6 +9,7 @@ import type {
   ExtractionResult,
   ClarificationQuestion,
   CorrectionResult,
+  FixResult,
   PersonalContext,
   Classification,
   ContextExtractionResult,
@@ -71,6 +72,18 @@ export interface LLMProvider {
     original: Record<string, unknown>,
     correction: string
   ): Promise<CorrectionResult>;
+
+  /**
+   * Interpret a user's fix/correction that may involve entity type transformation
+   * @param originalType - The current entity type
+   * @param original - The original entity data
+   * @param correction - Natural language correction from user
+   */
+  interpretFix(
+    originalType: Classification,
+    original: Record<string, unknown>,
+    correction: string
+  ): Promise<FixResult>;
 
   /**
    * Extract context entities (people, places, organizations, concepts) from text

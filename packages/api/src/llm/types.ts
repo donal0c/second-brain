@@ -74,6 +74,21 @@ export interface CorrectionResult {
 }
 
 // -----------------------------------------------------------------------------
+// Fix/Transformation (for entity type changes)
+// -----------------------------------------------------------------------------
+
+export interface FixResult {
+  /** Whether the entity type should change */
+  shouldTransform: boolean;
+  /** The new entity type (if transforming) */
+  newType?: Classification;
+  /** The fields for the new entity (if transforming) or updates to existing */
+  fields: Record<string, unknown>;
+  /** Explanation of what was changed */
+  reasoning: string;
+}
+
+// -----------------------------------------------------------------------------
 // Clarification Context (for reprocessing with user input)
 // -----------------------------------------------------------------------------
 

@@ -210,6 +210,28 @@ export const ideas = {
 };
 
 // =============================================================================
+// Fix API (Cross-Entity)
+// =============================================================================
+
+export type EntityType = "tasks" | "projects" | "ideas";
+export type Entity = Task | Project | Idea;
+
+export interface FixResponse {
+  oldEntity: Entity;
+  newEntity: Entity;
+  receipt: Receipt;
+  reasoning: string;
+}
+
+export const fix = {
+  entity: (entityType: EntityType, id: string, correction: string) =>
+    request<FixResponse>(`/fix/${entityType}/${id}`, {
+      method: "POST",
+      body: JSON.stringify({ correction }),
+    }),
+};
+
+// =============================================================================
 // Clarifications API
 // =============================================================================
 

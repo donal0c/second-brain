@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { eq, sql, desc, asc, like } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
@@ -760,6 +761,236 @@ async function ideaRoutes(app: FastifyInstance): Promise<void> {
 }
 
 // =============================================================================
+// Fix/Correction Routes (Cross-Entity)
+// =============================================================================
+
+const FixBodySchema = z.object({
+  correction: z.string().min(1).max(500),
+});
+
+const FixParamsSchema = z.object({
+  entityType: z.enum(["tasks", "projects", "ideas"]),
+  id: z.string().uuid(),
+});
+
+async function fixRoutes(app: FastifyInstance): Promise<void> {
+  // POST /fix/:entityType/:id - Fix/correct an entity (may transform type)
+  app.post(
+    "/fix/:entityType/:id",
+    async (
+      request: FastifyRequest<{
+        Params: z.infer<typeof FixParamsSchema>;
+        Body: z.infer<typeof FixBodySchema>;
+      }>,
+      reply: FastifyReply
+    ) => {
+      if (!hasLLMProvider()) {
+        return reply.status(503).send({
+          error: "Service unavailable",
+          message: "LLM provider not configured",
+        });
+      }
+
+      const paramsResult = FixParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: paramsResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const bodyResult = FixBodySchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: bodyResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const { entityType, id } = paramsResult.data;
+      const { correction } = bodyResult.data;
+
+      // Map plural entity type to singular and table
+      const entityTypeMap = {
+        tasks: { singular: "task" as const, table: schema.tasks },
+        projects: { singular: "project" as const, table: schema.projects },
+        ideas: { singular: "idea" as const, table: schema.ideas },
+      };
+
+      const { singular: singularType, table } = entityTypeMap[entityType];
+
+      // Fetch the original entity
+      const items = await db.select().from(table).where(eq(table.id, id)).limit(1);
+
+      if (items.length === 0) {
+        return reply.status(404).send({ error: `${singularType} not found` });
+      }
+
+      const oldEntity = items[0];
+      const provider = getLLMProvider();
+
+      // Interpret the fix
+      const fixResult = await provider.interpretFix(singularType, oldEntity, correction);
+
+      const now = new Date();
+      const newReceiptId = randomUUID();
+
+      // Find the previous receipt (if exists)
+      const previousReceipts = oldEntity.sourceInboxItemId
+        ? await db
+            .select()
+            .from(schema.receipts)
+            .where(eq(schema.receipts.inboxItemId, oldEntity.sourceInboxItemId))
+            .orderBy(desc(schema.receipts.timestamp))
+            .limit(1)
+        : [];
+
+      const previousReceiptId = previousReceipts[0]?.id || null;
+
+      if (fixResult.shouldTransform && fixResult.newType) {
+        // Type transformation - create new entity and mark old as completed
+        const newEntityId = randomUUID();
+        let newEntity: Record<string, unknown>;
+
+        // Create the new entity based on type
+        switch (fixResult.newType) {
+          case "task": {
+            const taskData = {
+              id: newEntityId,
+              title: (fixResult.fields.title as string) || "Untitled",
+              nextAction: (fixResult.fields.nextAction as string) || "",
+              dueDate: fixResult.fields.dueDate ? new Date(fixResult.fields.dueDate as string) : null,
+              context: (fixResult.fields.context as string | null) || null,
+              status: (fixResult.fields.status as "active" | "completed" | "waiting" | "someday") || "active",
+              sourceInboxItemId: oldEntity.sourceInboxItemId || null,
+              createdAt: now,
+              updatedAt: now,
+            };
+            await db.insert(schema.tasks).values(taskData);
+            newEntity = taskData;
+            break;
+          }
+
+          case "project": {
+            const projectData = {
+              id: newEntityId,
+              name: (fixResult.fields.name as string) || "Untitled",
+              desiredOutcome: (fixResult.fields.desiredOutcome as string | null) || null,
+              nextAction: (fixResult.fields.nextAction as string | null) || null,
+              status: (fixResult.fields.status as "active" | "completed" | "on_hold" | "someday") || "active",
+              sourceInboxItemId: oldEntity.sourceInboxItemId || null,
+              createdAt: now,
+              updatedAt: now,
+            };
+            await db.insert(schema.projects).values(projectData);
+            newEntity = projectData;
+            break;
+          }
+
+          case "idea": {
+            const ideaData = {
+              id: newEntityId,
+              title: (fixResult.fields.title as string) || "Untitled",
+              summary: (fixResult.fields.summary as string | null) || null,
+              links: (fixResult.fields.links as string[]) || [],
+              sourceInboxItemId: oldEntity.sourceInboxItemId || null,
+              createdAt: now,
+              updatedAt: now,
+            };
+            await db.insert(schema.ideas).values(ideaData);
+            newEntity = ideaData;
+            break;
+          }
+
+          default:
+            return reply.status(400).send({
+              error: "Invalid transformation target type",
+              details: { newType: fixResult.newType },
+            });
+        }
+
+        // Mark old entity as completed (or delete it)
+        // For now, we'll mark it as completed if the type supports it
+        if (singularType === "task" || singularType === "project") {
+          await db
+            .update(table)
+            .set({ status: "completed", updatedAt: now })
+            .where(eq(table.id, id));
+        }
+
+        // Create receipt
+        const receipt = {
+          id: newReceiptId,
+          inboxItemId: oldEntity.sourceInboxItemId || randomUUID(),
+          classification: fixResult.newType,
+          extractedFields: fixResult.fields,
+          confidenceScore: 1.0,
+          modelUsed: provider.model,
+          timestamp: now,
+          writes: [
+            {
+              entityType: singularType,
+              entityId: id,
+              action: "update" as const,
+            },
+            {
+              entityType: fixResult.newType,
+              entityId: newEntityId,
+              action: "create" as const,
+            },
+          ],
+          previousReceiptId,
+          personalContextUsed: [],
+        };
+
+        await db.insert(schema.receipts).values(receipt);
+
+        return reply.send({
+          oldEntity,
+          newEntity,
+          receipt,
+          reasoning: fixResult.reasoning,
+        });
+      } else {
+        // No transformation - just update fields
+        const updates = { ...fixResult.fields, updatedAt: now };
+
+        const result = await db.update(table).set(updates).where(eq(table.id, id)).returning();
+
+        // Create receipt
+        const receipt = {
+          id: newReceiptId,
+          inboxItemId: oldEntity.sourceInboxItemId || randomUUID(),
+          classification: singularType,
+          extractedFields: fixResult.fields,
+          confidenceScore: 1.0,
+          modelUsed: provider.model,
+          timestamp: now,
+          writes: [
+            {
+              entityType: singularType,
+              entityId: id,
+              action: "update" as const,
+            },
+          ],
+          previousReceiptId,
+          personalContextUsed: [],
+        };
+
+        await db.insert(schema.receipts).values(receipt);
+
+        return reply.send({
+          oldEntity,
+          newEntity: result[0],
+          receipt,
+          reasoning: fixResult.reasoning,
+        });
+      }
+    }
+  );
+}
+
+// =============================================================================
 // Main Export
 // =============================================================================
 
@@ -767,4 +998,5 @@ export async function entityRoutes(app: FastifyInstance): Promise<void> {
   await taskRoutes(app);
   await projectRoutes(app);
   await ideaRoutes(app);
+  await fixRoutes(app);
 }

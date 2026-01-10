@@ -9,6 +9,7 @@ import type {
   ExtractionResult,
   ClarificationQuestion,
   CorrectionResult,
+  FixResult,
   PersonalContext,
   Classification,
   TaskExtraction,
@@ -325,6 +326,69 @@ Respond with JSON only:
       const content = this.extractTextContent(response);
       return this.parseJSON<CorrectionResult>(content);
     }, "interpretCorrection");
+  }
+
+  async interpretFix(
+    originalType: Classification,
+    original: Record<string, unknown>,
+    correction: string
+  ): Promise<FixResult> {
+    const today = new Date().toISOString().split("T")[0];
+    const currentYear = new Date().getFullYear();
+
+    const systemPrompt = `You are a cognitive assistant that interprets user corrections to entities in a personal knowledge system.
+
+Today's date is ${today}. The current year is ${currentYear}.
+
+The system has these entity types:
+- task: An actionable item with a next action and optional due date
+- project: A multi-step outcome with desired result and next action
+- idea: A concept or thought to potentially explore later
+- person: A contact or relationship to maintain
+
+Given an entity's current type and data, plus a natural language correction, determine:
+1. Whether the entity type should change (e.g., "this is actually a project, not a task")
+2. What fields should be updated or what the new entity should contain
+
+Guidelines:
+- If the correction explicitly mentions the entity should be a different type, set shouldTransform=true
+- If transforming, provide complete fields for the new entity type
+- If not transforming, provide only the updated fields
+- When interpreting dates, use the current year (${currentYear}) or next year if the date has already passed
+- Format dates as YYYY-MM-DD
+- Be precise about what changed and why
+
+Entity field schemas:
+Task: { title, nextAction, dueDate?, context?, status }
+Project: { name, desiredOutcome?, nextAction?, status }
+Idea: { title, summary?, links }
+Person: { name, relationshipContext?, followUpNextAction? }`;
+
+    const userPrompt = `Current entity type: ${originalType}
+Current data:
+${JSON.stringify(original, null, 2)}
+
+User correction: "${correction}"
+
+Respond with JSON only:
+{
+  "shouldTransform": true/false,
+  "newType": "task|project|idea|person" (only if shouldTransform is true),
+  "fields": { complete fields if transforming, or updates if not },
+  "reasoning": "Brief explanation of what was changed"
+}`;
+
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      });
+
+      const content = this.extractTextContent(response);
+      return this.parseJSON<FixResult>(content);
+    }, "interpretFix");
   }
 
   async extractContextEntities(text: string): Promise<ContextExtractionResult> {

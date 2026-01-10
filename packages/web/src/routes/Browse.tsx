@@ -3,10 +3,12 @@ import {
   tasks,
   projects,
   ideas,
+  fix,
   type Task,
   type Project,
   type Idea,
   type ApiError,
+  type EntityType,
 } from "../lib/api";
 
 type TabType = "tasks" | "projects" | "ideas";
@@ -110,6 +112,58 @@ export function Browse() {
     } catch (err) {
       const apiError = err as ApiError;
       setSaveError(apiError.message || apiError.error || "Failed to interpret");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFix = async (correction: string) => {
+    if (!editing) return;
+
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const entityTypeMap: Record<string, EntityType> = {
+        task: "tasks",
+        project: "projects",
+        idea: "ideas",
+      };
+
+      const entityType = entityTypeMap[editing.type];
+      const result = await fix.entity(entityType, editing.item.id, correction);
+
+      // Update the lists - remove old entity, add new entity
+      if (editing.type === "task") {
+        setTaskList((prev) => prev.filter((t) => t.id !== result.oldEntity.id));
+      } else if (editing.type === "project") {
+        setProjectList((prev) => prev.filter((p) => p.id !== result.oldEntity.id));
+      } else if (editing.type === "idea") {
+        setIdeaList((prev) => prev.filter((i) => i.id !== result.oldEntity.id));
+      }
+
+      // Add new entity to the appropriate list
+      const newEntity = result.newEntity as Task | Project | Idea;
+      if ("title" in newEntity && "nextAction" in newEntity) {
+        // It's a task
+        setTaskList((prev) => [newEntity as Task, ...prev]);
+        setEditing({ type: "task", item: newEntity as Task });
+      } else if ("name" in newEntity) {
+        // It's a project
+        setProjectList((prev) => [newEntity as Project, ...prev]);
+        setEditing({ type: "project", item: newEntity as Project });
+      } else {
+        // It's an idea
+        setIdeaList((prev) => [newEntity as Idea, ...prev]);
+        setEditing({ type: "idea", item: newEntity as Idea });
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setSaveError(apiError.message || apiError.error || "Failed to fix");
     } finally {
       setSaving(false);
     }
@@ -334,6 +388,7 @@ export function Browse() {
                   task={editing.item}
                   onSave={handleSave}
                   onInterpret={handleInterpret}
+                  onFix={handleFix}
                   onCancel={() => setEditing(null)}
                   saving={saving}
                 />
@@ -344,6 +399,7 @@ export function Browse() {
                   project={editing.item}
                   onSave={handleSave}
                   onInterpret={handleInterpret}
+                  onFix={handleFix}
                   onCancel={() => setEditing(null)}
                   saving={saving}
                 />
@@ -354,6 +410,7 @@ export function Browse() {
                   idea={editing.item}
                   onSave={handleSave}
                   onInterpret={handleInterpret}
+                  onFix={handleFix}
                   onCancel={() => setEditing(null)}
                   saving={saving}
                 />
@@ -374,16 +431,19 @@ function TaskEditForm({
   task,
   onSave,
   onInterpret,
+  onFix,
   onCancel,
   saving,
 }: {
   task: Task;
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
+  onFix: (correction: string) => void;
   onCancel: () => void;
   saving: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
+  const [correction, setCorrection] = useState("");
   const [showAllFields, setShowAllFields] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [nextAction, setNextAction] = useState(task.nextAction);
@@ -399,6 +459,13 @@ function TaskEditForm({
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
+    }
+  };
+
+  const handleFix = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (correction.trim()) {
+      onFix(correction.trim());
     }
   };
 
@@ -460,6 +527,33 @@ function TaskEditForm({
             {saving ? "..." : "Update"}
           </button>
         </div>
+      </form>
+
+      {/* Fix/Correction (may change entity type) */}
+      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
+        <label className="block text-xs font-medium text-orange-600 mb-2">
+          Fix (can change entity type)
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={correction}
+            onChange={(e) => setCorrection(e.target.value)}
+            placeholder="e.g., This is actually a project, not a task"
+            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+            disabled={saving}
+          />
+          <button
+            type="submit"
+            disabled={saving || !correction.trim()}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {saving ? "..." : "Fix"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Use this to make corrections that might change the entity type
+        </p>
       </form>
 
       {/* Collapsible Manual Fields */}
@@ -569,16 +663,19 @@ function ProjectEditForm({
   project,
   onSave,
   onInterpret,
+  onFix,
   onCancel,
   saving,
 }: {
   project: Project;
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
+  onFix: (correction: string) => void;
   onCancel: () => void;
   saving: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
+  const [correction, setCorrection] = useState("");
   const [showAllFields, setShowAllFields] = useState(false);
   const [name, setName] = useState(project.name);
   const [desiredOutcome, setDesiredOutcome] = useState(project.desiredOutcome || "");
@@ -593,6 +690,13 @@ function ProjectEditForm({
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
+    }
+  };
+
+  const handleFix = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (correction.trim()) {
+      onFix(correction.trim());
     }
   };
 
@@ -653,6 +757,33 @@ function ProjectEditForm({
             {saving ? "..." : "Update"}
           </button>
         </div>
+      </form>
+
+      {/* Fix/Correction (may change entity type) */}
+      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
+        <label className="block text-xs font-medium text-orange-600 mb-2">
+          Fix (can change entity type)
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={correction}
+            onChange={(e) => setCorrection(e.target.value)}
+            placeholder="e.g., This is actually a task, not a project"
+            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+            disabled={saving}
+          />
+          <button
+            type="submit"
+            disabled={saving || !correction.trim()}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {saving ? "..." : "Fix"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Use this to make corrections that might change the entity type
+        </p>
       </form>
 
       {/* Collapsible Manual Fields */}
@@ -750,16 +881,19 @@ function IdeaEditForm({
   idea,
   onSave,
   onInterpret,
+  onFix,
   onCancel,
   saving,
 }: {
   idea: Idea;
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
+  onFix: (correction: string) => void;
   onCancel: () => void;
   saving: boolean;
 }) {
   const [instruction, setInstruction] = useState("");
+  const [correction, setCorrection] = useState("");
   const [showAllFields, setShowAllFields] = useState(false);
   const [title, setTitle] = useState(idea.title);
   const [summary, setSummary] = useState(idea.summary || "");
@@ -769,6 +903,13 @@ function IdeaEditForm({
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
+    }
+  };
+
+  const handleFix = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (correction.trim()) {
+      onFix(correction.trim());
     }
   };
 
@@ -803,6 +944,33 @@ function IdeaEditForm({
             {saving ? "..." : "Update"}
           </button>
         </div>
+      </form>
+
+      {/* Fix/Correction (may change entity type) */}
+      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
+        <label className="block text-xs font-medium text-orange-600 mb-2">
+          Fix (can change entity type)
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={correction}
+            onChange={(e) => setCorrection(e.target.value)}
+            placeholder="e.g., This should be a project, not an idea"
+            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+            disabled={saving}
+          />
+          <button
+            type="submit"
+            disabled={saving || !correction.trim()}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+          >
+            {saving ? "..." : "Fix"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Use this to make corrections that might change the entity type
+        </p>
       </form>
 
       {/* Collapsible Manual Fields */}
