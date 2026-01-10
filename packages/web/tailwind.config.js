@@ -29,6 +29,7 @@ export default {
         'fade-in': 'fadeIn 150ms ease-in-out',
         'slide-up': 'slideUp 200ms ease-out',
         'scale-in': 'scaleIn 150ms ease-out',
+        pulse: "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
       keyframes: {
         fadeIn: {
@@ -43,6 +44,10 @@ export default {
           '0%': { transform: 'scale(0.95)', opacity: '0' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+      },
+      animationDelay: {
+        75: "75ms",
+        150: "150ms",
       },
     },
   },

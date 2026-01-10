@@ -1,11 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { inbox, type ApiError } from "../lib/api";
+import { useVoiceCapture } from "../hooks/useVoiceCapture";
+import { useOfflineQueue } from "../hooks/useOfflineQueue";
 
 export function Capture() {
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    isSupported,
+    error: voiceError,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useVoiceCapture({
+    continuous: false,
+    interimResults: true,
+  });
+
+  const { queueCount, isOnline, addToQueue, syncQueue } = useOfflineQueue();
+
+  // Update text when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setText((prev) => {
+        const newText = prev ? `${prev} ${transcript}` : transcript;
+        return newText;
+      });
+      resetTranscript();
+    }
+  }, [transcript, resetTranscript]);
+
+  // Auto-sync queue when coming back online
+  useEffect(() => {
+    if (isOnline && queueCount > 0) {
+      syncQueue(async (queuedText) => {
+        await inbox.capture(queuedText);
+      }).catch(console.error);
+    }
+  }, [isOnline, queueCount, syncQueue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,14 +55,37 @@ export function Capture() {
     setSuccess(false);
 
     try {
-      await inbox.capture(text.trim());
-      setText("");
-      setSuccess(true);
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
+      if (isOnline) {
+        // Try to capture directly
+        await inbox.capture(text.trim());
+        setText("");
+        setSuccess(true);
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        // Queue for later when offline
+        await addToQueue(text.trim());
+        setText("");
+        setSuccess(true);
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => setSuccess(false), 3000);
+      }
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to capture. Please try again.");
+      // If online request fails, try to queue it
+      if (isOnline) {
+        try {
+          await addToQueue(text.trim());
+          setText("");
+          setSuccess(true);
+          setTimeout(() => setSuccess(false), 3000);
+        } catch (queueErr) {
+          const apiError = err as ApiError;
+          setError(apiError.message || apiError.error || "Failed to capture. Please try again.");
+        }
+      } else {
+        const apiError = err as ApiError;
+        setError(apiError.message || apiError.error || "Failed to queue capture.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -35,6 +96,14 @@ export function Capture() {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit(e);
+    }
+  };
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   };
 
@@ -49,19 +118,31 @@ export function Capture() {
 
       <form onSubmit={handleSubmit}>
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all duration-150">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="w-full h-40 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-base leading-relaxed placeholder:text-slate-400 text-slate-900"
-            placeholder="What's on your mind?"
-            disabled={isSubmitting}
-            autoFocus
-          />
+          <div className="relative">
+            <textarea
+              value={text + (interimTranscript ? ` ${interimTranscript}` : "")}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full h-40 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-base leading-relaxed placeholder:text-slate-400 text-slate-900"
+              placeholder="What's on your mind?"
+              disabled={isSubmitting || isListening}
+              autoFocus
+            />
+            {isListening && (
+              <div className="absolute top-3 right-3 flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
+                  <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse delay-75"></span>
+                  <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse delay-150"></span>
+                </div>
+                <span className="text-xs text-rose-600 font-medium">Listening...</span>
+              </div>
+            )}
+          </div>
 
-          {error && (
+          {(error || voiceError) && (
             <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm animate-slide-up">
-              {error}
+              {error || voiceError}
             </div>
           )}
 
@@ -74,11 +155,62 @@ export function Capture() {
             </div>
           )}
 
+          {!isSupported && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm animate-slide-up">
+              Voice capture is not supported in this browser. Try Chrome, Edge, or Safari.
+            </div>
+          )}
+
+          {!isOnline && (
+            <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-lg text-sky-700 text-sm flex items-center justify-between animate-slide-up">
+              <span>Offline mode - captures will be synced when back online</span>
+              {queueCount > 0 && (
+                <span className="px-2 py-1 bg-sky-100 rounded text-xs font-medium">
+                  {queueCount} queued
+                </span>
+              )}
+            </div>
+          )}
+
+          {isOnline && queueCount > 0 && (
+            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm animate-slide-up">
+              Syncing {queueCount} queued capture{queueCount > 1 ? "s" : ""}...
+            </div>
+          )}
+
           <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Press <kbd className="px-2 py-1 bg-slate-100 rounded border border-slate-200 text-slate-700 font-medium">⌘</kbd>
-              <kbd className="ml-1 px-2 py-1 bg-slate-100 rounded border border-slate-200 text-slate-700 font-medium">↵</kbd> to submit
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">
+                Press <kbd className="px-2 py-1 bg-slate-100 rounded border border-slate-200 text-slate-700 font-medium">⌘</kbd>
+                <kbd className="ml-1 px-2 py-1 bg-slate-100 rounded border border-slate-200 text-slate-700 font-medium">↵</kbd> to submit
+              </span>
+              {isSupported && (
+                <button
+                  type="button"
+                  onClick={handleVoiceToggle}
+                  disabled={isSubmitting}
+                  className={`p-2 rounded-lg transition-colors shadow-sm ${
+                    isListening
+                      ? "bg-rose-500 hover:bg-rose-600 text-white"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={isListening ? "Stop recording" : "Start voice capture"}
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
             <button
               type="submit"
               disabled={!text.trim() || isSubmitting}
