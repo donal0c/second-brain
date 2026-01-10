@@ -2,6 +2,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { errorHandler } from "./middleware/error-handler.js";
 import { healthRoutes } from "./routes/health.js";
+import { inboxRoutes } from "./routes/inbox.js";
+import { processRoutes } from "./routes/process.js";
+import { entityRoutes } from "./routes/entities.js";
 import { createClaudeProvider, setLLMProvider, hasLLMProvider } from "./llm/index.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -42,6 +45,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Register routes
   await app.register(healthRoutes);
+  await app.register(inboxRoutes);
+  await app.register(processRoutes);
+  await app.register(entityRoutes);
 
   return app;
 }
