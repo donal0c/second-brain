@@ -283,7 +283,7 @@ async function handleExtraction(
   };
 
   // Execute entity creation and receipt in a transaction
-  db.transaction((tx) => {
+  await db.transaction(async (tx) => {
     switch (extraction.type) {
       case "task": {
         const taskData = {
@@ -297,7 +297,7 @@ async function handleExtraction(
           createdAt: now,
           updatedAt: now,
         };
-        tx.insert(schema.tasks).values(taskData).run();
+        await tx.insert(schema.tasks).values(taskData);
         entityData = taskData;
         break;
       }
@@ -313,7 +313,7 @@ async function handleExtraction(
           createdAt: now,
           updatedAt: now,
         };
-        tx.insert(schema.projects).values(projectData).run();
+        await tx.insert(schema.projects).values(projectData);
         entityData = projectData;
         break;
       }
@@ -328,7 +328,7 @@ async function handleExtraction(
           createdAt: now,
           updatedAt: now,
         };
-        tx.insert(schema.ideas).values(ideaData).run();
+        await tx.insert(schema.ideas).values(ideaData);
         entityData = ideaData;
         break;
       }
@@ -344,14 +344,14 @@ async function handleExtraction(
           createdAt: now,
           updatedAt: now,
         };
-        tx.insert(schema.persons).values(personData).run();
+        await tx.insert(schema.persons).values(personData);
         entityData = personData;
         break;
       }
     }
 
     // Create receipt in same transaction
-    tx.insert(schema.receipts).values(receiptData).run();
+    await tx.insert(schema.receipts).values(receiptData);
   });
 
   // Extract personal context entities (async, non-blocking for main flow)

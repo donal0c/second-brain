@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, real, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 
 // =============================================================================
 // Database Schema
@@ -6,9 +6,9 @@ import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core
 // Matches the shared types package exactly
 
 // --- Inbox Items ---
-export const inboxItems = sqliteTable("inbox_items", {
+export const inboxItems = pgTable("inbox_items", {
   id: text("id").primaryKey(),
-  capturedAt: integer("captured_at", { mode: "timestamp" }).notNull(),
+  capturedAt: timestamp("captured_at").notNull(),
   rawText: text("raw_text").notNull(),
   source: text("source").notNull().default("web"),
   status: text("status", { enum: ["new", "processing", "processed", "blocked"] })
@@ -20,25 +20,25 @@ export const inboxItems = sqliteTable("inbox_items", {
 }));
 
 // --- Tasks ---
-export const tasks = sqliteTable("tasks", {
+export const tasks = pgTable("tasks", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   nextAction: text("next_action").notNull(),
-  dueDate: integer("due_date", { mode: "timestamp" }),
+  dueDate: timestamp("due_date"),
   context: text("context"),
   status: text("status", { enum: ["active", "completed", "waiting", "someday"] })
     .notNull()
     .default("active"),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
   statusIdx: index("tasks_status_idx").on(table.status),
   contextIdx: index("tasks_context_idx").on(table.context),
 }));
 
 // --- Projects ---
-export const projects = sqliteTable("projects", {
+export const projects = pgTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   desiredOutcome: text("desired_outcome"),
@@ -47,35 +47,35 @@ export const projects = sqliteTable("projects", {
     .notNull()
     .default("active"),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
 });
 
 // --- Ideas ---
-export const ideas = sqliteTable("ideas", {
+export const ideas = pgTable("ideas", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   summary: text("summary"),
-  links: text("links", { mode: "json" }).$type<string[]>().default([]),
+  links: jsonb("links").$type<string[]>().default([]),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
 });
 
 // --- Persons ---
-export const persons = sqliteTable("persons", {
+export const persons = pgTable("persons", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   relationshipContext: text("relationship_context"),
-  lastTouchedAt: integer("last_touched_at", { mode: "timestamp" }),
+  lastTouchedAt: timestamp("last_touched_at"),
   followUpNextAction: text("follow_up_next_action"),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
 });
 
 // --- Receipts (Audit Trail) ---
-export const receipts = sqliteTable("receipts", {
+export const receipts = pgTable("receipts", {
   id: text("id").primaryKey(),
   inboxItemId: text("inbox_item_id")
     .notNull()
@@ -83,13 +83,13 @@ export const receipts = sqliteTable("receipts", {
   classification: text("classification", {
     enum: ["task", "project", "idea", "person", "unknown"],
   }).notNull(),
-  extractedFields: text("extracted_fields", { mode: "json" })
+  extractedFields: jsonb("extracted_fields")
     .$type<Record<string, unknown>>()
     .notNull(),
   confidenceScore: real("confidence_score").notNull(),
   modelUsed: text("model_used").notNull(),
-  timestamp: integer("timestamp", { mode: "timestamp" }).notNull(),
-  writes: text("writes", { mode: "json" })
+  timestamp: timestamp("timestamp").notNull(),
+  writes: jsonb("writes")
     .$type<
       Array<{
         entityType: "task" | "project" | "idea" | "person";
@@ -99,7 +99,7 @@ export const receipts = sqliteTable("receipts", {
     >()
     .notNull(),
   previousReceiptId: text("previous_receipt_id"), // Self-reference handled at app level
-  personalContextUsed: text("personal_context_used", { mode: "json" })
+  personalContextUsed: jsonb("personal_context_used")
     .$type<string[]>()
     .default([]),
 }, (table) => ({
@@ -108,31 +108,31 @@ export const receipts = sqliteTable("receipts", {
 }));
 
 // --- Clarifications ---
-export const clarifications = sqliteTable("clarifications", {
+export const clarifications = pgTable("clarifications", {
   id: text("id").primaryKey(),
   inboxItemId: text("inbox_item_id")
     .notNull()
     .references(() => inboxItems.id),
   question: text("question").notNull(),
-  options: text("options", { mode: "json" }).$type<string[] | null>(),
+  options: jsonb("options").$type<string[] | null>(),
   userAnswer: text("user_answer"),
-  resolvedAt: integer("resolved_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull(),
 }, (table) => ({
   resolvedAtIdx: index("clarifications_resolved_at_idx").on(table.resolvedAt),
 }));
 
 // --- Personal Context (learned entities from captures) ---
-export const personalContexts = sqliteTable("personal_contexts", {
+export const personalContexts = pgTable("personal_contexts", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   type: text("type", { enum: ["person", "place", "organization", "concept"] }).notNull(),
   description: text("description"),
   domain: text("domain"), // e.g., "work", "family", "health"
   mentionCount: integer("mention_count").notNull().default(1),
-  learnedFrom: text("learned_from", { mode: "json" }).$type<string[]>().default([]),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  learnedFrom: jsonb("learned_from").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
   nameIdx: index("personal_contexts_name_idx").on(table.name),
   mentionCountIdx: index("personal_contexts_mention_count_idx").on(table.mentionCount),

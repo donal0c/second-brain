@@ -1,47 +1,12 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1768047648514,
-      "tag": "0000_military_warstar",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1768059822773,
-      "tag": "0001_real_eternals",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1768061315862,
-      "tag": "0002_familiar_zuras",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1768089600000,
-      "tag": "0003_add_indexes",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1768089700000,
-      "tag": "0004_unique_context_name",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1768067170623,
-      "tag": "0005_quick_zuras",
+      "version": "7",
+      "when": 1768080617010,
+      "tag": "0000_concerned_fallen_one",
       "breakpoints": true
     }
   ]

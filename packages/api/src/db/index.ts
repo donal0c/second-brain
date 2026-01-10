@@ -1,21 +1,18 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema.js";
 
-// Database file path - configurable via environment variable
-const DB_PATH = process.env.DATABASE_PATH || "./data/second-brain.db";
+// Database connection string - configurable via environment variable
+const DATABASE_URL = process.env.DATABASE_URL || "postgresql://localhost:5432/second_brain";
 
-// Create the SQLite connection
-const sqlite = new Database(DB_PATH);
-
-// Enable WAL mode for better concurrent read performance
-sqlite.pragma("journal_mode = WAL");
+// Create the postgres connection
+const client = postgres(DATABASE_URL);
 
 // Create the Drizzle ORM instance
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(client, { schema });
 
-// Export raw SQLite instance for FTS5 and other raw SQL queries
-export const rawDb: Database.Database = sqlite;
+// Export raw postgres client for custom queries
+export const rawDb = client;
 
 // Export schema for use in queries
 export { schema };

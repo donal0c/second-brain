@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { errorHandler } from "./middleware/error-handler.js";
+import { authMiddleware } from "./middleware/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { inboxRoutes } from "./routes/inbox.js";
 import { processRoutes } from "./routes/process.js";
@@ -48,17 +49,19 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Register error handler
   app.setErrorHandler(errorHandler);
 
-  // Register routes
+  // Register public routes (no auth required)
   await app.register(healthRoutes);
-  await app.register(inboxRoutes);
-  await app.register(processRoutes);
-  await app.register(entityRoutes);
-  await app.register(receiptRoutes);
-  await app.register(clarificationRoutes);
-  await app.register(digestRoutes);
-  await app.register(jobRoutes);
-  await app.register(contextRoutes);
-  await app.register(searchRoutes);
+
+  // Register protected routes (auth required)
+  await app.register(inboxRoutes, { preHandler: authMiddleware });
+  await app.register(processRoutes, { preHandler: authMiddleware });
+  await app.register(entityRoutes, { preHandler: authMiddleware });
+  await app.register(receiptRoutes, { preHandler: authMiddleware });
+  await app.register(clarificationRoutes, { preHandler: authMiddleware });
+  await app.register(digestRoutes, { preHandler: authMiddleware });
+  await app.register(jobRoutes, { preHandler: authMiddleware });
+  await app.register(contextRoutes, { preHandler: authMiddleware });
+  await app.register(searchRoutes, { preHandler: authMiddleware });
 
   return app;
 }

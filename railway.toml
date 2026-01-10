@@ -1,0 +1,22 @@
+# Railway.app deployment configuration for Second Brain API
+
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install && pnpm --filter @second-brain/api build"
+
+[deploy]
+startCommand = "cd packages/api && node dist/index.js"
+healthcheckPath = "/health"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+# These should be set in Railway dashboard as secrets
+# DATABASE_URL=postgresql://user:password@host:5432/database_name
+# API_AUTH_TOKEN=your-secret-token
+# ANTHROPIC_API_KEY=your-api-key
+# CORS_ORIGIN=https://yourdomain.com
+NODE_ENV = "production"
+PORT = "3001"
+HOST = "0.0.0.0"
+LOG_LEVEL = "info"

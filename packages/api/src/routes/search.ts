@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db, rawDb, schema } from "../db/index.js";
+import { eq, ilike, or, and, sql } from "drizzle-orm";
+import { db, schema } from "../db/index.js";
 
 // =============================================================================
 // Search Schemas
@@ -73,39 +73,6 @@ function generateSnippet(text: string, query: string, maxLength: number = 200): 
   return snippet;
 }
 
-/**
- * Fetch full entity details based on type and ID
- */
-async function fetchEntityDetails(entityType: string, entityId: string) {
-  switch (entityType) {
-    case "task": {
-      const results = await db
-        .select()
-        .from(schema.tasks)
-        .where(eq(schema.tasks.id, entityId))
-        .limit(1);
-      return results[0] || null;
-    }
-    case "project": {
-      const results = await db
-        .select()
-        .from(schema.projects)
-        .where(eq(schema.projects.id, entityId))
-        .limit(1);
-      return results[0] || null;
-    }
-    case "idea": {
-      const results = await db
-        .select()
-        .from(schema.ideas)
-        .where(eq(schema.ideas.id, entityId))
-        .limit(1);
-      return results[0] || null;
-    }
-    default:
-      return null;
-  }
-}
 
 // =============================================================================
 // Search Route
@@ -129,87 +96,153 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
       const { q, type, context, status, from, to, limit, offset } = parseResult.data;
 
       try {
-        // Build the FTS5 query
-        let ftsQuery = q;
+        const searchPattern = `%${q}%`;
+        const results: Array<{
+          type: string;
+          id: string;
+          entity: any;
+          snippet: { title: string; content: string };
+        }> = [];
 
-        // Escape special FTS5 characters
-        ftsQuery = ftsQuery.replace(/"/g, '""');
+        // Search tasks
+        if (!type || type === "task") {
+          const taskConditions = [
+            or(
+              ilike(schema.tasks.title, searchPattern),
+              ilike(schema.tasks.nextAction, searchPattern),
+              ilike(schema.tasks.context, searchPattern)
+            ),
+          ];
 
-        // Build SQL conditions
-        const conditions: string[] = [];
+          if (status) {
+            taskConditions.push(eq(schema.tasks.status, status as any));
+          }
 
-        if (type) {
-          conditions.push(`entity_type = '${type}'`);
-        }
+          if (context) {
+            taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
+          }
 
-        if (context) {
-          conditions.push(`context LIKE '%${context}%'`);
-        }
+          if (from) {
+            taskConditions.push(sql`${schema.tasks.createdAt} >= ${from}`);
+          }
 
-        // Build the WHERE clause for FTS search
-        let whereClause = `entity_search_fts MATCH '"${ftsQuery}"'`;
-        if (conditions.length > 0) {
-          whereClause += ` AND ${conditions.join(" AND ")}`;
-        }
+          if (to) {
+            taskConditions.push(sql`${schema.tasks.createdAt} <= ${to}`);
+          }
 
-        // Execute FTS search query using raw SQLite
-        const ftsResults = rawDb.prepare(`
-          SELECT
-            entity_type,
-            entity_id,
-            title,
-            content,
-            context,
-            raw_text,
-            rank
-          FROM entity_search_fts
-          WHERE ${whereClause}
-          ORDER BY rank
-          LIMIT ${limit}
-          OFFSET ${offset}
-        `).all();
+          const tasks = await db
+            .select()
+            .from(schema.tasks)
+            .where(and(...taskConditions))
+            .limit(limit)
+            .offset(offset);
 
-        // Fetch full entity details and apply additional filters
-        const results = await Promise.all(
-          ftsResults.map(async (row: any) => {
-            const entity = await fetchEntityDetails(row.entity_type, row.entity_id);
-
-            if (!entity) return null;
-
-            // Apply status filter
-            if (status && "status" in entity && entity.status !== status) {
-              return null;
-            }
-
-            // Apply date filters
-            if (from || to) {
-              const entityDate = new Date(entity.createdAt);
-              if (from && entityDate < from) return null;
-              if (to && entityDate > to) return null;
-            }
-
-            // Generate snippets with highlights
-            const titleSnippet = generateSnippet(row.title, q, 100);
-            const contentSnippet = generateSnippet(row.content || row.raw_text, q, 200);
-
-            return {
-              type: row.entity_type,
-              id: row.entity_id,
-              entity,
+          for (const task of tasks) {
+            results.push({
+              type: "task",
+              id: task.id,
+              entity: task,
               snippet: {
-                title: titleSnippet,
-                content: contentSnippet,
+                title: generateSnippet(task.title, q, 100),
+                content: generateSnippet(task.nextAction, q, 200),
               },
-            };
-          })
-        );
+            });
+          }
+        }
 
-        // Filter out null results (filtered entities)
-        const filteredResults = results.filter((r) => r !== null);
+        // Search projects
+        if (!type || type === "project") {
+          const projectConditions = [
+            or(
+              ilike(schema.projects.name, searchPattern),
+              ilike(schema.projects.desiredOutcome, searchPattern),
+              ilike(schema.projects.nextAction, searchPattern)
+            ),
+          ];
+
+          if (status) {
+            projectConditions.push(eq(schema.projects.status, status as any));
+          }
+
+          if (from) {
+            projectConditions.push(sql`${schema.projects.createdAt} >= ${from}`);
+          }
+
+          if (to) {
+            projectConditions.push(sql`${schema.projects.createdAt} <= ${to}`);
+          }
+
+          const projects = await db
+            .select()
+            .from(schema.projects)
+            .where(and(...projectConditions))
+            .limit(limit)
+            .offset(offset);
+
+          for (const project of projects) {
+            results.push({
+              type: "project",
+              id: project.id,
+              entity: project,
+              snippet: {
+                title: generateSnippet(project.name, q, 100),
+                content: generateSnippet(
+                  project.desiredOutcome || project.nextAction || "",
+                  q,
+                  200
+                ),
+              },
+            });
+          }
+        }
+
+        // Search ideas
+        if (!type || type === "idea") {
+          const ideaConditions = [
+            or(
+              ilike(schema.ideas.title, searchPattern),
+              ilike(schema.ideas.summary, searchPattern)
+            ),
+          ];
+
+          if (from) {
+            ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from}`);
+          }
+
+          if (to) {
+            ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to}`);
+          }
+
+          const ideas = await db
+            .select()
+            .from(schema.ideas)
+            .where(and(...ideaConditions))
+            .limit(limit)
+            .offset(offset);
+
+          for (const idea of ideas) {
+            results.push({
+              type: "idea",
+              id: idea.id,
+              entity: idea,
+              snippet: {
+                title: generateSnippet(idea.title, q, 100),
+                content: generateSnippet(idea.summary || "", q, 200),
+              },
+            });
+          }
+        }
+
+        // Sort results by relevance (simple scoring based on title matches)
+        results.sort((a, b) => {
+          const aScore = a.entity.title?.toLowerCase().includes(q.toLowerCase()) ? 1 : 0;
+          const bScore = b.entity.title?.toLowerCase().includes(q.toLowerCase()) ? 1 : 0;
+          return bScore - aScore;
+        });
 
         return reply.send({
-          results: filteredResults,
-          total: filteredResults.length,
+          results: results.slice(0, limit),
+          total: results.length,
           query: q,
           limit,
           offset,
