@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 
 // =============================================================================
 // Database Schema
@@ -14,7 +14,10 @@ export const inboxItems = sqliteTable("inbox_items", {
   status: text("status", { enum: ["new", "processing", "processed", "blocked"] })
     .notNull()
     .default("new"),
-});
+}, (table) => ({
+  statusIdx: index("inbox_items_status_idx").on(table.status),
+  capturedAtIdx: index("inbox_items_captured_at_idx").on(table.capturedAt),
+}));
 
 // --- Tasks ---
 export const tasks = sqliteTable("tasks", {
@@ -29,7 +32,10 @@ export const tasks = sqliteTable("tasks", {
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-});
+}, (table) => ({
+  statusIdx: index("tasks_status_idx").on(table.status),
+  contextIdx: index("tasks_context_idx").on(table.context),
+}));
 
 // --- Projects ---
 export const projects = sqliteTable("projects", {
@@ -96,7 +102,10 @@ export const receipts = sqliteTable("receipts", {
   personalContextUsed: text("personal_context_used", { mode: "json" })
     .$type<string[]>()
     .default([]),
-});
+}, (table) => ({
+  inboxItemIdIdx: index("receipts_inbox_item_id_idx").on(table.inboxItemId),
+  timestampIdx: index("receipts_timestamp_idx").on(table.timestamp),
+}));
 
 // --- Clarifications ---
 export const clarifications = sqliteTable("clarifications", {
@@ -109,7 +118,9 @@ export const clarifications = sqliteTable("clarifications", {
   userAnswer: text("user_answer"),
   resolvedAt: integer("resolved_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-});
+}, (table) => ({
+  resolvedAtIdx: index("clarifications_resolved_at_idx").on(table.resolvedAt),
+}));
 
 // --- Personal Context (learned entities from captures) ---
 export const personalContexts = sqliteTable("personal_contexts", {
@@ -122,4 +133,7 @@ export const personalContexts = sqliteTable("personal_contexts", {
   learnedFrom: text("learned_from", { mode: "json" }).$type<string[]>().default([]),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-});
+}, (table) => ({
+  nameIdx: index("personal_contexts_name_idx").on(table.name),
+  mentionCountIdx: index("personal_contexts_mention_count_idx").on(table.mentionCount),
+}));
