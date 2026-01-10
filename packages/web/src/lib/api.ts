@@ -284,6 +284,41 @@ export const digest = {
 };
 
 // =============================================================================
+// Receipts API
+// =============================================================================
+
+export interface Receipt {
+  id: string;
+  inboxItemId: string;
+  classification: "task" | "project" | "idea" | "person" | "unknown";
+  extractedFields: Record<string, unknown>;
+  confidenceScore: number;
+  modelUsed: string;
+  timestamp: string;
+  writes: Array<{
+    entityType: "task" | "project" | "idea" | "person";
+    entityId: string;
+    action: "create" | "update";
+  }>;
+  previousReceiptId: string | null;
+  personalContextUsed: string[];
+}
+
+export interface ReceiptListResponse {
+  receipts: Receipt[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export const receipts = {
+  list: (params?: { inboxItemId?: string; limit?: number; offset?: number }) =>
+    request<ReceiptListResponse>(`/receipts?${new URLSearchParams(params as Record<string, string>)}`),
+
+  get: (id: string) => request<Receipt>(`/receipts/${id}`),
+};
+
+// =============================================================================
 // Processing API
 // =============================================================================
 

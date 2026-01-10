@@ -5,6 +5,7 @@ import { Inbox } from "./routes/Inbox";
 import { Today } from "./routes/Today";
 import { Browse } from "./routes/Browse";
 import { Clarifications } from "./routes/Clarifications";
+import { Receipts } from "./routes/Receipts";
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
           <Route path="today" element={<Today />} />
           <Route path="browse" element={<Browse />} />
           <Route path="clarifications" element={<Clarifications />} />
+          <Route path="receipts" element={<Receipts />} />
         </Route>
       </Routes>
     </BrowserRouter>

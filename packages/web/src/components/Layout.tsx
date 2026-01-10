@@ -6,6 +6,7 @@ const navItems = [
   { to: "/today", label: "Today", icon: "📅" },
   { to: "/browse", label: "Browse", icon: "📁" },
   { to: "/clarifications", label: "Clarify", icon: "❓" },
+  { to: "/receipts", label: "Receipts", icon: "🧾" },
 ];
 
 export function Layout() {
