@@ -7,7 +7,6 @@ import {
   type Project,
   type Idea,
   type ApiError,
-  type InterpretResponse,
 } from "../lib/api";
 
 type TabType = "tasks" | "projects" | "ideas";

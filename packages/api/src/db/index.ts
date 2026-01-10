@@ -18,4 +18,4 @@ export const db = drizzle(sqlite, { schema });
 export { schema };
 
 // Export types for the database
-export type Database = typeof db;
+export type DbInstance = typeof db;
