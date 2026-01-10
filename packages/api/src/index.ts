@@ -1,6 +1,7 @@
 // @second-brain/api
 // Fastify backend API
 
+import "dotenv/config";
 import { buildApp } from "./app.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
