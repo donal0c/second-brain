@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { errorHandler } from "./middleware/error-handler.js";
 import { healthRoutes } from "./routes/health.js";
+import { createClaudeProvider, setLLMProvider, hasLLMProvider } from "./llm/index.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -20,6 +21,16 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
 
+  // Initialize LLM provider if API key is configured
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey && anthropicKey !== "your-api-key-here") {
+    const provider = createClaudeProvider({ apiKey: anthropicKey });
+    setLLMProvider(provider);
+    app.log.info(`LLM provider initialized: ${provider.name} (${provider.model})`);
+  } else {
+    app.log.warn("ANTHROPIC_API_KEY not configured - LLM features disabled");
+  }
+
   // Register CORS
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
@@ -33,4 +44,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(healthRoutes);
 
   return app;
+}
+
+/**
+ * Check if LLM features are available
+ */
+export function isLLMAvailable(): boolean {
+  return hasLLMProvider();
 }
