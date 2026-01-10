@@ -169,6 +169,40 @@ export function Browse() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!editing) return;
+
+    const entityName = editing.type === "task" ? editing.item.title :
+                       editing.type === "project" ? editing.item.name :
+                       editing.item.title;
+
+    if (!window.confirm(`Are you sure you want to delete "${entityName}"?`)) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      if (editing.type === "task") {
+        await tasks.delete(editing.item.id);
+        setTaskList((prev) => prev.filter((t) => t.id !== editing.item.id));
+      } else if (editing.type === "project") {
+        await projects.delete(editing.item.id);
+        setProjectList((prev) => prev.filter((p) => p.id !== editing.item.id));
+      } else if (editing.type === "idea") {
+        await ideas.delete(editing.item.id);
+        setIdeaList((prev) => prev.filter((i) => i.id !== editing.item.id));
+      }
+      setEditing(null);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setSaveError(apiError.message || apiError.error || "Failed to delete");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const tabs = [
     { id: "tasks" as const, label: "Tasks", count: taskList.length },
     { id: "projects" as const, label: "Projects", count: projectList.length },
@@ -389,6 +423,7 @@ export function Browse() {
                   onSave={handleSave}
                   onInterpret={handleInterpret}
                   onFix={handleFix}
+                  onDelete={handleDelete}
                   onCancel={() => setEditing(null)}
                   saving={saving}
                 />
@@ -400,6 +435,7 @@ export function Browse() {
                   onSave={handleSave}
                   onInterpret={handleInterpret}
                   onFix={handleFix}
+                  onDelete={handleDelete}
                   onCancel={() => setEditing(null)}
                   saving={saving}
                 />
@@ -411,6 +447,7 @@ export function Browse() {
                   onSave={handleSave}
                   onInterpret={handleInterpret}
                   onFix={handleFix}
+                  onDelete={handleDelete}
                   onCancel={() => setEditing(null)}
                   saving={saving}
                 />
@@ -432,6 +469,7 @@ function TaskEditForm({
   onSave,
   onInterpret,
   onFix,
+  onDelete,
   onCancel,
   saving,
 }: {
@@ -439,6 +477,7 @@ function TaskEditForm({
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
   onFix: (correction: string) => void;
+  onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
 }) {
@@ -644,8 +683,20 @@ function TaskEditForm({
         )}
       </div>
 
-      {/* Cancel */}
+      {/* Delete */}
       <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+          disabled={saving}
+        >
+          Delete Task
+        </button>
+      </div>
+
+      {/* Cancel */}
+      <div className="pt-2">
         <button
           type="button"
           onClick={onCancel}
@@ -664,6 +715,7 @@ function ProjectEditForm({
   onSave,
   onInterpret,
   onFix,
+  onDelete,
   onCancel,
   saving,
 }: {
@@ -671,6 +723,7 @@ function ProjectEditForm({
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
   onFix: (correction: string) => void;
+  onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
 }) {
@@ -862,8 +915,20 @@ function ProjectEditForm({
         )}
       </div>
 
-      {/* Cancel */}
+      {/* Delete */}
       <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+          disabled={saving}
+        >
+          Delete Project
+        </button>
+      </div>
+
+      {/* Cancel */}
+      <div className="pt-2">
         <button
           type="button"
           onClick={onCancel}
@@ -882,6 +947,7 @@ function IdeaEditForm({
   onSave,
   onInterpret,
   onFix,
+  onDelete,
   onCancel,
   saving,
 }: {
@@ -889,6 +955,7 @@ function IdeaEditForm({
   onSave: (data: Record<string, unknown>) => void;
   onInterpret: (instruction: string) => void;
   onFix: (correction: string) => void;
+  onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
 }) {
@@ -1036,8 +1103,20 @@ function IdeaEditForm({
         )}
       </div>
 
-      {/* Cancel */}
+      {/* Delete */}
       <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+          disabled={saving}
+        >
+          Delete Idea
+        </button>
+      </div>
+
+      {/* Cancel */}
+      <div className="pt-2">
         <button
           type="button"
           onClick={onCancel}

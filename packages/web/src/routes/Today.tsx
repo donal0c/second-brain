@@ -92,6 +92,33 @@ export function Today() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!editingTask) return;
+
+    if (!window.confirm(`Are you sure you want to delete "${editingTask.title}"?`)) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      await tasks.delete(editingTask.id);
+      if (data) {
+        setData({
+          ...data,
+          nextActions: data.nextActions.filter((t) => t.id !== editingTask.id),
+        });
+      }
+      setEditingTask(null);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setSaveError(apiError.message || apiError.error || "Failed to delete");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatDueDate = (dateStr: string | null) => {
     if (!dateStr) return null;
     const date = new Date(dateStr);
@@ -261,6 +288,7 @@ export function Today() {
                 task={editingTask}
                 onSave={handleSave}
                 onInterpret={handleInterpret}
+                onDelete={handleDelete}
                 onCancel={() => setEditingTask(null)}
                 saving={saving}
               />
@@ -280,12 +308,14 @@ function TaskEditForm({
   task,
   onSave,
   onInterpret,
+  onDelete,
   onCancel,
   saving,
 }: {
   task: Task;
   onSave: (data: Partial<Task>) => void;
   onInterpret: (instruction: string) => void;
+  onDelete: () => void;
   onCancel: () => void;
   saving: boolean;
 }) {
@@ -467,8 +497,20 @@ function TaskEditForm({
         )}
       </div>
 
-      {/* Cancel */}
+      {/* Delete */}
       <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+          disabled={saving}
+        >
+          Delete Task
+        </button>
+      </div>
+
+      {/* Cancel */}
+      <div className="pt-2">
         <button
           type="button"
           onClick={onCancel}
