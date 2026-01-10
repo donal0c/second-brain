@@ -6,11 +6,11 @@ import { Layout } from "./components/Layout";
 import { Capture } from "./routes/Capture";
 import { Inbox } from "./routes/Inbox";
 import { Today } from "./routes/Today";
-import { Digest } from "./routes/Digest";
 import { Browse } from "./routes/Browse";
 import { Clarifications } from "./routes/Clarifications";
 import { Receipts } from "./routes/Receipts";
 import { Search } from "./routes/Search";
+import { Digest } from "./routes/Digest";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,14 +56,6 @@ export function App() {
                 }
               />
               <Route
-                path="digest"
-                element={
-                  <RouteErrorBoundary routeName="Digest">
-                    <Digest />
-                  </RouteErrorBoundary>
-                }
-              />
-              <Route
                 path="browse"
                 element={
                   <RouteErrorBoundary routeName="Browse">
@@ -98,8 +90,8 @@ export function App() {
               <Route
                 path="digest/dashboard"
                 element={
-                  <RouteErrorBoundary routeName="Digest Dashboard">
-                    <Today />
+                  <RouteErrorBoundary routeName="Digest">
+                    <Digest />
                   </RouteErrorBoundary>
                 }
               />
