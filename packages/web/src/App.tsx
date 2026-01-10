@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { Layout } from "./components/Layout";
 import { Capture } from "./routes/Capture";
 import { Inbox } from "./routes/Inbox";
@@ -22,21 +24,72 @@ const queryClient = new QueryClient({
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/capture" replace />} />
-            <Route path="capture" element={<Capture />} />
-            <Route path="inbox" element={<Inbox />} />
-            <Route path="today" element={<Today />} />
-            <Route path="browse" element={<Browse />} />
-            <Route path="clarifications" element={<Clarifications />} />
-            <Route path="receipts" element={<Receipts />} />
-            <Route path="search" element={<Search />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Navigate to="/capture" replace />} />
+              <Route
+                path="capture"
+                element={
+                  <RouteErrorBoundary routeName="Capture">
+                    <Capture />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="inbox"
+                element={
+                  <RouteErrorBoundary routeName="Inbox">
+                    <Inbox />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="today"
+                element={
+                  <RouteErrorBoundary routeName="Today">
+                    <Today />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="browse"
+                element={
+                  <RouteErrorBoundary routeName="Browse">
+                    <Browse />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="clarifications"
+                element={
+                  <RouteErrorBoundary routeName="Clarifications">
+                    <Clarifications />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="receipts"
+                element={
+                  <RouteErrorBoundary routeName="Receipts">
+                    <Receipts />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="search"
+                element={
+                  <RouteErrorBoundary routeName="Search">
+                    <Search />
+                  </RouteErrorBoundary>
+                }
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
