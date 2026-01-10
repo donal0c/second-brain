@@ -4,10 +4,10 @@
 // Core logic for classifying, extracting, and filing inbox items.
 
 import { randomUUID } from "crypto";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
-import type { ClassificationResult, ExtractedContextEntity, PersonalContext } from "../llm/types.js";
+import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
 // =============================================================================
@@ -93,8 +93,13 @@ function findRelevantContexts(text: string, contexts: PersonalContext[]): string
 
 /**
  * Process a single inbox item through the classification and extraction pipeline
+ * @param inboxItemId - The inbox item to process
+ * @param clarification - Optional clarification context from a resolved clarification
  */
-export async function processInboxItem(inboxItemId: string): Promise<ProcessResult> {
+export async function processInboxItem(
+  inboxItemId: string,
+  clarification?: ClarificationContext
+): Promise<ProcessResult> {
   if (!hasLLMProvider()) {
     throw new Error("LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.");
   }
@@ -129,8 +134,8 @@ export async function processInboxItem(inboxItemId: string): Promise<ProcessResu
     const personalContexts = await loadPersonalContexts();
     const relevantContextIds = findRelevantContexts(inboxItem.rawText, personalContexts);
 
-    // Step 1: Classify the item (with context injection)
-    const classification = await provider.classify(inboxItem.rawText, personalContexts);
+    // Step 1: Classify the item (with context injection and clarification if provided)
+    const classification = await provider.classify(inboxItem.rawText, personalContexts, clarification);
 
     // Step 2: Determine action based on confidence
     const configAction = getConfidenceAction(classification.confidence, DEFAULT_THRESHOLDS);
@@ -155,7 +160,8 @@ export async function processInboxItem(inboxItemId: string): Promise<ProcessResu
         action,
         provider,
         personalContexts,
-        relevantContextIds
+        relevantContextIds,
+        clarification
       );
     }
 
@@ -239,89 +245,24 @@ async function handleExtraction(
   action: "filed" | "flagged",
   provider: ReturnType<typeof getLLMProvider>,
   personalContexts: PersonalContext[],
-  relevantContextIds: string[]
+  relevantContextIds: string[],
+  clarification?: ClarificationContext
 ): Promise<ProcessResult> {
-  // Extract structured data based on classification (with context injection)
+  // Extract structured data based on classification (with context and clarification injection)
   const extraction = await provider.extract(
     inboxItem.rawText,
     classification.classification,
-    personalContexts
+    personalContexts,
+    clarification
   );
 
-  // Create the entity
+  // Create the entity and receipt in a transaction for data consistency
   const entityId = randomUUID();
+  const receiptId = randomUUID();
   const now = new Date();
   let entityData: Record<string, unknown>;
 
-  switch (extraction.type) {
-    case "task": {
-      const taskData = {
-        id: entityId,
-        title: extraction.data.title,
-        nextAction: extraction.data.nextAction,
-        dueDate: extraction.data.dueDate ? new Date(extraction.data.dueDate) : null,
-        context: extraction.data.context,
-        status: "active" as const,
-        sourceInboxItemId: inboxItem.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db.insert(schema.tasks).values(taskData);
-      entityData = taskData;
-      break;
-    }
-
-    case "project": {
-      const projectData = {
-        id: entityId,
-        name: extraction.data.name,
-        desiredOutcome: extraction.data.desiredOutcome,
-        nextAction: extraction.data.nextAction,
-        status: "active" as const,
-        sourceInboxItemId: inboxItem.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db.insert(schema.projects).values(projectData);
-      entityData = projectData;
-      break;
-    }
-
-    case "idea": {
-      const ideaData = {
-        id: entityId,
-        title: extraction.data.title,
-        summary: extraction.data.summary,
-        links: extraction.data.links,
-        sourceInboxItemId: inboxItem.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db.insert(schema.ideas).values(ideaData);
-      entityData = ideaData;
-      break;
-    }
-
-    case "person": {
-      const personData = {
-        id: entityId,
-        name: extraction.data.name,
-        relationshipContext: extraction.data.relationshipContext,
-        followUpNextAction: extraction.data.followUpNextAction,
-        lastTouchedAt: now,
-        sourceInboxItemId: inboxItem.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await db.insert(schema.persons).values(personData);
-      entityData = personData;
-      break;
-    }
-  }
-
-  // Create receipt
-  const receiptId = randomUUID();
-  const timestamp = new Date();
+  // Prepare receipt data
   const writes: EntityWrite[] = [
     {
       entityType: extraction.type,
@@ -336,12 +277,82 @@ async function handleExtraction(
     extractedFields: extraction.data as unknown as Record<string, unknown>,
     confidenceScore: classification.confidence,
     modelUsed: provider.model,
-    timestamp,
+    timestamp: now,
     writes,
     personalContextUsed: relevantContextIds,
   };
 
-  await db.insert(schema.receipts).values(receiptData);
+  // Execute entity creation and receipt in a transaction
+  db.transaction((tx) => {
+    switch (extraction.type) {
+      case "task": {
+        const taskData = {
+          id: entityId,
+          title: extraction.data.title,
+          nextAction: extraction.data.nextAction,
+          dueDate: extraction.data.dueDate ? new Date(extraction.data.dueDate) : null,
+          context: extraction.data.context,
+          status: "active" as const,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tx.insert(schema.tasks).values(taskData).run();
+        entityData = taskData;
+        break;
+      }
+
+      case "project": {
+        const projectData = {
+          id: entityId,
+          name: extraction.data.name,
+          desiredOutcome: extraction.data.desiredOutcome,
+          nextAction: extraction.data.nextAction,
+          status: "active" as const,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tx.insert(schema.projects).values(projectData).run();
+        entityData = projectData;
+        break;
+      }
+
+      case "idea": {
+        const ideaData = {
+          id: entityId,
+          title: extraction.data.title,
+          summary: extraction.data.summary,
+          links: extraction.data.links,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tx.insert(schema.ideas).values(ideaData).run();
+        entityData = ideaData;
+        break;
+      }
+
+      case "person": {
+        const personData = {
+          id: entityId,
+          name: extraction.data.name,
+          relationshipContext: extraction.data.relationshipContext,
+          followUpNextAction: extraction.data.followUpNextAction,
+          lastTouchedAt: now,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        tx.insert(schema.persons).values(personData).run();
+        entityData = personData;
+        break;
+      }
+    }
+
+    // Create receipt in same transaction
+    tx.insert(schema.receipts).values(receiptData).run();
+  });
 
   // Extract personal context entities (async, non-blocking for main flow)
   // This is where the system "learns" about the user's world
@@ -445,7 +456,7 @@ async function upsertPersonalContext(
   const existing = await db
     .select()
     .from(schema.personalContexts)
-    .where(eq(schema.personalContexts.name, entity.name))
+    .where(sql`LOWER(${schema.personalContexts.name}) = LOWER(${entity.name})`)
     .limit(1);
 
   if (existing.length > 0) {

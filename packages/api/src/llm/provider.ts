@@ -12,6 +12,7 @@ import type {
   PersonalContext,
   Classification,
   ContextExtractionResult,
+  ClarificationContext,
 } from "./types.js";
 
 export interface LLMProvider {
@@ -29,10 +30,12 @@ export interface LLMProvider {
    * Classify raw text into an entity type
    * @param text - The raw inbox item text
    * @param context - Optional personal context for better matching
+   * @param clarification - Optional clarification context when reprocessing after user input
    */
   classify(
     text: string,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ClassificationResult>;
 
   /**
@@ -40,11 +43,13 @@ export interface LLMProvider {
    * @param text - The raw inbox item text
    * @param type - The determined entity type
    * @param context - Optional personal context for better extraction
+   * @param clarification - Optional clarification context when reprocessing after user input
    */
   extract(
     text: string,
     type: Classification,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ExtractionResult>;
 
   /**

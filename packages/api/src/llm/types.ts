@@ -74,6 +74,17 @@ export interface CorrectionResult {
 }
 
 // -----------------------------------------------------------------------------
+// Clarification Context (for reprocessing with user input)
+// -----------------------------------------------------------------------------
+
+export interface ClarificationContext {
+  /** The question that was asked */
+  question: string;
+  /** The user's answer to the question */
+  answer: string;
+}
+
+// -----------------------------------------------------------------------------
 // Context (for enhanced processing)
 // -----------------------------------------------------------------------------
 

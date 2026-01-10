@@ -16,6 +16,7 @@ import type {
   IdeaExtraction,
   PersonExtraction,
   ContextExtractionResult,
+  ClarificationContext,
 } from "./types.js";
 import {
   CLASSIFIER_SYSTEM_PROMPT,
@@ -51,12 +52,18 @@ export class ClaudeProvider implements LLMProvider {
 
   async classify(
     text: string,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ClassificationResult> {
-    const systemPrompt = this.buildSystemPromptWithContext(
+    let systemPrompt = this.buildSystemPromptWithContext(
       CLASSIFIER_SYSTEM_PROMPT,
       context
     );
+
+    // Inject clarification context if provided (from user answering a question)
+    if (clarification) {
+      systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
+    }
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -72,17 +79,18 @@ export class ClaudeProvider implements LLMProvider {
   async extract(
     text: string,
     type: Classification,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ExtractionResult> {
     switch (type) {
       case "task":
-        return this.extractTask(text, context);
+        return this.extractTask(text, context, clarification);
       case "project":
-        return this.extractProject(text, context);
+        return this.extractProject(text, context, clarification);
       case "idea":
-        return this.extractIdea(text, context);
+        return this.extractIdea(text, context, clarification);
       case "person":
-        return this.extractPerson(text, context);
+        return this.extractPerson(text, context, clarification);
       default:
         throw new Error(`Cannot extract for type: ${type}`);
     }
@@ -199,12 +207,16 @@ Respond with JSON only:
 
   private async extractTask(
     text: string,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ExtractionResult> {
-    const systemPrompt = this.buildSystemPromptWithContext(
+    let systemPrompt = this.buildSystemPromptWithContext(
       TASK_EXTRACTOR_SYSTEM_PROMPT,
       context
     );
+    if (clarification) {
+      systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
+    }
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -220,12 +232,16 @@ Respond with JSON only:
 
   private async extractProject(
     text: string,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ExtractionResult> {
-    const systemPrompt = this.buildSystemPromptWithContext(
+    let systemPrompt = this.buildSystemPromptWithContext(
       PROJECT_EXTRACTOR_SYSTEM_PROMPT,
       context
     );
+    if (clarification) {
+      systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
+    }
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -241,12 +257,16 @@ Respond with JSON only:
 
   private async extractIdea(
     text: string,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ExtractionResult> {
-    const systemPrompt = this.buildSystemPromptWithContext(
+    let systemPrompt = this.buildSystemPromptWithContext(
       IDEA_EXTRACTOR_SYSTEM_PROMPT,
       context
     );
+    if (clarification) {
+      systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
+    }
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -262,12 +282,16 @@ Respond with JSON only:
 
   private async extractPerson(
     text: string,
-    context?: PersonalContext[]
+    context?: PersonalContext[],
+    clarification?: ClarificationContext
   ): Promise<ExtractionResult> {
-    const systemPrompt = this.buildSystemPromptWithContext(
+    let systemPrompt = this.buildSystemPromptWithContext(
       PERSON_EXTRACTOR_SYSTEM_PROMPT,
       context
     );
+    if (clarification) {
+      systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
+    }
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -284,6 +308,21 @@ Respond with JSON only:
   // ---------------------------------------------------------------------------
   // Utility Methods
   // ---------------------------------------------------------------------------
+
+  private injectClarificationContext(
+    basePrompt: string,
+    clarification: ClarificationContext
+  ): string {
+    const clarificationSection = `
+
+IMPORTANT - User Clarification Context:
+The user was previously asked this clarifying question: "${clarification.question}"
+The user answered: "${clarification.answer}"
+
+Use this information to guide your classification and extraction. The user's answer should inform your decision about what type of entity this is and how to extract the relevant fields.`;
+
+    return basePrompt + clarificationSection;
+  }
 
   private buildSystemPromptWithContext(
     basePrompt: string,

@@ -266,11 +266,12 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
         .set({ status: "new" })
         .where(eq(schema.inboxItems.id, clarification.inboxItemId));
 
-      // Reprocess the inbox item
-      // Note: In a real implementation, we'd pass the answer as context to the LLM
-      // For now, we just reprocess and hope the LLM does better
+      // Reprocess the inbox item with the clarification context
       try {
-        const processResult = await processInboxItem(clarification.inboxItemId);
+        const processResult = await processInboxItem(clarification.inboxItemId, {
+          question: clarification.question,
+          answer: bodyResult.data.answer,
+        });
 
         // Fetch the updated clarification
         const updatedClarifications = await db
