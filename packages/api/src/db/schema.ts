@@ -107,3 +107,16 @@ export const clarifications = sqliteTable("clarifications", {
   resolvedAt: integer("resolved_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+// --- Personal Context (learned entities from captures) ---
+export const personalContexts = sqliteTable("personal_contexts", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["person", "place", "organization", "concept"] }).notNull(),
+  description: text("description"),
+  domain: text("domain"), // e.g., "work", "family", "health"
+  mentionCount: integer("mention_count").notNull().default(1),
+  learnedFrom: text("learned_from", { mode: "json" }).$type<string[]>().default([]),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});

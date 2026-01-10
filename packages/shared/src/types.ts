@@ -190,3 +190,40 @@ export const CreateClarificationSchema = ClarificationSchema.omit({
 });
 
 export type CreateClarification = z.infer<typeof CreateClarificationSchema>;
+
+// --- Personal Context (learned entities from captures) ---
+export const PersonalContextType = {
+  PERSON: "person",
+  PLACE: "place",
+  ORGANIZATION: "organization",
+  CONCEPT: "concept",
+} as const;
+
+export const PersonalContextSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  type: z.enum(["person", "place", "organization", "concept"]),
+  description: z.string().nullable().optional(),
+  domain: z.string().nullable().optional(), // e.g., "work", "family", "health"
+  mentionCount: z.number().int().min(1).default(1),
+  learnedFrom: z.array(z.string().uuid()).default([]), // receipt IDs
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export type PersonalContext = z.infer<typeof PersonalContextSchema>;
+
+export const CreatePersonalContextSchema = PersonalContextSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type CreatePersonalContext = z.infer<typeof CreatePersonalContextSchema>;
+
+export const UpdatePersonalContextSchema = z.object({
+  description: z.string().nullable().optional(),
+  domain: z.string().nullable().optional(),
+});
+
+export type UpdatePersonalContext = z.infer<typeof UpdatePersonalContextSchema>;

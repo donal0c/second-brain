@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
-import type { ClassificationResult } from "../llm/types.js";
+import type { ClassificationResult, ExtractedContextEntity } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
 // =============================================================================
@@ -295,6 +295,12 @@ async function handleExtraction(
 
   await db.insert(schema.receipts).values(receiptData);
 
+  // Extract personal context entities (async, non-blocking for main flow)
+  // This is where the system "learns" about the user's world
+  extractAndStoreContext(inboxItem.rawText, receiptId).catch((err) =>
+    console.error("Context extraction failed:", err)
+  );
+
   return {
     inboxItemId: inboxItem.id,
     classification,
@@ -337,4 +343,94 @@ export async function processBatch(
     processed: results.length,
     results,
   };
+}
+
+// =============================================================================
+// Personal Context Extraction
+// =============================================================================
+
+/**
+ * Extract and store personal context entities from processed text
+ */
+export async function extractAndStoreContext(
+  text: string,
+  receiptId: string
+): Promise<string[]> {
+  if (!hasLLMProvider()) {
+    return [];
+  }
+
+  const provider = getLLMProvider();
+
+  try {
+    const { entities } = await provider.extractContextEntities(text);
+
+    if (entities.length === 0) {
+      return [];
+    }
+
+    const storedIds: string[] = [];
+
+    for (const entity of entities) {
+      const contextId = await upsertPersonalContext(entity, receiptId);
+      storedIds.push(contextId);
+    }
+
+    return storedIds;
+  } catch (error) {
+    // Log but don't fail the main processing
+    console.error("Failed to extract context entities:", error);
+    return [];
+  }
+}
+
+/**
+ * Create or update a personal context entity
+ */
+async function upsertPersonalContext(
+  entity: ExtractedContextEntity,
+  receiptId: string
+): Promise<string> {
+  const now = new Date();
+
+  // Check if entity already exists (case-insensitive name match)
+  const existing = await db
+    .select()
+    .from(schema.personalContexts)
+    .where(eq(schema.personalContexts.name, entity.name))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Update existing: increment mention count, add receipt to learnedFrom
+    const current = existing[0];
+    const learnedFrom = [...(current.learnedFrom || []), receiptId];
+
+    await db
+      .update(schema.personalContexts)
+      .set({
+        mentionCount: current.mentionCount + 1,
+        learnedFrom,
+        // Update domain if we learned a new one and didn't have one before
+        domain: current.domain || entity.domain,
+        updatedAt: now,
+      })
+      .where(eq(schema.personalContexts.id, current.id));
+
+    return current.id;
+  } else {
+    // Create new
+    const id = randomUUID();
+    await db.insert(schema.personalContexts).values({
+      id,
+      name: entity.name,
+      type: entity.type,
+      domain: entity.domain,
+      mentionCount: 1,
+      learnedFrom: [receiptId],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return id;
+  }
 }

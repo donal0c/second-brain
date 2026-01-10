@@ -84,3 +84,17 @@ export interface PersonalContext {
   /** Additional context to help with matching */
   keywords?: string[];
 }
+
+// -----------------------------------------------------------------------------
+// Context Entity Extraction (learning about user's world)
+// -----------------------------------------------------------------------------
+
+export interface ExtractedContextEntity {
+  name: string;
+  type: "person" | "place" | "organization" | "concept";
+  domain: string | null; // e.g., "work", "family", "health"
+}
+
+export interface ContextExtractionResult {
+  entities: ExtractedContextEntity[];
+}

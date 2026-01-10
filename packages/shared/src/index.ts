@@ -43,6 +43,14 @@ export {
   CreateClarificationSchema,
   type Clarification,
   type CreateClarification,
+  // Personal Context
+  PersonalContextType,
+  PersonalContextSchema,
+  CreatePersonalContextSchema,
+  UpdatePersonalContextSchema,
+  type PersonalContext,
+  type CreatePersonalContext,
+  type UpdatePersonalContext,
 } from "./types.js";
 
 // Taxonomy types

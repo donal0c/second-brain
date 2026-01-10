@@ -15,6 +15,7 @@ import type {
   ProjectExtraction,
   IdeaExtraction,
   PersonExtraction,
+  ContextExtractionResult,
 } from "./types.js";
 import {
   CLASSIFIER_SYSTEM_PROMPT,
@@ -149,6 +150,47 @@ Respond with JSON only:
 
     const content = this.extractTextContent(response);
     return this.parseJSON<CorrectionResult>(content);
+  }
+
+  async extractContextEntities(text: string): Promise<ContextExtractionResult> {
+    const systemPrompt = `You are a cognitive assistant that identifies named entities from text captures.
+
+Your job is to extract SPECIFIC, NAMED entities that represent important parts of the user's world:
+- People (specific individuals mentioned by name)
+- Places (specific locations, venues, cities)
+- Organizations (companies, teams, groups, institutions)
+- Concepts (important domain-specific terms, project codenames)
+
+Guidelines:
+- Only extract SPECIFIC named entities, not generic terms
+- "my wife" is NOT an entity (no name). "Sarah" IS an entity.
+- "the office" is NOT an entity. "Acme Corp headquarters" IS.
+- "a meeting" is NOT an entity. "Q4 Planning" might be a concept.
+- Infer the domain (work, family, health, finance, etc.) when context clues exist
+- Return an empty array if no specific named entities are found
+- Be conservative - only extract entities you're confident about
+
+Respond with JSON only:
+{
+  "entities": [
+    { "name": "...", "type": "person|place|organization|concept", "domain": "work|family|health|..." or null }
+  ]
+}`;
+
+    const response = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 512,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Extract named entities from this text:\n\n"${text}"`,
+        },
+      ],
+    });
+
+    const content = this.extractTextContent(response);
+    return this.parseJSON<ContextExtractionResult>(content);
   }
 
   // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import type {
   CorrectionResult,
   PersonalContext,
   Classification,
+  ContextExtractionResult,
 } from "./types.js";
 
 export interface LLMProvider {
@@ -65,6 +66,13 @@ export interface LLMProvider {
     original: Record<string, unknown>,
     correction: string
   ): Promise<CorrectionResult>;
+
+  /**
+   * Extract context entities (people, places, organizations, concepts) from text
+   * These are used to learn about the user's world for better future processing
+   * @param text - The raw inbox item text
+   */
+  extractContextEntities(text: string): Promise<ContextExtractionResult>;
 }
 
 // =============================================================================
