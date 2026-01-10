@@ -10,6 +10,7 @@ import { db, schema } from "../db/index.js";
 const DigestQuerySchema = z.object({
   context: z.enum(["all", "work", "personal"]).optional().default("all"),
   maxItems: z.coerce.number().min(1).max(20).optional().default(8),
+  staleDays: z.coerce.number().min(1).max(365).optional().default(7),
 });
 
 // =============================================================================
@@ -34,7 +35,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const { context, maxItems } = parseResult.data;
+      const { context, maxItems, staleDays } = parseResult.data;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -94,6 +95,33 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
         .orderBy(desc(schema.clarifications.createdAt))
         .limit(5);
 
+      // Get stale tasks (no updates in staleDays days)
+      const staleThreshold = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000);
+      const staleTasks = await db
+        .select()
+        .from(schema.tasks)
+        .where(
+          and(
+            eq(schema.tasks.status, "active"),
+            sql`${schema.tasks.updatedAt} < ${staleThreshold.getTime()}`
+          )
+        )
+        .orderBy(schema.tasks.updatedAt)
+        .limit(10);
+
+      // Get projects without next actions
+      const projectsWithoutNextAction = await db
+        .select()
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.status, "active"),
+            isNull(schema.projects.nextAction)
+          )
+        )
+        .orderBy(desc(schema.projects.updatedAt))
+        .limit(10);
+
       // Get stats
       const taskCount = await db
         .select({ count: sql<number>`count(*)` })
@@ -126,6 +154,8 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
         nextActions: topTasks,
         flaggedItems: flaggedReceipts,
         pendingClarifications,
+        staleTasks,
+        projectsWithoutNextAction,
         newContexts: recentNewContexts.map((ctx) => ({
           id: ctx.id,
           name: ctx.name,
