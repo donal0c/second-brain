@@ -107,12 +107,32 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
 
       const ideaCount = await db.select({ count: sql<number>`count(*)` }).from(schema.ideas);
 
+      // Get new undescribed contexts (learned in last 24 hours)
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const newContexts = await db
+        .select()
+        .from(schema.personalContexts)
+        .where(isNull(schema.personalContexts.description))
+        .orderBy(desc(schema.personalContexts.createdAt));
+
+      // Filter to recent ones
+      const recentNewContexts = newContexts.filter(
+        (ctx) => ctx.createdAt >= yesterday
+      );
+
       return reply.send({
         date: new Date().toISOString().split("T")[0],
         context,
         nextActions: topTasks,
         flaggedItems: flaggedReceipts,
         pendingClarifications,
+        newContexts: recentNewContexts.map((ctx) => ({
+          id: ctx.id,
+          name: ctx.name,
+          type: ctx.type,
+          domain: ctx.domain,
+          mentionCount: ctx.mentionCount,
+        })),
         stats: {
           activeTasks: taskCount[0]?.count ?? 0,
           activeProjects: projectCount[0]?.count ?? 0,
