@@ -46,9 +46,9 @@ export function useVoiceCapture(
 
     if (SpeechRecognition) {
       setIsSupported(true);
-      recognitionRef.current = new SpeechRecognition();
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
 
-      const recognition = recognitionRef.current;
       recognition.continuous = continuous;
       recognition.interimResults = interimResults;
       recognition.lang = lang;
