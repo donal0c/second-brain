@@ -139,7 +139,7 @@ export const personalContexts = pgTable("personal_contexts", {
 }));
 
 // --- Nudges (contextual micro-prompts) ---
-export const nudges = sqliteTable("nudges", {
+export const nudges = pgTable("nudges", {
   id: text("id").primaryKey(),
   type: text("type", {
     enum: [
@@ -153,9 +153,9 @@ export const nudges = sqliteTable("nudges", {
   message: text("message").notNull(),
   entityType: text("entity_type", { enum: ["task", "project", "person"] }).notNull(),
   entityId: text("entity_id").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  dismissedAt: integer("dismissed_at", { mode: "timestamp" }),
-  snoozedUntil: integer("snoozed_until", { mode: "timestamp" }),
+  createdAt: timestamp("created_at").notNull(),
+  dismissedAt: timestamp("dismissed_at"),
+  snoozedUntil: timestamp("snoozed_until"),
 }, (table) => ({
   createdAtIdx: index("nudges_created_at_idx").on(table.createdAt),
   entityIdx: index("nudges_entity_idx").on(table.entityType, table.entityId),
