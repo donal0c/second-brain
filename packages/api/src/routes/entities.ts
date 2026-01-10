@@ -86,679 +86,346 @@ function getSortOrder(sort: string, table: typeof schema.tasks | typeof schema.p
 }
 
 // =============================================================================
+// Generic Entity Route Factory
+// =============================================================================
+
+interface EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema> {
+  entityName: string; // "task", "project", "idea"
+  entityNamePlural: string; // "tasks", "projects", "ideas"
+  table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas;
+  querySchema: z.ZodType<TQuerySchema, z.ZodTypeDef, unknown>;
+  updateSchema: z.ZodType<TUpdateSchema, z.ZodTypeDef, unknown>;
+  extractFieldsForLLM: (entity: TEntity) => Record<string, unknown>;
+  buildListFilters?: (query: TQuerySchema) => Array<ReturnType<typeof eq | typeof like>>;
+}
+
+function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchema, TUpdateSchema>(
+  config: EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema>
+) {
+  return async (app: FastifyInstance): Promise<void> => {
+    const {
+      entityName,
+      entityNamePlural,
+      table,
+      querySchema,
+      updateSchema,
+      extractFieldsForLLM,
+      buildListFilters,
+    } = config;
+
+    // GET /:entity - List entities
+    app.get(
+      `/${entityNamePlural}`,
+      async (request: FastifyRequest<{ Querystring: TQuerySchema }>, reply: FastifyReply) => {
+        const parseResult = querySchema.safeParse(request.query);
+        if (!parseResult.success) {
+          return reply.status(400).send({
+            error: "Validation failed",
+            details: parseResult.error.flatten().fieldErrors,
+          });
+        }
+
+        const query = parseResult.data as TQuerySchema & { limit: number; offset: number; sort: string };
+        const { limit, offset, sort } = query;
+
+        // Build conditions
+        const conditions = buildListFilters ? buildListFilters(query) : [];
+
+        // Execute query
+        const items =
+          conditions.length > 0
+            ? await db
+                .select()
+                .from(table)
+                .where(sql`${conditions.map((c) => sql`${c}`).reduce((a, b) => sql`${a} AND ${b}`)}`)
+                .orderBy(getSortOrder(sort, table))
+                .limit(limit)
+                .offset(offset)
+            : await db.select().from(table).orderBy(getSortOrder(sort, table)).limit(limit).offset(offset);
+
+        // Get total count
+        const countResult =
+          conditions.length > 0
+            ? await db
+                .select({ count: sql<number>`count(*)` })
+                .from(table)
+                .where(sql`${conditions.map((c) => sql`${c}`).reduce((a, b) => sql`${a} AND ${b}`)}`)
+            : await db.select({ count: sql<number>`count(*)` }).from(table);
+
+        return reply.send({
+          items,
+          total: countResult[0]?.count ?? 0,
+          limit,
+          offset,
+        });
+      }
+    );
+
+    // GET /:entity/:id - Get single entity
+    app.get(
+      `/${entityNamePlural}/:id`,
+      async (request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>, reply: FastifyReply) => {
+        const parseResult = IdParamsSchema.safeParse(request.params);
+        if (!parseResult.success) {
+          return reply.status(400).send({ error: "Invalid ID format" });
+        }
+
+        const items = await db.select().from(table).where(eq(table.id, parseResult.data.id)).limit(1);
+
+        if (items.length === 0) {
+          return reply.status(404).send({ error: `${entityName} not found` });
+        }
+
+        return reply.send(items[0]);
+      }
+    );
+
+    // PATCH /:entity/:id - Update entity
+    app.patch(
+      `/${entityNamePlural}/:id`,
+      async (
+        request: FastifyRequest<{
+          Params: z.infer<typeof IdParamsSchema>;
+          Body: TUpdateSchema;
+        }>,
+        reply: FastifyReply
+      ) => {
+        const paramsResult = IdParamsSchema.safeParse(request.params);
+        if (!paramsResult.success) {
+          return reply.status(400).send({ error: "Invalid ID format" });
+        }
+
+        const bodyResult = updateSchema.safeParse(request.body);
+        if (!bodyResult.success) {
+          return reply.status(400).send({
+            error: "Validation failed",
+            details: bodyResult.error.flatten().fieldErrors,
+          });
+        }
+
+        const updates = { ...bodyResult.data, updatedAt: new Date() };
+
+        const result = await db
+          .update(table)
+          .set(updates)
+          .where(eq(table.id, paramsResult.data.id))
+          .returning();
+
+        if (result.length === 0) {
+          return reply.status(404).send({ error: `${entityName} not found` });
+        }
+
+        return reply.send(result[0]);
+      }
+    );
+
+    // DELETE /:entity/:id - Delete entity
+    app.delete(
+      `/${entityNamePlural}/:id`,
+      async (request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>, reply: FastifyReply) => {
+        const parseResult = IdParamsSchema.safeParse(request.params);
+        if (!parseResult.success) {
+          return reply.status(400).send({ error: "Invalid ID format" });
+        }
+
+        const result = await db
+          .delete(table)
+          .where(eq(table.id, parseResult.data.id))
+          .returning();
+
+        if (result.length === 0) {
+          return reply.status(404).send({ error: `${entityName} not found` });
+        }
+
+        return reply.status(204).send();
+      }
+    );
+
+    // POST /:entity/:id/interpret - Natural language edit
+    app.post(
+      `/${entityNamePlural}/:id/interpret`,
+      async (
+        request: FastifyRequest<{
+          Params: z.infer<typeof IdParamsSchema>;
+          Body: z.infer<typeof NaturalLanguageEditSchema>;
+        }>,
+        reply: FastifyReply
+      ) => {
+        if (!hasLLMProvider()) {
+          return reply.status(503).send({
+            error: "Service unavailable",
+            message: "LLM provider not configured",
+          });
+        }
+
+        const paramsResult = IdParamsSchema.safeParse(request.params);
+        if (!paramsResult.success) {
+          return reply.status(400).send({ error: "Invalid ID format" });
+        }
+
+        const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
+        if (!bodyResult.success) {
+          return reply.status(400).send({
+            error: "Validation failed",
+            details: bodyResult.error.flatten().fieldErrors,
+          });
+        }
+
+        // Fetch existing entity
+        const items = await db.select().from(table).where(eq(table.id, paramsResult.data.id)).limit(1);
+
+        if (items.length === 0) {
+          return reply.status(404).send({ error: `${entityName} not found` });
+        }
+
+        const entity = items[0];
+        const provider = getLLMProvider();
+
+        // Interpret the natural language instruction
+        const interpretation = await provider.interpretCorrection(
+          extractFieldsForLLM(entity as unknown as TEntity),
+          bodyResult.data.instruction
+        );
+
+        // Validate and apply updates
+        const updateResult = updateSchema.safeParse(interpretation.updates);
+        if (!updateResult.success) {
+          return reply.status(400).send({
+            error: "AI interpretation produced invalid updates",
+            details: updateResult.error.flatten().fieldErrors,
+            interpretation,
+          });
+        }
+
+        const updates = { ...updateResult.data, updatedAt: new Date() };
+
+        const result = await db
+          .update(table)
+          .set(updates)
+          .where(eq(table.id, paramsResult.data.id))
+          .returning();
+
+        return reply.send({
+          entity: result[0],
+          interpretation: {
+            updates: interpretation.updates,
+            reasoning: interpretation.reasoning,
+          },
+        });
+      }
+    );
+  };
+}
+
+// =============================================================================
 // Task Routes
 // =============================================================================
 
-async function taskRoutes(app: FastifyInstance): Promise<void> {
-  // GET /tasks - List tasks
-  app.get(
-    "/tasks",
-    async (
-      request: FastifyRequest<{ Querystring: z.infer<typeof TaskQuerySchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = TaskQuerySchema.safeParse(request.query);
-      if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const { status, context, limit, offset, sort } = parseResult.data;
-
-      // Build conditions
-      const conditions = [];
-      if (status) {
-        conditions.push(eq(schema.tasks.status, status));
-      }
-      if (context) {
-        conditions.push(like(schema.tasks.context, `%${context}%`));
-      }
-
-      // Execute query
-      const items =
-        conditions.length > 0
-          ? await db
-              .select()
-              .from(schema.tasks)
-              .where(sql`${conditions.map((c) => sql`${c}`).reduce((a, b) => sql`${a} AND ${b}`)}`)
-              .orderBy(getSortOrder(sort, schema.tasks))
-              .limit(limit)
-              .offset(offset)
-          : await db
-              .select()
-              .from(schema.tasks)
-              .orderBy(getSortOrder(sort, schema.tasks))
-              .limit(limit)
-              .offset(offset);
-
-      // Get total count
-      const countResult =
-        conditions.length > 0
-          ? await db
-              .select({ count: sql<number>`count(*)` })
-              .from(schema.tasks)
-              .where(sql`${conditions.map((c) => sql`${c}`).reduce((a, b) => sql`${a} AND ${b}`)}`)
-          : await db.select({ count: sql<number>`count(*)` }).from(schema.tasks);
-
-      return reply.send({
-        items,
-        total: countResult[0]?.count ?? 0,
-        limit,
-        offset,
-      });
+const taskRoutes = createEntityRoutes<
+  {
+    id: string;
+    title: string;
+    nextAction: string;
+    dueDate: Date | null;
+    context: string | null;
+    status: string;
+    sourceInboxItemId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  z.infer<typeof TaskQuerySchema>,
+  z.infer<typeof TaskUpdateSchema>
+>({
+  entityName: "Task",
+  entityNamePlural: "tasks",
+  table: schema.tasks,
+  querySchema: TaskQuerySchema,
+  updateSchema: TaskUpdateSchema,
+  extractFieldsForLLM: (task) => ({
+    title: task.title,
+    nextAction: task.nextAction,
+    dueDate: task.dueDate,
+    context: task.context,
+    status: task.status,
+  }),
+  buildListFilters: (query) => {
+    const conditions = [];
+    if (query.status) {
+      conditions.push(eq(schema.tasks.status, query.status));
     }
-  );
-
-  // GET /tasks/:id - Get single task
-  app.get(
-    "/tasks/:id",
-    async (
-      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdParamsSchema.safeParse(request.params);
-      if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const items = await db
-        .select()
-        .from(schema.tasks)
-        .where(eq(schema.tasks.id, parseResult.data.id))
-        .limit(1);
-
-      if (items.length === 0) {
-        return reply.status(404).send({ error: "Task not found" });
-      }
-
-      return reply.send(items[0]);
+    if (query.context) {
+      conditions.push(like(schema.tasks.context, `%${query.context}%`));
     }
-  );
-
-  // PATCH /tasks/:id - Update task
-  app.patch(
-    "/tasks/:id",
-    async (
-      request: FastifyRequest<{
-        Params: z.infer<typeof IdParamsSchema>;
-        Body: z.infer<typeof TaskUpdateSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
-      const paramsResult = IdParamsSchema.safeParse(request.params);
-      if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const bodyResult = TaskUpdateSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const updates = { ...bodyResult.data, updatedAt: new Date() };
-
-      const result = await db
-        .update(schema.tasks)
-        .set(updates)
-        .where(eq(schema.tasks.id, paramsResult.data.id))
-        .returning();
-
-      if (result.length === 0) {
-        return reply.status(404).send({ error: "Task not found" });
-      }
-
-      return reply.send(result[0]);
-    }
-  );
-
-  // DELETE /tasks/:id - Delete task
-  app.delete(
-    "/tasks/:id",
-    async (
-      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdParamsSchema.safeParse(request.params);
-      if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const result = await db
-        .delete(schema.tasks)
-        .where(eq(schema.tasks.id, parseResult.data.id))
-        .returning();
-
-      if (result.length === 0) {
-        return reply.status(404).send({ error: "Task not found" });
-      }
-
-      return reply.status(204).send();
-    }
-  );
-
-  // POST /tasks/:id/interpret - Natural language edit
-  app.post(
-    "/tasks/:id/interpret",
-    async (
-      request: FastifyRequest<{
-        Params: z.infer<typeof IdParamsSchema>;
-        Body: z.infer<typeof NaturalLanguageEditSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
-      if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured",
-        });
-      }
-
-      const paramsResult = IdParamsSchema.safeParse(request.params);
-      if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
-      }
-
-      // Fetch existing task
-      const items = await db
-        .select()
-        .from(schema.tasks)
-        .where(eq(schema.tasks.id, paramsResult.data.id))
-        .limit(1);
-
-      if (items.length === 0) {
-        return reply.status(404).send({ error: "Task not found" });
-      }
-
-      const task = items[0];
-      const provider = getLLMProvider();
-
-      // Interpret the natural language instruction
-      const interpretation = await provider.interpretCorrection(
-        {
-          title: task.title,
-          nextAction: task.nextAction,
-          dueDate: task.dueDate,
-          context: task.context,
-          status: task.status,
-        },
-        bodyResult.data.instruction
-      );
-
-      // Validate and apply updates
-      const updateResult = TaskUpdateSchema.safeParse(interpretation.updates);
-      if (!updateResult.success) {
-        return reply.status(400).send({
-          error: "AI interpretation produced invalid updates",
-          details: updateResult.error.flatten().fieldErrors,
-          interpretation,
-        });
-      }
-
-      const updates = { ...updateResult.data, updatedAt: new Date() };
-
-      const result = await db
-        .update(schema.tasks)
-        .set(updates)
-        .where(eq(schema.tasks.id, paramsResult.data.id))
-        .returning();
-
-      return reply.send({
-        entity: result[0],
-        interpretation: {
-          updates: interpretation.updates,
-          reasoning: interpretation.reasoning,
-        },
-      });
-    }
-  );
-}
+    return conditions;
+  },
+});
 
 // =============================================================================
 // Project Routes
 // =============================================================================
 
-async function projectRoutes(app: FastifyInstance): Promise<void> {
-  // GET /projects - List projects
-  app.get(
-    "/projects",
-    async (
-      request: FastifyRequest<{ Querystring: z.infer<typeof ProjectQuerySchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = ProjectQuerySchema.safeParse(request.query);
-      if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const { status, limit, offset, sort } = parseResult.data;
-
-      const items = status
-        ? await db
-            .select()
-            .from(schema.projects)
-            .where(eq(schema.projects.status, status))
-            .orderBy(getSortOrder(sort, schema.projects))
-            .limit(limit)
-            .offset(offset)
-        : await db
-            .select()
-            .from(schema.projects)
-            .orderBy(getSortOrder(sort, schema.projects))
-            .limit(limit)
-            .offset(offset);
-
-      const countResult = status
-        ? await db
-            .select({ count: sql<number>`count(*)` })
-            .from(schema.projects)
-            .where(eq(schema.projects.status, status))
-        : await db.select({ count: sql<number>`count(*)` }).from(schema.projects);
-
-      return reply.send({
-        items,
-        total: countResult[0]?.count ?? 0,
-        limit,
-        offset,
-      });
+const projectRoutes = createEntityRoutes<
+  {
+    id: string;
+    name: string;
+    desiredOutcome: string | null;
+    nextAction: string | null;
+    status: string;
+    sourceInboxItemId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  z.infer<typeof ProjectQuerySchema>,
+  z.infer<typeof ProjectUpdateSchema>
+>({
+  entityName: "Project",
+  entityNamePlural: "projects",
+  table: schema.projects,
+  querySchema: ProjectQuerySchema,
+  updateSchema: ProjectUpdateSchema,
+  extractFieldsForLLM: (project) => ({
+    name: project.name,
+    desiredOutcome: project.desiredOutcome,
+    nextAction: project.nextAction,
+    status: project.status,
+  }),
+  buildListFilters: (query) => {
+    const conditions = [];
+    if (query.status) {
+      conditions.push(eq(schema.projects.status, query.status));
     }
-  );
-
-  // GET /projects/:id
-  app.get(
-    "/projects/:id",
-    async (
-      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdParamsSchema.safeParse(request.params);
-      if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const items = await db
-        .select()
-        .from(schema.projects)
-        .where(eq(schema.projects.id, parseResult.data.id))
-        .limit(1);
-
-      if (items.length === 0) {
-        return reply.status(404).send({ error: "Project not found" });
-      }
-
-      return reply.send(items[0]);
-    }
-  );
-
-  // PATCH /projects/:id
-  app.patch(
-    "/projects/:id",
-    async (
-      request: FastifyRequest<{
-        Params: z.infer<typeof IdParamsSchema>;
-        Body: z.infer<typeof ProjectUpdateSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
-      const paramsResult = IdParamsSchema.safeParse(request.params);
-      if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const bodyResult = ProjectUpdateSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const updates = { ...bodyResult.data, updatedAt: new Date() };
-
-      const result = await db
-        .update(schema.projects)
-        .set(updates)
-        .where(eq(schema.projects.id, paramsResult.data.id))
-        .returning();
-
-      if (result.length === 0) {
-        return reply.status(404).send({ error: "Project not found" });
-      }
-
-      return reply.send(result[0]);
-    }
-  );
-
-  // DELETE /projects/:id
-  app.delete(
-    "/projects/:id",
-    async (
-      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdParamsSchema.safeParse(request.params);
-      if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const result = await db
-        .delete(schema.projects)
-        .where(eq(schema.projects.id, parseResult.data.id))
-        .returning();
-
-      if (result.length === 0) {
-        return reply.status(404).send({ error: "Project not found" });
-      }
-
-      return reply.status(204).send();
-    }
-  );
-
-  // POST /projects/:id/interpret - Natural language edit
-  app.post(
-    "/projects/:id/interpret",
-    async (
-      request: FastifyRequest<{
-        Params: z.infer<typeof IdParamsSchema>;
-        Body: z.infer<typeof NaturalLanguageEditSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
-      if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured",
-        });
-      }
-
-      const paramsResult = IdParamsSchema.safeParse(request.params);
-      if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const items = await db
-        .select()
-        .from(schema.projects)
-        .where(eq(schema.projects.id, paramsResult.data.id))
-        .limit(1);
-
-      if (items.length === 0) {
-        return reply.status(404).send({ error: "Project not found" });
-      }
-
-      const project = items[0];
-      const provider = getLLMProvider();
-
-      const interpretation = await provider.interpretCorrection(
-        {
-          name: project.name,
-          desiredOutcome: project.desiredOutcome,
-          nextAction: project.nextAction,
-          status: project.status,
-        },
-        bodyResult.data.instruction
-      );
-
-      const updateResult = ProjectUpdateSchema.safeParse(interpretation.updates);
-      if (!updateResult.success) {
-        return reply.status(400).send({
-          error: "AI interpretation produced invalid updates",
-          details: updateResult.error.flatten().fieldErrors,
-          interpretation,
-        });
-      }
-
-      const updates = { ...updateResult.data, updatedAt: new Date() };
-
-      const result = await db
-        .update(schema.projects)
-        .set(updates)
-        .where(eq(schema.projects.id, paramsResult.data.id))
-        .returning();
-
-      return reply.send({
-        entity: result[0],
-        interpretation: {
-          updates: interpretation.updates,
-          reasoning: interpretation.reasoning,
-        },
-      });
-    }
-  );
-}
+    return conditions;
+  },
+});
 
 // =============================================================================
 // Idea Routes
 // =============================================================================
 
-async function ideaRoutes(app: FastifyInstance): Promise<void> {
-  // GET /ideas - List ideas
-  app.get(
-    "/ideas",
-    async (
-      request: FastifyRequest<{ Querystring: z.infer<typeof IdeaQuerySchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdeaQuerySchema.safeParse(request.query);
-      if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const { limit, offset, sort } = parseResult.data;
-
-      const items = await db
-        .select()
-        .from(schema.ideas)
-        .orderBy(getSortOrder(sort, schema.ideas))
-        .limit(limit)
-        .offset(offset);
-
-      const countResult = await db.select({ count: sql<number>`count(*)` }).from(schema.ideas);
-
-      return reply.send({
-        items,
-        total: countResult[0]?.count ?? 0,
-        limit,
-        offset,
-      });
-    }
-  );
-
-  // GET /ideas/:id
-  app.get(
-    "/ideas/:id",
-    async (
-      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdParamsSchema.safeParse(request.params);
-      if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const items = await db
-        .select()
-        .from(schema.ideas)
-        .where(eq(schema.ideas.id, parseResult.data.id))
-        .limit(1);
-
-      if (items.length === 0) {
-        return reply.status(404).send({ error: "Idea not found" });
-      }
-
-      return reply.send(items[0]);
-    }
-  );
-
-  // PATCH /ideas/:id
-  app.patch(
-    "/ideas/:id",
-    async (
-      request: FastifyRequest<{
-        Params: z.infer<typeof IdParamsSchema>;
-        Body: z.infer<typeof IdeaUpdateSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
-      const paramsResult = IdParamsSchema.safeParse(request.params);
-      if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const bodyResult = IdeaUpdateSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const updates = { ...bodyResult.data, updatedAt: new Date() };
-
-      const result = await db
-        .update(schema.ideas)
-        .set(updates)
-        .where(eq(schema.ideas.id, paramsResult.data.id))
-        .returning();
-
-      if (result.length === 0) {
-        return reply.status(404).send({ error: "Idea not found" });
-      }
-
-      return reply.send(result[0]);
-    }
-  );
-
-  // DELETE /ideas/:id
-  app.delete(
-    "/ideas/:id",
-    async (
-      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = IdParamsSchema.safeParse(request.params);
-      if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const result = await db
-        .delete(schema.ideas)
-        .where(eq(schema.ideas.id, parseResult.data.id))
-        .returning();
-
-      if (result.length === 0) {
-        return reply.status(404).send({ error: "Idea not found" });
-      }
-
-      return reply.status(204).send();
-    }
-  );
-
-  // POST /ideas/:id/interpret - Natural language edit
-  app.post(
-    "/ideas/:id/interpret",
-    async (
-      request: FastifyRequest<{
-        Params: z.infer<typeof IdParamsSchema>;
-        Body: z.infer<typeof NaturalLanguageEditSchema>;
-      }>,
-      reply: FastifyReply
-    ) => {
-      if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured",
-        });
-      }
-
-      const paramsResult = IdParamsSchema.safeParse(request.params);
-      if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
-      }
-
-      const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
-      }
-
-      const items = await db
-        .select()
-        .from(schema.ideas)
-        .where(eq(schema.ideas.id, paramsResult.data.id))
-        .limit(1);
-
-      if (items.length === 0) {
-        return reply.status(404).send({ error: "Idea not found" });
-      }
-
-      const idea = items[0];
-      const provider = getLLMProvider();
-
-      const interpretation = await provider.interpretCorrection(
-        {
-          title: idea.title,
-          summary: idea.summary,
-          links: idea.links,
-        },
-        bodyResult.data.instruction
-      );
-
-      const updateResult = IdeaUpdateSchema.safeParse(interpretation.updates);
-      if (!updateResult.success) {
-        return reply.status(400).send({
-          error: "AI interpretation produced invalid updates",
-          details: updateResult.error.flatten().fieldErrors,
-          interpretation,
-        });
-      }
-
-      const updates = { ...updateResult.data, updatedAt: new Date() };
-
-      const result = await db
-        .update(schema.ideas)
-        .set(updates)
-        .where(eq(schema.ideas.id, paramsResult.data.id))
-        .returning();
-
-      return reply.send({
-        entity: result[0],
-        interpretation: {
-          updates: interpretation.updates,
-          reasoning: interpretation.reasoning,
-        },
-      });
-    }
-  );
-}
+const ideaRoutes = createEntityRoutes<
+  {
+    id: string;
+    title: string;
+    summary: string | null;
+    links: string[];
+    sourceInboxItemId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  z.infer<typeof IdeaQuerySchema>,
+  z.infer<typeof IdeaUpdateSchema>
+>({
+  entityName: "Idea",
+  entityNamePlural: "ideas",
+  table: schema.ideas,
+  querySchema: IdeaQuerySchema,
+  updateSchema: IdeaUpdateSchema,
+  extractFieldsForLLM: (idea) => ({
+    title: idea.title,
+    summary: idea.summary,
+    links: idea.links,
+  }),
+});
 
 // =============================================================================
 // Fix/Correction Routes (Cross-Entity)
