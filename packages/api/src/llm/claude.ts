@@ -113,14 +113,21 @@ export class ClaudeProvider implements LLMProvider {
     original: Record<string, unknown>,
     correction: string
   ): Promise<CorrectionResult> {
+    const today = new Date().toISOString().split("T")[0];
+    const currentYear = new Date().getFullYear();
+
     const systemPrompt = `You are a cognitive assistant that interprets user corrections to data entries.
+
+Today's date is ${today}. The current year is ${currentYear}.
 
 Given the original data and a natural language correction, determine what fields should be updated.
 
 Guidelines:
 - Only update fields mentioned in the correction
 - Preserve fields not mentioned
-- Be precise about what changed and why`;
+- Be precise about what changed and why
+- When interpreting dates like "September" or "next month", use the current year (${currentYear}) or next year if the date has already passed
+- Format dates as YYYY-MM-DD`;
 
     const userPrompt = `Original data:
 ${JSON.stringify(original, null, 2)}

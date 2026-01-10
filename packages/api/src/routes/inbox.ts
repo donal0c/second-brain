@@ -3,7 +3,8 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import { eq, sql, desc } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-// Types from shared package used for reference
+import { processInboxItem } from "../services/processor.js";
+import { hasLLMProvider } from "../llm/index.js";
 
 // =============================================================================
 // Request/Response Types
@@ -30,7 +31,7 @@ const IdParamsSchema = z.object({
 
 export async function inboxRoutes(app: FastifyInstance): Promise<void> {
   /**
-   * POST /inbox - Capture a new inbox item
+   * POST /inbox - Capture a new inbox item and process immediately
    */
   app.post(
     "/inbox",
@@ -62,10 +63,37 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
       };
 
       await db.insert(schema.inboxItems).values(newItem);
-
       request.log.info({ id, source }, "Inbox item captured");
 
-      return reply.status(201).send(newItem);
+      // Auto-process if LLM is available
+      if (hasLLMProvider()) {
+        try {
+          const result = await processInboxItem(id);
+          request.log.info(
+            { id, classification: result.classification.classification },
+            "Inbox item processed"
+          );
+          return reply.status(201).send({
+            inboxItem: { ...newItem, status: result.clarification ? "blocked" : "processed" },
+            processed: true,
+            result,
+          });
+        } catch (err) {
+          request.log.error({ id, error: err }, "Failed to process inbox item");
+          // Return the unprocessed item - user can retry
+          return reply.status(201).send({
+            inboxItem: newItem,
+            processed: false,
+            error: "Processing failed - item saved for retry",
+          });
+        }
+      }
+
+      // No LLM configured - just return the captured item
+      return reply.status(201).send({
+        inboxItem: newItem,
+        processed: false,
+      });
     }
   );
 

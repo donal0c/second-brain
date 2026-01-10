@@ -94,6 +94,14 @@ export interface TaskListResponse {
   offset: number;
 }
 
+export interface InterpretResponse<T> {
+  entity: T;
+  interpretation: {
+    updates: Record<string, unknown>;
+    reasoning: string;
+  };
+}
+
 export const tasks = {
   list: (params?: { status?: string; context?: string; limit?: number; offset?: number }) =>
     request<TaskListResponse>(`/tasks?${new URLSearchParams(params as Record<string, string>)}`),
@@ -104,6 +112,12 @@ export const tasks = {
     request<Task>(`/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    }),
+
+  interpret: (id: string, instruction: string) =>
+    request<InterpretResponse<Task>>(`/tasks/${id}/interpret`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
     }),
 
   delete: (id: string) =>
@@ -143,6 +157,12 @@ export const projects = {
       body: JSON.stringify(data),
     }),
 
+  interpret: (id: string, instruction: string) =>
+    request<InterpretResponse<Project>>(`/projects/${id}/interpret`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
+
   delete: (id: string) =>
     request<void>(`/projects/${id}`, { method: "DELETE" }),
 };
@@ -177,6 +197,12 @@ export const ideas = {
     request<Idea>(`/ideas/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    }),
+
+  interpret: (id: string, instruction: string) =>
+    request<InterpretResponse<Idea>>(`/ideas/${id}/interpret`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
     }),
 
   delete: (id: string) =>

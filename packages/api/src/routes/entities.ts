@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { eq, sql, desc, asc, like } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
 
 // =============================================================================
 // Shared Schemas
@@ -15,6 +16,10 @@ const PaginationSchema = z.object({
 
 const IdParamsSchema = z.object({
   id: z.string().uuid(),
+});
+
+const NaturalLanguageEditSchema = z.object({
+  instruction: z.string().min(1).max(500),
 });
 
 // =============================================================================
@@ -234,6 +239,90 @@ async function taskRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(204).send();
     }
   );
+
+  // POST /tasks/:id/interpret - Natural language edit
+  app.post(
+    "/tasks/:id/interpret",
+    async (
+      request: FastifyRequest<{
+        Params: z.infer<typeof IdParamsSchema>;
+        Body: z.infer<typeof NaturalLanguageEditSchema>;
+      }>,
+      reply: FastifyReply
+    ) => {
+      if (!hasLLMProvider()) {
+        return reply.status(503).send({
+          error: "Service unavailable",
+          message: "LLM provider not configured",
+        });
+      }
+
+      const paramsResult = IdParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return reply.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: bodyResult.error.flatten().fieldErrors,
+        });
+      }
+
+      // Fetch existing task
+      const items = await db
+        .select()
+        .from(schema.tasks)
+        .where(eq(schema.tasks.id, paramsResult.data.id))
+        .limit(1);
+
+      if (items.length === 0) {
+        return reply.status(404).send({ error: "Task not found" });
+      }
+
+      const task = items[0];
+      const provider = getLLMProvider();
+
+      // Interpret the natural language instruction
+      const interpretation = await provider.interpretCorrection(
+        {
+          title: task.title,
+          nextAction: task.nextAction,
+          dueDate: task.dueDate,
+          context: task.context,
+          status: task.status,
+        },
+        bodyResult.data.instruction
+      );
+
+      // Validate and apply updates
+      const updateResult = TaskUpdateSchema.safeParse(interpretation.updates);
+      if (!updateResult.success) {
+        return reply.status(400).send({
+          error: "AI interpretation produced invalid updates",
+          details: updateResult.error.flatten().fieldErrors,
+          interpretation,
+        });
+      }
+
+      const updates = { ...updateResult.data, updatedAt: new Date() };
+
+      const result = await db
+        .update(schema.tasks)
+        .set(updates)
+        .where(eq(schema.tasks.id, paramsResult.data.id))
+        .returning();
+
+      return reply.send({
+        entity: result[0],
+        interpretation: {
+          updates: interpretation.updates,
+          reasoning: interpretation.reasoning,
+        },
+      });
+    }
+  );
 }
 
 // =============================================================================
@@ -378,6 +467,86 @@ async function projectRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(204).send();
     }
   );
+
+  // POST /projects/:id/interpret - Natural language edit
+  app.post(
+    "/projects/:id/interpret",
+    async (
+      request: FastifyRequest<{
+        Params: z.infer<typeof IdParamsSchema>;
+        Body: z.infer<typeof NaturalLanguageEditSchema>;
+      }>,
+      reply: FastifyReply
+    ) => {
+      if (!hasLLMProvider()) {
+        return reply.status(503).send({
+          error: "Service unavailable",
+          message: "LLM provider not configured",
+        });
+      }
+
+      const paramsResult = IdParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return reply.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: bodyResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const items = await db
+        .select()
+        .from(schema.projects)
+        .where(eq(schema.projects.id, paramsResult.data.id))
+        .limit(1);
+
+      if (items.length === 0) {
+        return reply.status(404).send({ error: "Project not found" });
+      }
+
+      const project = items[0];
+      const provider = getLLMProvider();
+
+      const interpretation = await provider.interpretCorrection(
+        {
+          name: project.name,
+          desiredOutcome: project.desiredOutcome,
+          nextAction: project.nextAction,
+          status: project.status,
+        },
+        bodyResult.data.instruction
+      );
+
+      const updateResult = ProjectUpdateSchema.safeParse(interpretation.updates);
+      if (!updateResult.success) {
+        return reply.status(400).send({
+          error: "AI interpretation produced invalid updates",
+          details: updateResult.error.flatten().fieldErrors,
+          interpretation,
+        });
+      }
+
+      const updates = { ...updateResult.data, updatedAt: new Date() };
+
+      const result = await db
+        .update(schema.projects)
+        .set(updates)
+        .where(eq(schema.projects.id, paramsResult.data.id))
+        .returning();
+
+      return reply.send({
+        entity: result[0],
+        interpretation: {
+          updates: interpretation.updates,
+          reasoning: interpretation.reasoning,
+        },
+      });
+    }
+  );
 }
 
 // =============================================================================
@@ -507,6 +676,85 @@ async function ideaRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return reply.status(204).send();
+    }
+  );
+
+  // POST /ideas/:id/interpret - Natural language edit
+  app.post(
+    "/ideas/:id/interpret",
+    async (
+      request: FastifyRequest<{
+        Params: z.infer<typeof IdParamsSchema>;
+        Body: z.infer<typeof NaturalLanguageEditSchema>;
+      }>,
+      reply: FastifyReply
+    ) => {
+      if (!hasLLMProvider()) {
+        return reply.status(503).send({
+          error: "Service unavailable",
+          message: "LLM provider not configured",
+        });
+      }
+
+      const paramsResult = IdParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return reply.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: bodyResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const items = await db
+        .select()
+        .from(schema.ideas)
+        .where(eq(schema.ideas.id, paramsResult.data.id))
+        .limit(1);
+
+      if (items.length === 0) {
+        return reply.status(404).send({ error: "Idea not found" });
+      }
+
+      const idea = items[0];
+      const provider = getLLMProvider();
+
+      const interpretation = await provider.interpretCorrection(
+        {
+          title: idea.title,
+          summary: idea.summary,
+          links: idea.links,
+        },
+        bodyResult.data.instruction
+      );
+
+      const updateResult = IdeaUpdateSchema.safeParse(interpretation.updates);
+      if (!updateResult.success) {
+        return reply.status(400).send({
+          error: "AI interpretation produced invalid updates",
+          details: updateResult.error.flatten().fieldErrors,
+          interpretation,
+        });
+      }
+
+      const updates = { ...updateResult.data, updatedAt: new Date() };
+
+      const result = await db
+        .update(schema.ideas)
+        .set(updates)
+        .where(eq(schema.ideas.id, paramsResult.data.id))
+        .returning();
+
+      return reply.send({
+        entity: result[0],
+        interpretation: {
+          updates: interpretation.updates,
+          reasoning: interpretation.reasoning,
+        },
+      });
     }
   );
 }
