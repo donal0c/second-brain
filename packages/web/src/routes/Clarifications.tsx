@@ -85,7 +85,7 @@ export function Clarifications() {
           </p>
         </div>
         <button
-          onClick={loadClarifications}
+          onClick={() => loadClarifications()}
           className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
         >
           Refresh
@@ -95,7 +95,7 @@ export function Clarifications() {
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
-          <button onClick={loadClarifications} className="ml-2 underline hover:no-underline">
+          <button onClick={() => loadClarifications()} className="ml-2 underline hover:no-underline">
             Retry
           </button>
         </div>

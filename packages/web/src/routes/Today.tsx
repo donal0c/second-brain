@@ -156,7 +156,7 @@ export function Today() {
         <h2 className="text-2xl font-bold text-gray-900">Today</h2>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
-          <button onClick={loadDigest} className="ml-2 underline hover:no-underline">
+          <button onClick={() => loadDigest()} className="ml-2 underline hover:no-underline">
             Retry
           </button>
         </div>
@@ -172,7 +172,7 @@ export function Today() {
           <p className="text-gray-600 mt-1">{data?.date}</p>
         </div>
         <button
-          onClick={loadDigest}
+          onClick={() => loadDigest()}
           className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
         >
           Refresh
