@@ -14,6 +14,9 @@ sqlite.pragma("journal_mode = WAL");
 // Create the Drizzle ORM instance
 export const db = drizzle(sqlite, { schema });
 
+// Export raw SQLite instance for FTS5 and other raw SQL queries
+export const rawDb = sqlite;
+
 // Export schema for use in queries
 export { schema };
 

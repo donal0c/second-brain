@@ -355,3 +355,46 @@ export const process = {
   single: (id: string) =>
     request<unknown>(`/process/${id}`, { method: "POST" }),
 };
+
+// =============================================================================
+// Search API
+// =============================================================================
+
+export interface SearchResult {
+  type: "task" | "project" | "idea";
+  id: string;
+  entity: Task | Project | Idea;
+  snippet: {
+    title: string;
+    content: string;
+  };
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  total: number;
+  query: string;
+  limit: number;
+  offset: number;
+}
+
+export const search = {
+  query: (params: {
+    q: string;
+    type?: "task" | "project" | "idea";
+    context?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value.toString());
+      }
+    });
+    return request<SearchResponse>(`/search?${queryParams}`);
+  },
+};
