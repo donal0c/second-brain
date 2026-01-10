@@ -1,0 +1,1 @@
+ALTER TABLE `receipts` ADD `personal_context_used` text DEFAULT '[]';

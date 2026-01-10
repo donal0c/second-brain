@@ -161,6 +161,7 @@ export const ReceiptSchema = z.object({
     })
   ),
   previousReceiptId: z.string().uuid().nullable().optional(),
+  personalContextUsed: z.array(z.string().uuid()).default([]),
 });
 
 export type Receipt = z.infer<typeof ReceiptSchema>;

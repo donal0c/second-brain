@@ -78,11 +78,13 @@ export interface CorrectionResult {
 // -----------------------------------------------------------------------------
 
 export interface PersonalContext {
-  type: "person" | "project" | "area";
+  type: "person" | "place" | "organization" | "concept";
   id: string;
   name: string;
-  /** Additional context to help with matching */
-  keywords?: string[];
+  /** User-provided description of this entity */
+  description?: string | null;
+  /** Domain (work, family, health, etc.) */
+  domain?: string | null;
 }
 
 // -----------------------------------------------------------------------------

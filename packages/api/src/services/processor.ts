@@ -4,10 +4,10 @@
 // Core logic for classifying, extracting, and filing inbox items.
 
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
-import type { ClassificationResult, ExtractedContextEntity } from "../llm/types.js";
+import type { ClassificationResult, ExtractedContextEntity, PersonalContext } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
 // =============================================================================
@@ -53,6 +53,41 @@ function mapAction(configAction: "file" | "flag" | "clarify"): "filed" | "flagge
 }
 
 // =============================================================================
+// Personal Context Loading
+// =============================================================================
+
+/**
+ * Load personal contexts from the database for injection into LLM prompts.
+ * Returns the top N most-mentioned contexts, formatted for the LLM.
+ */
+async function loadPersonalContexts(limit: number = 20): Promise<PersonalContext[]> {
+  const contexts = await db
+    .select()
+    .from(schema.personalContexts)
+    .orderBy(desc(schema.personalContexts.mentionCount))
+    .limit(limit);
+
+  return contexts.map((ctx) => ({
+    id: ctx.id,
+    name: ctx.name,
+    type: ctx.type as PersonalContext["type"],
+    description: ctx.description,
+    domain: ctx.domain,
+  }));
+}
+
+/**
+ * Find which personal contexts appear in the given text.
+ * Returns IDs of contexts that were potentially relevant.
+ */
+function findRelevantContexts(text: string, contexts: PersonalContext[]): string[] {
+  const lowerText = text.toLowerCase();
+  return contexts
+    .filter((ctx) => lowerText.includes(ctx.name.toLowerCase()))
+    .map((ctx) => ctx.id);
+}
+
+// =============================================================================
 // Main Processing Function
 // =============================================================================
 
@@ -90,8 +125,12 @@ export async function processInboxItem(inboxItemId: string): Promise<ProcessResu
     .where(eq(schema.inboxItems.id, inboxItemId));
 
   try {
-    // Step 1: Classify the item
-    const classification = await provider.classify(inboxItem.rawText);
+    // Step 0: Load personal context for smarter processing
+    const personalContexts = await loadPersonalContexts();
+    const relevantContextIds = findRelevantContexts(inboxItem.rawText, personalContexts);
+
+    // Step 1: Classify the item (with context injection)
+    const classification = await provider.classify(inboxItem.rawText, personalContexts);
 
     // Step 2: Determine action based on confidence
     const configAction = getConfidenceAction(classification.confidence, DEFAULT_THRESHOLDS);
@@ -105,7 +144,8 @@ export async function processInboxItem(inboxItemId: string): Promise<ProcessResu
       result = await handleClarification(
         inboxItem,
         classification,
-        provider
+        provider,
+        relevantContextIds
       );
     } else {
       // High/medium confidence - extract and file
@@ -113,7 +153,9 @@ export async function processInboxItem(inboxItemId: string): Promise<ProcessResu
         inboxItem,
         classification,
         action,
-        provider
+        provider,
+        personalContexts,
+        relevantContextIds
       );
     }
 
@@ -142,7 +184,8 @@ export async function processInboxItem(inboxItemId: string): Promise<ProcessResu
 async function handleClarification(
   inboxItem: typeof schema.inboxItems.$inferSelect,
   classification: ClassificationResult,
-  provider: ReturnType<typeof getLLMProvider>
+  provider: ReturnType<typeof getLLMProvider>,
+  relevantContextIds: string[]
 ): Promise<ProcessResult> {
   // Generate clarification question
   const clarificationQuestion = await provider.generateClarification(
@@ -160,7 +203,7 @@ async function handleClarification(
     createdAt: new Date(),
   });
 
-  // Create receipt (no entity created)
+  // Create receipt (no entity created, but track context used)
   const receiptId = randomUUID();
   const timestamp = new Date();
   const receiptData = {
@@ -172,6 +215,7 @@ async function handleClarification(
     modelUsed: provider.model,
     timestamp,
     writes: [] as EntityWrite[],
+    personalContextUsed: relevantContextIds,
   };
 
   await db.insert(schema.receipts).values(receiptData);
@@ -193,12 +237,15 @@ async function handleExtraction(
   inboxItem: typeof schema.inboxItems.$inferSelect,
   classification: ClassificationResult,
   action: "filed" | "flagged",
-  provider: ReturnType<typeof getLLMProvider>
+  provider: ReturnType<typeof getLLMProvider>,
+  personalContexts: PersonalContext[],
+  relevantContextIds: string[]
 ): Promise<ProcessResult> {
-  // Extract structured data based on classification
+  // Extract structured data based on classification (with context injection)
   const extraction = await provider.extract(
     inboxItem.rawText,
-    classification.classification
+    classification.classification,
+    personalContexts
   );
 
   // Create the entity
@@ -291,6 +338,7 @@ async function handleExtraction(
     modelUsed: provider.model,
     timestamp,
     writes,
+    personalContextUsed: relevantContextIds,
   };
 
   await db.insert(schema.receipts).values(receiptData);

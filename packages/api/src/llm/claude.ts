@@ -293,10 +293,17 @@ Respond with JSON only:
       return basePrompt;
     }
 
+    const formatContext = (c: PersonalContext): string => {
+      let line = `- ${c.name} (${c.type})`;
+      if (c.domain) line += ` [${c.domain}]`;
+      if (c.description) line += `: ${c.description}`;
+      return line;
+    };
+
     const contextSection = `
 
-Known Context (use for better matching):
-${context.map((c) => `- ${c.type}: ${c.name}${c.keywords ? ` (${c.keywords.join(", ")})` : ""}`).join("\n")}`;
+Known Context (use this information about the user's world for better classification and extraction):
+${context.map(formatContext).join("\n")}`;
 
     return basePrompt + contextSection;
   }

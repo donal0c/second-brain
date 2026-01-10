@@ -93,6 +93,9 @@ export const receipts = sqliteTable("receipts", {
     >()
     .notNull(),
   previousReceiptId: text("previous_receipt_id"), // Self-reference handled at app level
+  personalContextUsed: text("personal_context_used", { mode: "json" })
+    .$type<string[]>()
+    .default([]),
 });
 
 // --- Clarifications ---
