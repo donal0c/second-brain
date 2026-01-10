@@ -13,7 +13,7 @@ WHERE id NOT IN (
     FROM personal_contexts
   ) WHERE rn = 1
 );
-
+--> statement-breakpoint
 -- Create unique index on lowercase name
 CREATE UNIQUE INDEX IF NOT EXISTS idx_personal_contexts_name_unique
 ON personal_contexts(name COLLATE NOCASE);
