@@ -18,9 +18,9 @@
     "@second-brain/config": "workspace:*",
     "@second-brain/shared": "workspace:*",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.36.0",
+    "drizzle-orm": "^0.45.1",
     "fastify": "^5.0.0",
-    "postgres": "^3.4.3",
+    "postgres": "^3.4.8",
     "zod": "^3.23.0"
   },
   "devDependencies": {
