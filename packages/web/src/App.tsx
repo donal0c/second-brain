@@ -95,6 +95,14 @@ export function App() {
                   </RouteErrorBoundary>
                 }
               />
+              <Route
+                path="digest/dashboard"
+                element={
+                  <RouteErrorBoundary routeName="Digest Dashboard">
+                    <Today />
+                  </RouteErrorBoundary>
+                }
+              />
             </Route>
           </Routes>
         </BrowserRouter>
