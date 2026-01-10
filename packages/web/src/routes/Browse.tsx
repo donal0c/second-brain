@@ -140,10 +140,10 @@ export function Browse() {
       };
 
       const entityType = entityTypeMap[editing.type];
-      const result = await fixEntity.mutateAsync({ entityType, id: editing.item.id, correction });
+      const result = await fixEntity.mutateAsync({ entityType, id: editing.item.id, correction }) as { newEntity: Task | Project | Idea; oldEntity: Task | Project | Idea };
 
       // Update editing state with new entity
-      const newEntity = result.newEntity as Task | Project | Idea;
+      const newEntity = result.newEntity;
       if ("title" in newEntity && "nextAction" in newEntity) {
         // It's a task
         setEditing({ type: "task", item: newEntity as Task });
@@ -233,7 +233,7 @@ export function Browse() {
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {(error as ApiError).message || (error as ApiError).error || "Failed to load data"}
+          {(error as unknown as ApiError).message || (error as unknown as ApiError).error || "Failed to load data"}
           <button onClick={loadData} className="ml-2 underline hover:no-underline">
             Retry
           </button>

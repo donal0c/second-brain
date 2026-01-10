@@ -55,15 +55,15 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Task> }) =>
       tasks.update(id, data),
-    onSuccess: (updatedTask) => {
+    onSuccess: (updatedTask: Task) => {
       // Update the task in all relevant queries
       queryClient.setQueriesData<TaskListResponse>(
         { queryKey: queryKeys.tasks },
-        (old) => {
+        (old: TaskListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.map((task) =>
+            items: old.items.map((task: Task) =>
               task.id === updatedTask.id ? updatedTask : task
             ),
           };
@@ -79,14 +79,14 @@ export function useUpdateProject() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Project> }) =>
       projects.update(id, data),
-    onSuccess: (updatedProject) => {
+    onSuccess: (updatedProject: Project) => {
       queryClient.setQueriesData<ProjectListResponse>(
         { queryKey: queryKeys.projects },
-        (old) => {
+        (old: ProjectListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.map((project) =>
+            items: old.items.map((project: Project) =>
               project.id === updatedProject.id ? updatedProject : project
             ),
           };
@@ -102,14 +102,14 @@ export function useUpdateIdea() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Idea> }) =>
       ideas.update(id, data),
-    onSuccess: (updatedIdea) => {
+    onSuccess: (updatedIdea: Idea) => {
       queryClient.setQueriesData<IdeaListResponse>(
         { queryKey: queryKeys.ideas },
-        (old) => {
+        (old: IdeaListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.map((idea) =>
+            items: old.items.map((idea: Idea) =>
               idea.id === updatedIdea.id ? updatedIdea : idea
             ),
           };
@@ -125,14 +125,14 @@ export function useInterpretTask() {
   return useMutation({
     mutationFn: ({ id, instruction }: { id: string; instruction: string }) =>
       tasks.interpret(id, instruction),
-    onSuccess: (result) => {
+    onSuccess: (result: { entity: Task }) => {
       queryClient.setQueriesData<TaskListResponse>(
         { queryKey: queryKeys.tasks },
-        (old) => {
+        (old: TaskListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.map((task) =>
+            items: old.items.map((task: Task) =>
               task.id === result.entity.id ? result.entity : task
             ),
           };
@@ -148,14 +148,14 @@ export function useInterpretProject() {
   return useMutation({
     mutationFn: ({ id, instruction }: { id: string; instruction: string }) =>
       projects.interpret(id, instruction),
-    onSuccess: (result) => {
+    onSuccess: (result: { entity: Project }) => {
       queryClient.setQueriesData<ProjectListResponse>(
         { queryKey: queryKeys.projects },
-        (old) => {
+        (old: ProjectListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.map((project) =>
+            items: old.items.map((project: Project) =>
               project.id === result.entity.id ? result.entity : project
             ),
           };
@@ -171,14 +171,14 @@ export function useInterpretIdea() {
   return useMutation({
     mutationFn: ({ id, instruction }: { id: string; instruction: string }) =>
       ideas.interpret(id, instruction),
-    onSuccess: (result) => {
+    onSuccess: (result: { entity: Idea }) => {
       queryClient.setQueriesData<IdeaListResponse>(
         { queryKey: queryKeys.ideas },
-        (old) => {
+        (old: IdeaListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.map((idea) =>
+            items: old.items.map((idea: Idea) =>
               idea.id === result.entity.id ? result.entity : idea
             ),
           };
@@ -201,7 +201,7 @@ export function useFixEntity() {
       id: string;
       correction: string;
     }) => fix.entity(entityType, id, correction),
-    onSuccess: (result) => {
+    onSuccess: (_result: unknown) => {
       // Invalidate all queries since the entity type might have changed
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects });
@@ -215,14 +215,14 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: (id: string) => tasks.delete(id),
-    onSuccess: (_, deletedId) => {
+    onSuccess: (_: void, deletedId: string) => {
       queryClient.setQueriesData<TaskListResponse>(
         { queryKey: queryKeys.tasks },
-        (old) => {
+        (old: TaskListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.filter((task) => task.id !== deletedId),
+            items: old.items.filter((task: Task) => task.id !== deletedId),
             total: old.total - 1,
           };
         }
@@ -236,14 +236,14 @@ export function useDeleteProject() {
 
   return useMutation({
     mutationFn: (id: string) => projects.delete(id),
-    onSuccess: (_, deletedId) => {
+    onSuccess: (_: void, deletedId: string) => {
       queryClient.setQueriesData<ProjectListResponse>(
         { queryKey: queryKeys.projects },
-        (old) => {
+        (old: ProjectListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.filter((project) => project.id !== deletedId),
+            items: old.items.filter((project: Project) => project.id !== deletedId),
             total: old.total - 1,
           };
         }
@@ -257,14 +257,14 @@ export function useDeleteIdea() {
 
   return useMutation({
     mutationFn: (id: string) => ideas.delete(id),
-    onSuccess: (_, deletedId) => {
+    onSuccess: (_: void, deletedId: string) => {
       queryClient.setQueriesData<IdeaListResponse>(
         { queryKey: queryKeys.ideas },
-        (old) => {
+        (old: IdeaListResponse | undefined) => {
           if (!old) return old;
           return {
             ...old,
-            items: old.items.filter((idea) => idea.id !== deletedId),
+            items: old.items.filter((idea: Idea) => idea.id !== deletedId),
             total: old.total - 1,
           };
         }
