@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { receipts, inbox, type Receipt, type ApiError } from "../lib/api";
+import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { Modal } from "../components/Modal";
 
 export function Receipts() {
   const [items, setItems] = useState<Receipt[]>([]);
@@ -117,24 +120,10 @@ export function Receipts() {
         </button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-          <button onClick={() => loadReceipts(0)} className="ml-2 underline hover:no-underline">
-            Retry
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner error={error} onRetry={() => loadReceipts(0)} />}
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-100 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
+        <LoadingSkeleton />
       ) : items.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
           <p className="text-gray-500">No receipts yet. Process some inbox items to see the audit trail.</p>
@@ -229,23 +218,13 @@ export function Receipts() {
       )}
 
       {/* Receipt Detail Modal */}
-      {selectedReceipt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Receipt Details</h3>
-                <button
-                  onClick={() => setSelectedReceipt(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
+      <Modal
+        isOpen={!!selectedReceipt}
+        onClose={() => setSelectedReceipt(null)}
+        title="Receipt Details"
+      >
+        {selectedReceipt && (
+          <div className="space-y-4">
                 {/* Original Text */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Original Capture</label>
@@ -345,20 +324,9 @@ export function Receipts() {
                     )}
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setSelectedReceipt(null)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

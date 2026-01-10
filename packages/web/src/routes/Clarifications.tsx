@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { clarifications, inbox, type Clarification, type ApiError } from "../lib/api";
+import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { ErrorBanner } from "../components/ErrorBanner";
 
 export function Clarifications() {
   const [items, setItems] = useState<Clarification[]>([]);
@@ -92,25 +94,10 @@ export function Clarifications() {
         </button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-          <button onClick={() => loadClarifications()} className="ml-2 underline hover:no-underline">
-            Retry
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner error={error} onRetry={() => loadClarifications()} />}
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-              <div className="h-3 bg-gray-100 rounded w-1/2 mb-4"></div>
-              <div className="h-10 bg-gray-200 rounded"></div>
-            </div>
-          ))}
-        </div>
+        <LoadingSkeleton count={2} />
       ) : items.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
           <p className="text-gray-500">

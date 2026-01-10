@@ -22,6 +22,10 @@ import {
   useDeleteProject,
   useDeleteIdea,
 } from "../lib/queries";
+import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { Modal } from "../components/Modal";
+import { TaskEditForm } from "../components/TaskEditForm";
 
 type TabType = "tasks" | "projects" | "ideas";
 type EditingEntity =
@@ -268,23 +272,14 @@ export function Browse() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {(error as unknown as ApiError).message || (error as unknown as ApiError).error || "Failed to load data"}
-          <button onClick={loadData} className="ml-2 underline hover:no-underline">
-            Retry
-          </button>
-        </div>
+        <ErrorBanner
+          error={(error as unknown as ApiError).message || (error as unknown as ApiError).error || "Failed to load data"}
+          onRetry={loadData}
+        />
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-              <div className="h-3 bg-gray-100 rounded w-3/4"></div>
-            </div>
-          ))}
-        </div>
+        <LoadingSkeleton />
       ) : (
         <>
           {/* Tasks Tab */}
@@ -408,81 +403,67 @@ export function Browse() {
       )}
 
       {/* Edit Modal */}
-      {editing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Edit {editing.type.charAt(0).toUpperCase() + editing.type.slice(1)}
-                </h3>
-                <button
-                  onClick={() => {
-                    setEditing(null);
-                    setSaveError(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {saveError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                  {saveError}
-                </div>
-              )}
-
-              {saveSuccess && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-                  Saved successfully!
-                </div>
-              )}
-
-              {editing.type === "task" && (
-                <TaskEditForm
-                  task={editing.item}
-                  onSave={handleSave}
-                  onInterpret={handleInterpret}
-                  onFix={handleFix}
-                  onReprocess={handleReprocess}
-                  onDelete={handleDelete}
-                  onCancel={() => setEditing(null)}
-                  saving={saving}
-                />
-              )}
-
-              {editing.type === "project" && (
-                <ProjectEditForm
-                  project={editing.item}
-                  onSave={handleSave}
-                  onInterpret={handleInterpret}
-                  onFix={handleFix}
-                  onReprocess={handleReprocess}
-                  onDelete={handleDelete}
-                  onCancel={() => setEditing(null)}
-                  saving={saving}
-                />
-              )}
-
-              {editing.type === "idea" && (
-                <IdeaEditForm
-                  idea={editing.item}
-                  onSave={handleSave}
-                  onInterpret={handleInterpret}
-                  onFix={handleFix}
-                  onReprocess={handleReprocess}
-                  onDelete={handleDelete}
-                  onCancel={() => setEditing(null)}
-                  saving={saving}
-                />
-              )}
-            </div>
+      <Modal
+        isOpen={!!editing}
+        onClose={() => {
+          setEditing(null);
+          setSaveError(null);
+        }}
+        title={editing ? `Edit ${editing.type.charAt(0).toUpperCase() + editing.type.slice(1)}` : ""}
+      >
+        {saveError && (
+          <div className="mb-4 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm animate-slide-up">
+            {saveError}
           </div>
-        </div>
-      )}
+        )}
+
+        {saveSuccess && (
+          <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-center gap-2 animate-scale-in">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>Saved successfully!</span>
+          </div>
+        )}
+
+        {editing?.type === "task" && (
+          <TaskEditForm
+            task={editing.item}
+            onSave={handleSave}
+            onInterpret={handleInterpret}
+            onFix={handleFix}
+            onDelete={handleDelete}
+            onCancel={() => setEditing(null)}
+            saving={saving}
+          />
+        )}
+
+        {editing?.type === "project" && (
+          <ProjectEditForm
+            project={editing.item}
+            onSave={handleSave}
+            onInterpret={handleInterpret}
+            onFix={handleFix}
+            onReprocess={handleReprocess}
+            onDelete={handleDelete}
+            onCancel={() => setEditing(null)}
+            saving={saving}
+          />
+        )}
+
+        {editing?.type === "idea" && (
+          <IdeaEditForm
+            idea={editing.item}
+            onSave={handleSave}
+            onInterpret={handleInterpret}
+            onFix={handleFix}
+            onReprocess={handleReprocess}
+            onDelete={handleDelete}
+            onCancel={() => setEditing(null)}
+            saving={saving}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
@@ -490,274 +471,6 @@ export function Browse() {
 // =============================================================================
 // Edit Forms
 // =============================================================================
-
-function TaskEditForm({
-  task,
-  onSave,
-  onInterpret,
-  onFix,
-  onReprocess,
-  onDelete,
-  onCancel,
-  saving,
-}: {
-  task: Task;
-  onSave: (data: Record<string, unknown>) => void;
-  onInterpret: (instruction: string) => void;
-  onFix: (correction: string) => void;
-  onReprocess: () => void;
-  onDelete: () => void;
-  onCancel: () => void;
-  saving: boolean;
-}) {
-  const [instruction, setInstruction] = useState("");
-  const [correction, setCorrection] = useState("");
-  const [showAllFields, setShowAllFields] = useState(false);
-  const [title, setTitle] = useState(task.title);
-  const [nextAction, setNextAction] = useState(task.nextAction);
-  const [dueDate, setDueDate] = useState(task.dueDate || "");
-  const [context, setContext] = useState(task.context || "");
-  const [status, setStatus] = useState(task.status);
-
-  const handleQuickStatus = (newStatus: Task["status"]) => {
-    onSave({ status: newStatus });
-  };
-
-  const handleInterpret = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (instruction.trim()) {
-      onInterpret(instruction.trim());
-    }
-  };
-
-  const handleFix = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (correction.trim()) {
-      onFix(correction.trim());
-    }
-  };
-
-  const handleManualSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({
-      title,
-      nextAction,
-      dueDate: dueDate || null,
-      context: context || null,
-      status,
-    });
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Quick Status Buttons */}
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Quick Status</label>
-        <div className="flex gap-2">
-          {(["completed", "waiting", "someday"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => handleQuickStatus(s)}
-              disabled={saving || task.status === s}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                task.status === s
-                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                  : s === "completed"
-                  ? "bg-green-100 text-green-700 hover:bg-green-200"
-                  : s === "waiting"
-                  ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                  : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-              }`}
-            >
-              {s === "completed" ? "Complete" : s === "waiting" ? "Waiting" : "Someday"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Natural Language Edit */}
-      <form onSubmit={handleInterpret}>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Quick Edit</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            placeholder="e.g., Move to September, change context to @phone"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-            disabled={saving}
-          />
-          <button
-            type="submit"
-            disabled={saving || !instruction.trim()}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
-          >
-            {saving ? "..." : "Update"}
-          </button>
-        </div>
-      </form>
-
-      {/* Fix/Correction (may change entity type) */}
-      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
-        <label className="block text-xs font-medium text-orange-600 mb-2">
-          Fix (can change entity type)
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={correction}
-            onChange={(e) => setCorrection(e.target.value)}
-            placeholder="e.g., This is actually a project, not a task"
-            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-            disabled={saving}
-          />
-          <button
-            type="submit"
-            disabled={saving || !correction.trim()}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
-          >
-            {saving ? "..." : "Fix"}
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-gray-500">
-          Use this to make corrections that might change the entity type
-        </p>
-      </form>
-
-      {/* Reprocess with AI */}
-      {task.sourceInboxItemId && (
-        <div className="border-t border-gray-200 pt-4">
-          <label className="block text-xs font-medium text-purple-600 mb-2">
-            Reprocess with AI
-          </label>
-          <button
-            type="button"
-            onClick={onReprocess}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
-            disabled={saving}
-          >
-            {saving ? "..." : "Reprocess"}
-          </button>
-          <p className="mt-1 text-xs text-gray-500">
-            Send the original text through AI classification again. May change entity type.
-          </p>
-        </div>
-      )}
-
-      {/* Delete - Moved above "Show all fields" for better visibility */}
-      <div className="border-t border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
-          disabled={saving}
-        >
-          Delete Task
-        </button>
-      </div>
-
-      {/* Collapsible Manual Fields */}
-      <div className="border-t border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setShowAllFields(!showAllFields)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-        >
-          <svg
-            className={`w-4 h-4 transition-transform ${showAllFields ? "rotate-90" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          {showAllFields ? "Hide all fields" : "Show all fields"}
-        </button>
-
-        {showAllFields && (
-          <form onSubmit={handleManualSave} className="mt-4 space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Next Action</label>
-              <input
-                type="text"
-                value={nextAction}
-                onChange={(e) => setNextAction(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Context</label>
-              <input
-                type="text"
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                placeholder="e.g., @home, @work, @phone"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as Task["status"])}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
-              >
-                <option value="active">Active</option>
-                <option value="waiting">Waiting</option>
-                <option value="someday">Someday</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
-            >
-              {saving ? "Saving..." : "Save All Changes"}
-            </button>
-          </form>
-        )}
-      </div>
-
-      {/* Cancel */}
-      <div className="pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
-          disabled={saving}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function ProjectEditForm({
   project,

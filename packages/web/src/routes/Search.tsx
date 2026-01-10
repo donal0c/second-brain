@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { search, type SearchResult, type Task, type Project, type Idea, type ApiError } from "../lib/api";
+import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { ErrorBanner } from "../components/ErrorBanner";
 
 export function Search() {
   const [searchParams] = useSearchParams();
@@ -190,23 +192,10 @@ export function Search() {
       )}
 
       {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner error={error} />}
 
       {/* Loading State */}
-      {loading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-              <div className="h-3 bg-gray-100 rounded w-3/4"></div>
-            </div>
-          ))}
-        </div>
-      )}
+      {loading && <LoadingSkeleton />}
 
       {/* Results List */}
       {!loading && results.length > 0 && (
