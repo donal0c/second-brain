@@ -510,3 +510,40 @@ export const search = {
     return request<SearchResponse>(`/search?${queryParams}`);
   },
 };
+
+// =============================================================================
+// Nudges API
+// =============================================================================
+
+export interface Nudge {
+  id: string;
+  type: "follow_up_overdue" | "project_missing_next_action" | "task_due_soon" | "task_stale" | "person_follow_up";
+  message: string;
+  entityType: "task" | "project" | "person";
+  entityId: string;
+  createdAt: string;
+  dismissedAt: string | null;
+  snoozedUntil: string | null;
+}
+
+export interface NudgesResponse {
+  nudges: Nudge[];
+  count: number;
+}
+
+export const nudges = {
+  list: (signal?: AbortSignal) => request<NudgesResponse>("/nudges", { signal }),
+
+  dismiss: (id: string, signal?: AbortSignal) =>
+    request<{ success: boolean }>(`/nudges/${id}/dismiss`, {
+      method: "POST",
+      signal,
+    }),
+
+  snooze: (id: string, hours: number = 24, signal?: AbortSignal) =>
+    request<{ success: boolean; snoozedUntil: string }>(`/nudges/${id}/snooze`, {
+      method: "POST",
+      body: JSON.stringify({ hours }),
+      signal,
+    }),
+};

@@ -8,6 +8,7 @@ import { processRoutes } from "./routes/process.js";
 import { entityRoutes } from "./routes/entities.js";
 import { receiptRoutes, clarificationRoutes } from "./routes/receipts.js";
 import { digestRoutes } from "./routes/digest.js";
+import { nudgeRoutes } from "./routes/nudges.js";
 import { jobRoutes } from "./routes/jobs.js";
 import { contextRoutes } from "./routes/context.js";
 import { searchRoutes } from "./routes/search.js";
@@ -62,6 +63,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(jobRoutes, { preHandler: authMiddleware });
   await app.register(contextRoutes, { preHandler: authMiddleware });
   await app.register(searchRoutes, { preHandler: authMiddleware });
+  await app.register(nudgeRoutes, { preHandler: authMiddleware });
 
   return app;
 }

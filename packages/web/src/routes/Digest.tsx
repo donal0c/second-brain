@@ -6,6 +6,7 @@ import {
   type Task,
   type ApiError,
 } from "../lib/api";
+import { Nudges } from "../components/Nudges";
 
 export function Digest() {
   const [data, setData] = useState<DigestResponse | null>(null);
@@ -178,6 +179,9 @@ export function Digest() {
           Refresh
         </button>
       </div>
+
+      {/* Nudges Section */}
+      <Nudges />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">

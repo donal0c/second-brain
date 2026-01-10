@@ -228,3 +228,31 @@ export const UpdatePersonalContextSchema = z.object({
 });
 
 export type UpdatePersonalContext = z.infer<typeof UpdatePersonalContextSchema>;
+
+// --- Nudge (Contextual micro-prompts) ---
+export const NudgeType = {
+  FOLLOW_UP_OVERDUE: "follow_up_overdue",
+  PROJECT_MISSING_NEXT_ACTION: "project_missing_next_action",
+  TASK_DUE_SOON: "task_due_soon",
+  TASK_STALE: "task_stale",
+  PERSON_FOLLOW_UP: "person_follow_up",
+} as const;
+
+export const NudgeSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum([
+    "follow_up_overdue",
+    "project_missing_next_action",
+    "task_due_soon",
+    "task_stale",
+    "person_follow_up",
+  ]),
+  message: z.string().min(1),
+  entityType: z.enum(["task", "project", "person"]),
+  entityId: z.string().uuid(),
+  createdAt: z.coerce.date(),
+  dismissedAt: z.coerce.date().nullable().optional(),
+  snoozedUntil: z.coerce.date().nullable().optional(),
+});
+
+export type Nudge = z.infer<typeof NudgeSchema>;
