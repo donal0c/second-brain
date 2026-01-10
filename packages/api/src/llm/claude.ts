@@ -35,19 +35,180 @@ import {
 
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
+// =============================================================================
+// Retry Configuration
+// =============================================================================
+
+interface RetryOptions {
+  maxRetries: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+}
+
+const DEFAULT_RETRY_OPTIONS: RetryOptions = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 10000,
+  backoffMultiplier: 2,
+};
+
+// =============================================================================
+// Circuit Breaker
+// =============================================================================
+
+enum CircuitState {
+  CLOSED = "closed",
+  OPEN = "open",
+  HALF_OPEN = "half_open",
+}
+
+class CircuitBreaker {
+  private state: CircuitState = CircuitState.CLOSED;
+  private failureCount = 0;
+  private lastFailureTime: number | null = null;
+  private readonly threshold = 5; // Open circuit after 5 consecutive failures
+  private readonly timeout = 60000; // Try again after 60 seconds
+
+  isOpen(): boolean {
+    if (this.state === CircuitState.OPEN && this.lastFailureTime) {
+      const timeSinceLastFailure = Date.now() - this.lastFailureTime;
+      if (timeSinceLastFailure >= this.timeout) {
+        this.state = CircuitState.HALF_OPEN;
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  recordSuccess(): void {
+    this.failureCount = 0;
+    this.state = CircuitState.CLOSED;
+  }
+
+  recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    if (this.failureCount >= this.threshold) {
+      this.state = CircuitState.OPEN;
+    }
+  }
+
+  getState(): CircuitState {
+    return this.state;
+  }
+}
+
 export interface ClaudeProviderOptions {
   apiKey: string;
   model?: string;
+  retryOptions?: Partial<RetryOptions>;
 }
 
 export class ClaudeProvider implements LLMProvider {
   readonly name = "claude";
   readonly model: string;
   private client: Anthropic;
+  private retryOptions: RetryOptions;
+  private circuitBreaker: CircuitBreaker;
 
   constructor(options: ClaudeProviderOptions) {
     this.client = new Anthropic({ apiKey: options.apiKey });
     this.model = options.model ?? DEFAULT_MODEL;
+    this.retryOptions = {
+      ...DEFAULT_RETRY_OPTIONS,
+      ...options.retryOptions,
+    };
+    this.circuitBreaker = new CircuitBreaker();
+  }
+
+  /**
+   * Execute an API call with retry logic and circuit breaker protection
+   */
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    // Check circuit breaker
+    if (this.circuitBreaker.isOpen()) {
+      throw new Error(
+        `Circuit breaker is open for ${operationName}. Too many recent failures.`
+      );
+    }
+
+    let lastError: Error | null = null;
+    let delay = this.retryOptions.initialDelayMs;
+
+    for (let attempt = 0; attempt <= this.retryOptions.maxRetries; attempt++) {
+      try {
+        const result = await operation();
+        this.circuitBreaker.recordSuccess();
+        return result;
+      } catch (error) {
+        lastError = error as Error;
+
+        // Check if error is retryable
+        const isRetryable = this.isRetryableError(error);
+        const isLastAttempt = attempt === this.retryOptions.maxRetries;
+
+        if (!isRetryable || isLastAttempt) {
+          this.circuitBreaker.recordFailure();
+          throw error;
+        }
+
+        // Wait before retry with exponential backoff
+        await this.sleep(Math.min(delay, this.retryOptions.maxDelayMs));
+        delay *= this.retryOptions.backoffMultiplier;
+      }
+    }
+
+    // Should not reach here, but handle just in case
+    this.circuitBreaker.recordFailure();
+    throw lastError || new Error(`${operationName} failed after retries`);
+  }
+
+  /**
+   * Determine if an error is retryable (transient failure)
+   */
+  private isRetryableError(error: unknown): boolean {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+
+    const err = error as { status?: number; code?: string; message?: string };
+
+    // Retry on rate limits (429)
+    if (err.status === 429) {
+      return true;
+    }
+
+    // Retry on 5xx server errors
+    if (err.status && err.status >= 500 && err.status < 600) {
+      return true;
+    }
+
+    // Retry on network errors
+    if (
+      err.code === "ECONNRESET" ||
+      err.code === "ETIMEDOUT" ||
+      err.code === "ENOTFOUND" ||
+      err.message?.includes("network") ||
+      err.message?.includes("timeout")
+    ) {
+      return true;
+    }
+
+    // Don't retry on 4xx client errors (except 429)
+    return false;
+  }
+
+  /**
+   * Sleep utility for delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async classify(
@@ -65,15 +226,17 @@ export class ClaudeProvider implements LLMProvider {
       systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
     }
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 256,
-      system: systemPrompt,
-      messages: [{ role: "user", content: buildClassifierPrompt(text) }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 256,
+        system: systemPrompt,
+        messages: [{ role: "user", content: buildClassifierPrompt(text) }],
+      });
 
-    const content = this.extractTextContent(response);
-    return this.parseJSON<ClassificationResult>(content);
+      const content = this.extractTextContent(response);
+      return this.parseJSON<ClassificationResult>(content);
+    }, "classify");
   }
 
   async extract(
@@ -107,15 +270,17 @@ export class ClaudeProvider implements LLMProvider {
       classificationAttempt.reasoning
     );
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 256,
-      system: CLARIFICATION_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 256,
+        system: CLARIFICATION_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: prompt }],
+      });
 
-    const content = this.extractTextContent(response);
-    return this.parseJSON<ClarificationQuestion>(content);
+      const content = this.extractTextContent(response);
+      return this.parseJSON<ClarificationQuestion>(content);
+    }, "generateClarification");
   }
 
   async interpretCorrection(
@@ -149,15 +314,17 @@ Respond with JSON only:
   "reasoning": "Brief explanation of what was changed"
 }`;
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      });
 
-    const content = this.extractTextContent(response);
-    return this.parseJSON<CorrectionResult>(content);
+      const content = this.extractTextContent(response);
+      return this.parseJSON<CorrectionResult>(content);
+    }, "interpretCorrection");
   }
 
   async extractContextEntities(text: string): Promise<ContextExtractionResult> {
@@ -185,20 +352,22 @@ Respond with JSON only:
   ]
 }`;
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Extract named entities from this text:\n\n"${text}"`,
-        },
-      ],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: `Extract named entities from this text:\n\n"${text}"`,
+          },
+        ],
+      });
 
-    const content = this.extractTextContent(response);
-    return this.parseJSON<ContextExtractionResult>(content);
+      const content = this.extractTextContent(response);
+      return this.parseJSON<ContextExtractionResult>(content);
+    }, "extractContextEntities");
   }
 
   // ---------------------------------------------------------------------------
@@ -218,16 +387,18 @@ Respond with JSON only:
       systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
     }
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [{ role: "user", content: buildTaskExtractorPrompt(text) }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [{ role: "user", content: buildTaskExtractorPrompt(text) }],
+      });
 
-    const content = this.extractTextContent(response);
-    const data = this.parseJSON<TaskExtraction>(content);
-    return { type: "task", data };
+      const content = this.extractTextContent(response);
+      const data = this.parseJSON<TaskExtraction>(content);
+      return { type: "task", data };
+    }, "extractTask");
   }
 
   private async extractProject(
@@ -243,16 +414,18 @@ Respond with JSON only:
       systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
     }
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [{ role: "user", content: buildProjectExtractorPrompt(text) }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [{ role: "user", content: buildProjectExtractorPrompt(text) }],
+      });
 
-    const content = this.extractTextContent(response);
-    const data = this.parseJSON<ProjectExtraction>(content);
-    return { type: "project", data };
+      const content = this.extractTextContent(response);
+      const data = this.parseJSON<ProjectExtraction>(content);
+      return { type: "project", data };
+    }, "extractProject");
   }
 
   private async extractIdea(
@@ -268,16 +441,18 @@ Respond with JSON only:
       systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
     }
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [{ role: "user", content: buildIdeaExtractorPrompt(text) }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [{ role: "user", content: buildIdeaExtractorPrompt(text) }],
+      });
 
-    const content = this.extractTextContent(response);
-    const data = this.parseJSON<IdeaExtraction>(content);
-    return { type: "idea", data };
+      const content = this.extractTextContent(response);
+      const data = this.parseJSON<IdeaExtraction>(content);
+      return { type: "idea", data };
+    }, "extractIdea");
   }
 
   private async extractPerson(
@@ -293,16 +468,18 @@ Respond with JSON only:
       systemPrompt = this.injectClarificationContext(systemPrompt, clarification);
     }
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [{ role: "user", content: buildPersonExtractorPrompt(text) }],
-    });
+    return this.withRetry(async () => {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [{ role: "user", content: buildPersonExtractorPrompt(text) }],
+      });
 
-    const content = this.extractTextContent(response);
-    const data = this.parseJSON<PersonExtraction>(content);
-    return { type: "person", data };
+      const content = this.extractTextContent(response);
+      const data = this.parseJSON<PersonExtraction>(content);
+      return { type: "person", data };
+    }, "extractPerson");
   }
 
   // ---------------------------------------------------------------------------
