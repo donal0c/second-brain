@@ -5,6 +5,9 @@ import { healthRoutes } from "./routes/health.js";
 import { inboxRoutes } from "./routes/inbox.js";
 import { processRoutes } from "./routes/process.js";
 import { entityRoutes } from "./routes/entities.js";
+import { receiptRoutes, clarificationRoutes } from "./routes/receipts.js";
+import { digestRoutes } from "./routes/digest.js";
+import { jobRoutes } from "./routes/jobs.js";
 import { createClaudeProvider, setLLMProvider, hasLLMProvider } from "./llm/index.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -48,6 +51,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(inboxRoutes);
   await app.register(processRoutes);
   await app.register(entityRoutes);
+  await app.register(receiptRoutes);
+  await app.register(clarificationRoutes);
+  await app.register(digestRoutes);
+  await app.register(jobRoutes);
 
   return app;
 }

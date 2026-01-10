@@ -1,0 +1,302 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { z } from "zod";
+import { eq, sql, desc, isNull, isNotNull } from "drizzle-orm";
+import { db, schema } from "../db/index.js";
+import { processInboxItem } from "../services/processor.js";
+import { hasLLMProvider } from "../llm/index.js";
+
+// =============================================================================
+// Request Schemas
+// =============================================================================
+
+const ReceiptQuerySchema = z.object({
+  inboxItemId: z.string().uuid().optional(),
+  limit: z.coerce.number().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().min(0).optional().default(0),
+});
+
+const ClarificationQuerySchema = z.object({
+  resolved: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().min(0).optional().default(0),
+});
+
+const IdParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const ResolveBodySchema = z.object({
+  answer: z.string().min(1),
+});
+
+// =============================================================================
+// Receipt Routes
+// =============================================================================
+
+export async function receiptRoutes(app: FastifyInstance): Promise<void> {
+  // GET /receipts - List receipts
+  app.get(
+    "/receipts",
+    async (
+      request: FastifyRequest<{ Querystring: z.infer<typeof ReceiptQuerySchema> }>,
+      reply: FastifyReply
+    ) => {
+      const parseResult = ReceiptQuerySchema.safeParse(request.query);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: parseResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const { inboxItemId, limit, offset } = parseResult.data;
+
+      const items = inboxItemId
+        ? await db
+            .select()
+            .from(schema.receipts)
+            .where(eq(schema.receipts.inboxItemId, inboxItemId))
+            .orderBy(desc(schema.receipts.timestamp))
+            .limit(limit)
+            .offset(offset)
+        : await db
+            .select()
+            .from(schema.receipts)
+            .orderBy(desc(schema.receipts.timestamp))
+            .limit(limit)
+            .offset(offset);
+
+      const countResult = inboxItemId
+        ? await db
+            .select({ count: sql<number>`count(*)` })
+            .from(schema.receipts)
+            .where(eq(schema.receipts.inboxItemId, inboxItemId))
+        : await db.select({ count: sql<number>`count(*)` }).from(schema.receipts);
+
+      return reply.send({
+        receipts: items,
+        total: countResult[0]?.count ?? 0,
+        limit,
+        offset,
+      });
+    }
+  );
+
+  // GET /receipts/:id - Get single receipt
+  app.get(
+    "/receipts/:id",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      const parseResult = IdParamsSchema.safeParse(request.params);
+      if (!parseResult.success) {
+        return reply.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const items = await db
+        .select()
+        .from(schema.receipts)
+        .where(eq(schema.receipts.id, parseResult.data.id))
+        .limit(1);
+
+      if (items.length === 0) {
+        return reply.status(404).send({ error: "Receipt not found" });
+      }
+
+      return reply.send(items[0]);
+    }
+  );
+}
+
+// =============================================================================
+// Clarification Routes
+// =============================================================================
+
+export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
+  // GET /clarifications - List clarifications
+  app.get(
+    "/clarifications",
+    async (
+      request: FastifyRequest<{ Querystring: z.infer<typeof ClarificationQuerySchema> }>,
+      reply: FastifyReply
+    ) => {
+      const parseResult = ClarificationQuerySchema.safeParse(request.query);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: parseResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const { resolved, limit, offset } = parseResult.data;
+
+      let items;
+      let countResult;
+
+      if (resolved === "true") {
+        items = await db
+          .select()
+          .from(schema.clarifications)
+          .where(isNotNull(schema.clarifications.resolvedAt))
+          .orderBy(desc(schema.clarifications.createdAt))
+          .limit(limit)
+          .offset(offset);
+        countResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.clarifications)
+          .where(isNotNull(schema.clarifications.resolvedAt));
+      } else if (resolved === "false") {
+        items = await db
+          .select()
+          .from(schema.clarifications)
+          .where(isNull(schema.clarifications.resolvedAt))
+          .orderBy(desc(schema.clarifications.createdAt))
+          .limit(limit)
+          .offset(offset);
+        countResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.clarifications)
+          .where(isNull(schema.clarifications.resolvedAt));
+      } else {
+        items = await db
+          .select()
+          .from(schema.clarifications)
+          .orderBy(desc(schema.clarifications.createdAt))
+          .limit(limit)
+          .offset(offset);
+        countResult = await db.select({ count: sql<number>`count(*)` }).from(schema.clarifications);
+      }
+
+      return reply.send({
+        clarifications: items,
+        total: countResult[0]?.count ?? 0,
+        limit,
+        offset,
+      });
+    }
+  );
+
+  // GET /clarifications/:id - Get single clarification
+  app.get(
+    "/clarifications/:id",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      const parseResult = IdParamsSchema.safeParse(request.params);
+      if (!parseResult.success) {
+        return reply.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const items = await db
+        .select()
+        .from(schema.clarifications)
+        .where(eq(schema.clarifications.id, parseResult.data.id))
+        .limit(1);
+
+      if (items.length === 0) {
+        return reply.status(404).send({ error: "Clarification not found" });
+      }
+
+      return reply.send(items[0]);
+    }
+  );
+
+  // POST /clarifications/:id/resolve - Resolve a clarification
+  app.post(
+    "/clarifications/:id/resolve",
+    async (
+      request: FastifyRequest<{
+        Params: z.infer<typeof IdParamsSchema>;
+        Body: z.infer<typeof ResolveBodySchema>;
+      }>,
+      reply: FastifyReply
+    ) => {
+      // Check LLM availability
+      if (!hasLLMProvider()) {
+        return reply.status(503).send({
+          error: "Service unavailable",
+          message: "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.",
+        });
+      }
+
+      const paramsResult = IdParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return reply.status(400).send({ error: "Invalid ID format" });
+      }
+
+      const bodyResult = ResolveBodySchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: "Validation failed",
+          details: bodyResult.error.flatten().fieldErrors,
+        });
+      }
+
+      // Get the clarification
+      const clarifications = await db
+        .select()
+        .from(schema.clarifications)
+        .where(eq(schema.clarifications.id, paramsResult.data.id))
+        .limit(1);
+
+      if (clarifications.length === 0) {
+        return reply.status(404).send({ error: "Clarification not found" });
+      }
+
+      const clarification = clarifications[0];
+
+      if (clarification.resolvedAt) {
+        return reply.status(409).send({ error: "Clarification already resolved" });
+      }
+
+      // Update the clarification with the answer
+      await db
+        .update(schema.clarifications)
+        .set({
+          userAnswer: bodyResult.data.answer,
+          resolvedAt: new Date(),
+        })
+        .where(eq(schema.clarifications.id, paramsResult.data.id));
+
+      // Reset the inbox item status to allow reprocessing
+      await db
+        .update(schema.inboxItems)
+        .set({ status: "new" })
+        .where(eq(schema.inboxItems.id, clarification.inboxItemId));
+
+      // Reprocess the inbox item
+      // Note: In a real implementation, we'd pass the answer as context to the LLM
+      // For now, we just reprocess and hope the LLM does better
+      try {
+        const processResult = await processInboxItem(clarification.inboxItemId);
+
+        // Fetch the updated clarification
+        const updatedClarifications = await db
+          .select()
+          .from(schema.clarifications)
+          .where(eq(schema.clarifications.id, paramsResult.data.id))
+          .limit(1);
+
+        return reply.send({
+          clarification: updatedClarifications[0],
+          receipt: processResult.receipt,
+          entity: processResult.entity,
+        });
+      } catch (error) {
+        // If reprocessing fails, still return the resolved clarification
+        const updatedClarifications = await db
+          .select()
+          .from(schema.clarifications)
+          .where(eq(schema.clarifications.id, paramsResult.data.id))
+          .limit(1);
+
+        return reply.send({
+          clarification: updatedClarifications[0],
+          error: error instanceof Error ? error.message : "Processing failed",
+        });
+      }
+    }
+  );
+}
