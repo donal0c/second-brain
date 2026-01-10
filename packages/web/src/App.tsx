@@ -11,6 +11,7 @@ import { Clarifications } from "./routes/Clarifications";
 import { Receipts } from "./routes/Receipts";
 import { Search } from "./routes/Search";
 import { Digest } from "./routes/Digest";
+import { WeeklyReview } from "./routes/WeeklyReview";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +93,14 @@ export function App() {
                 element={
                   <RouteErrorBoundary routeName="Digest">
                     <Digest />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="digest/weekly"
+                element={
+                  <RouteErrorBoundary routeName="WeeklyReview">
+                    <WeeklyReview />
                   </RouteErrorBoundary>
                 }
               />

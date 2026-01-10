@@ -317,9 +317,50 @@ export interface SummaryResponse {
   pendingClarifications: number;
 }
 
+export interface ContextQuestion {
+  contextId: string;
+  name: string;
+  type: string;
+  mentionCount: number;
+  domain: string | null;
+  suggestedQuestion: string;
+}
+
+export interface FocusSuggestion {
+  context: string;
+  taskCount: number;
+  suggestion: string;
+}
+
+export interface WeeklyReviewResponse {
+  weekStart: string;
+  weekEnd: string;
+  openLoops: {
+    tasks: Task[];
+    total: number;
+  };
+  staleProjects: {
+    projects: Project[];
+    total: number;
+  };
+  contextQuestions: {
+    questions: ContextQuestion[];
+    total: number;
+  };
+  wins: {
+    completedTasks: Task[];
+    completedProjects: Project[];
+    totalTasks: number;
+    totalProjects: number;
+  };
+  suggestedFocus: FocusSuggestion[];
+}
+
 export const digest = {
   daily: (params?: { context?: string; maxItems?: number }, signal?: AbortSignal) =>
     request<DigestResponse>(`/digest/daily?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+
+  weekly: (signal?: AbortSignal) => request<WeeklyReviewResponse>("/digest/weekly", { signal }),
 
   summary: (signal?: AbortSignal) => request<SummaryResponse>("/digest/summary", { signal }),
 };

@@ -6,6 +6,7 @@ const navItems = [
   { to: "/inbox", label: "Inbox", icon: "📥" },
   { to: "/today", label: "Today", icon: "📅" },
   { to: "/digest/dashboard", label: "Digest", icon: "📊" },
+  { to: "/digest/weekly", label: "Weekly", icon: "📅" },
   { to: "/browse", label: "Browse", icon: "📁" },
   { to: "/clarifications", label: "Clarify", icon: "❓" },
   { to: "/receipts", label: "Receipts", icon: "🧾" },

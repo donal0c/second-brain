@@ -173,6 +173,149 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * GET /digest/weekly - Get weekly review
+   */
+  app.get("/digest/weekly", async (_request: FastifyRequest, reply: FastifyReply) => {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    // Get open loops (active tasks without due dates or overdue)
+    const openLoops = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.status, "active"))
+      .orderBy(schema.tasks.createdAt);
+
+    // Get stale projects (not updated in 14+ days)
+    const staleProjects = await db
+      .select()
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.status, "active"),
+          sql`${schema.projects.updatedAt} < ${twoWeeksAgo.getTime()}`
+        )
+      )
+      .orderBy(schema.projects.updatedAt)
+      .limit(20);
+
+    // Get personal context questions (5+ mentions, no description)
+    const contextQuestions = await db
+      .select()
+      .from(schema.personalContexts)
+      .where(
+        and(
+          isNull(schema.personalContexts.description),
+          sql`${schema.personalContexts.mentionCount} >= 5`
+        )
+      )
+      .orderBy(desc(schema.personalContexts.mentionCount))
+      .limit(10);
+
+    const questions = contextQuestions.map((ctx) => {
+      const typeLabel = ctx.type === "person" ? "person" : ctx.type;
+      return {
+        contextId: ctx.id,
+        name: ctx.name,
+        type: ctx.type,
+        mentionCount: ctx.mentionCount,
+        domain: ctx.domain,
+        suggestedQuestion: `You've mentioned ${ctx.name} ${ctx.mentionCount} times. Who/what is this ${typeLabel}?`,
+      };
+    });
+
+    // Get completed items (wins) from last week
+    const completedTasks = await db
+      .select()
+      .from(schema.tasks)
+      .where(
+        and(
+          eq(schema.tasks.status, "completed"),
+          sql`${schema.tasks.updatedAt} >= ${weekAgo.getTime()}`
+        )
+      )
+      .orderBy(desc(schema.tasks.updatedAt))
+      .limit(50);
+
+    const completedProjects = await db
+      .select()
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.status, "completed"),
+          sql`${schema.projects.updatedAt} >= ${weekAgo.getTime()}`
+        )
+      )
+      .orderBy(desc(schema.projects.updatedAt))
+      .limit(20);
+
+    // Analyze task distribution for suggested areas of focus
+    const allActiveTasks = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.status, "active"));
+
+    // Group tasks by context
+    const contextDistribution: Record<string, number> = {};
+    allActiveTasks.forEach((task) => {
+      const context = task.context || "uncategorized";
+      contextDistribution[context] = (contextDistribution[context] || 0) + 1;
+    });
+
+    // Sort contexts by task count
+    const sortedContexts = Object.entries(contextDistribution)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    // Identify long-standing tasks (created over 30 days ago, still active)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const longStandingTasks = allActiveTasks.filter(
+      (task) => task.createdAt < thirtyDaysAgo
+    );
+
+    const suggestedFocus = sortedContexts.map(([context, count]) => ({
+      context,
+      taskCount: count,
+      suggestion: count > 10
+        ? `High volume in ${context} (${count} tasks) - consider breaking down or prioritizing`
+        : `${context} has ${count} active tasks`,
+    }));
+
+    // Add suggestion for long-standing tasks
+    if (longStandingTasks.length > 5) {
+      suggestedFocus.push({
+        context: "long-standing",
+        taskCount: longStandingTasks.length,
+        suggestion: `${longStandingTasks.length} tasks have been active for 30+ days - review for relevance`,
+      });
+    }
+
+    return reply.send({
+      weekStart: weekAgo.toISOString().split("T")[0],
+      weekEnd: new Date().toISOString().split("T")[0],
+      openLoops: {
+        tasks: openLoops,
+        total: openLoops.length,
+      },
+      staleProjects: {
+        projects: staleProjects,
+        total: staleProjects.length,
+      },
+      contextQuestions: {
+        questions,
+        total: questions.length,
+      },
+      wins: {
+        completedTasks,
+        completedProjects,
+        totalTasks: completedTasks.length,
+        totalProjects: completedProjects.length,
+      },
+      suggestedFocus,
+    });
+  });
+
+  /**
    * GET /digest/summary - Quick stats summary
    */
   app.get("/digest/summary", async (_request: FastifyRequest, reply: FastifyReply) => {
