@@ -6,6 +6,7 @@ import { Layout } from "./components/Layout";
 import { Capture } from "./routes/Capture";
 import { Inbox } from "./routes/Inbox";
 import { Today } from "./routes/Today";
+import { Digest } from "./routes/Digest";
 import { Browse } from "./routes/Browse";
 import { Clarifications } from "./routes/Clarifications";
 import { Receipts } from "./routes/Receipts";
@@ -51,6 +52,14 @@ export function App() {
                 element={
                   <RouteErrorBoundary routeName="Today">
                     <Today />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="digest"
+                element={
+                  <RouteErrorBoundary routeName="Digest">
+                    <Digest />
                   </RouteErrorBoundary>
                 }
               />

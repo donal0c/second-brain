@@ -280,12 +280,23 @@ export const clarifications = {
 // Digest API
 // =============================================================================
 
+export interface PersonalContext {
+  id: string;
+  name: string;
+  type: string;
+  domain: string | null;
+  mentionCount: number;
+}
+
 export interface DigestResponse {
   date: string;
   context: string;
   nextActions: Task[];
-  flaggedItems: unknown[];
+  flaggedItems: Receipt[];
   pendingClarifications: Clarification[];
+  staleTasks: Task[];
+  projectsWithoutNextAction: Project[];
+  newContexts: PersonalContext[];
   stats: {
     activeTasks: number;
     activeProjects: number;
