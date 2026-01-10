@@ -583,6 +583,18 @@ function TaskEditForm({
         </p>
       </form>
 
+      {/* Delete - Moved above "Show all fields" for better visibility */}
+      <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          disabled={saving}
+        >
+          Delete Task
+        </button>
+      </div>
+
       {/* Collapsible Manual Fields */}
       <div className="border-t border-gray-200 pt-4">
         <button
@@ -669,18 +681,6 @@ function TaskEditForm({
             </button>
           </form>
         )}
-      </div>
-
-      {/* Delete */}
-      <div className="border-t border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
-          disabled={saving}
-        >
-          Delete Task
-        </button>
       </div>
 
       {/* Cancel */}
@@ -827,6 +827,18 @@ function ProjectEditForm({
         </p>
       </form>
 
+      {/* Delete - Moved above "Show all fields" for better visibility */}
+      <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          disabled={saving}
+        >
+          Delete Project
+        </button>
+      </div>
+
       {/* Collapsible Manual Fields */}
       <div className="border-t border-gray-200 pt-4">
         <button
@@ -901,18 +913,6 @@ function ProjectEditForm({
             </button>
           </form>
         )}
-      </div>
-
-      {/* Delete */}
-      <div className="border-t border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
-          disabled={saving}
-        >
-          Delete Project
-        </button>
       </div>
 
       {/* Cancel */}
@@ -1028,6 +1028,18 @@ function IdeaEditForm({
         </p>
       </form>
 
+      {/* Delete - Moved above "Show all fields" for better visibility */}
+      <div className="border-t border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          disabled={saving}
+        >
+          Delete Idea
+        </button>
+      </div>
+
       {/* Collapsible Manual Fields */}
       <div className="border-t border-gray-200 pt-4">
         <button
@@ -1089,18 +1101,6 @@ function IdeaEditForm({
             </button>
           </form>
         )}
-      </div>
-
-      {/* Delete */}
-      <div className="border-t border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
-          disabled={saving}
-        >
-          Delete Idea
-        </button>
       </div>
 
       {/* Cancel */}
