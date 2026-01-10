@@ -11,12 +11,12 @@ export function Receipts() {
   const [offset, setOffset] = useState(0);
   const limit = 20;
 
-  const loadReceipts = async (newOffset = 0) => {
+  const loadReceipts = async (newOffset = 0, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await receipts.list({ limit, offset: newOffset });
+      const response = await receipts.list({ limit, offset: newOffset }, signal);
       setItems(response.receipts);
       setTotal(response.total);
       setOffset(newOffset);
@@ -27,9 +27,12 @@ export function Receipts() {
         response.receipts.map(async (r) => {
           if (!inboxTexts[r.inboxItemId]) {
             try {
-              const inboxItem = await inbox.get(r.inboxItemId);
+              const inboxItem = await inbox.get(r.inboxItemId, signal);
               texts[r.inboxItemId] = inboxItem.rawText;
-            } catch {
+            } catch (error) {
+              if (error instanceof Error && error.name === 'AbortError') {
+                throw error;
+              }
               texts[r.inboxItemId] = "(Could not load original text)";
             }
           }
@@ -37,6 +40,9 @@ export function Receipts() {
       );
       setInboxTexts((prev) => ({ ...prev, ...texts }));
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       const apiError = err as ApiError;
       setError(apiError.message || apiError.error || "Failed to load receipts");
     } finally {
@@ -45,7 +51,9 @@ export function Receipts() {
   };
 
   useEffect(() => {
-    loadReceipts();
+    const controller = new AbortController();
+    loadReceipts(0, controller.signal);
+    return () => controller.abort();
   }, []);
 
   const getConfidenceColor = (score: number) => {

@@ -15,7 +15,7 @@ export function Inbox() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
 
-  const loadItems = async () => {
+  const loadItems = async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
@@ -23,10 +23,13 @@ export function Inbox() {
       const params: Record<string, string> = {};
       if (statusFilter) params.status = statusFilter;
 
-      const response = await inbox.list(params);
+      const response = await inbox.list(params, signal);
       setItems(response.items);
       setTotal(response.total);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       const apiError = err as ApiError;
       setError(apiError.message || apiError.error || "Failed to load inbox items");
     } finally {
@@ -35,7 +38,9 @@ export function Inbox() {
   };
 
   useEffect(() => {
-    loadItems();
+    const controller = new AbortController();
+    loadItems(controller.signal);
+    return () => controller.abort();
   }, [statusFilter]);
 
   const formatDate = (dateStr: string) => {

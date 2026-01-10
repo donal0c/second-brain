@@ -9,12 +9,12 @@ export function Clarifications() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [inboxTexts, setInboxTexts] = useState<Record<string, string>>({});
 
-  const loadClarifications = async () => {
+  const loadClarifications = async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await clarifications.list({ resolved: "false" });
+      const response = await clarifications.list({ resolved: "false" }, signal);
       setItems(response.clarifications);
 
       // Load the original inbox text for each clarification
@@ -22,15 +22,21 @@ export function Clarifications() {
       await Promise.all(
         response.clarifications.map(async (c) => {
           try {
-            const inboxItem = await inbox.get(c.inboxItemId);
+            const inboxItem = await inbox.get(c.inboxItemId, signal);
             texts[c.inboxItemId] = inboxItem.rawText;
-          } catch {
+          } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+              throw error;
+            }
             texts[c.inboxItemId] = "(Could not load original text)";
           }
         })
       );
       setInboxTexts(texts);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       const apiError = err as ApiError;
       setError(apiError.message || apiError.error || "Failed to load clarifications");
     } finally {
@@ -39,7 +45,9 @@ export function Clarifications() {
   };
 
   useEffect(() => {
-    loadClarifications();
+    const controller = new AbortController();
+    loadClarifications(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const handleResolve = async (id: string) => {

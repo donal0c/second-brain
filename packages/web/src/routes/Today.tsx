@@ -16,14 +16,17 @@ export function Today() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const loadDigest = async () => {
+  const loadDigest = async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await digest.daily();
+      const response = await digest.daily(undefined, signal);
       setData(response);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       const apiError = err as ApiError;
       setError(apiError.message || apiError.error || "Failed to load digest");
     } finally {
@@ -32,7 +35,9 @@ export function Today() {
   };
 
   useEffect(() => {
-    loadDigest();
+    const controller = new AbortController();
+    loadDigest(controller.signal);
+    return () => controller.abort();
   }, []);
 
   const handleSave = async (taskData: Partial<Task>) => {

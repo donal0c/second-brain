@@ -60,16 +60,17 @@ export interface InboxListResponse {
 }
 
 export const inbox = {
-  capture: (rawText: string, source: string = "web") =>
+  capture: (rawText: string, source: string = "web", signal?: AbortSignal) =>
     request<InboxItem>("/inbox", {
       method: "POST",
       body: JSON.stringify({ rawText, source }),
+      signal,
     }),
 
-  list: (params?: { status?: string; limit?: number; offset?: number }) =>
-    request<InboxListResponse>(`/inbox?${new URLSearchParams(params as Record<string, string>)}`),
+  list: (params?: { status?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<InboxListResponse>(`/inbox?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  get: (id: string) => request<InboxItem>(`/inbox/${id}`),
+  get: (id: string, signal?: AbortSignal) => request<InboxItem>(`/inbox/${id}`, { signal }),
 };
 
 // =============================================================================
@@ -103,25 +104,27 @@ export interface InterpretResponse<T> {
 }
 
 export const tasks = {
-  list: (params?: { status?: string; context?: string; limit?: number; offset?: number }) =>
-    request<TaskListResponse>(`/tasks?${new URLSearchParams(params as Record<string, string>)}`),
+  list: (params?: { status?: string; context?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<TaskListResponse>(`/tasks?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  get: (id: string) => request<Task>(`/tasks/${id}`),
+  get: (id: string, signal?: AbortSignal) => request<Task>(`/tasks/${id}`, { signal }),
 
-  update: (id: string, data: Partial<Task>) =>
+  update: (id: string, data: Partial<Task>, signal?: AbortSignal) =>
     request<Task>(`/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+      signal,
     }),
 
-  interpret: (id: string, instruction: string) =>
+  interpret: (id: string, instruction: string, signal?: AbortSignal) =>
     request<InterpretResponse<Task>>(`/tasks/${id}/interpret`, {
       method: "POST",
       body: JSON.stringify({ instruction }),
+      signal,
     }),
 
-  delete: (id: string) =>
-    request<void>(`/tasks/${id}`, { method: "DELETE" }),
+  delete: (id: string, signal?: AbortSignal) =>
+    request<void>(`/tasks/${id}`, { method: "DELETE", signal }),
 };
 
 // =============================================================================
@@ -146,25 +149,27 @@ export interface ProjectListResponse {
 }
 
 export const projects = {
-  list: (params?: { status?: string; limit?: number; offset?: number }) =>
-    request<ProjectListResponse>(`/projects?${new URLSearchParams(params as Record<string, string>)}`),
+  list: (params?: { status?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<ProjectListResponse>(`/projects?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  get: (id: string) => request<Project>(`/projects/${id}`),
+  get: (id: string, signal?: AbortSignal) => request<Project>(`/projects/${id}`, { signal }),
 
-  update: (id: string, data: Partial<Project>) =>
+  update: (id: string, data: Partial<Project>, signal?: AbortSignal) =>
     request<Project>(`/projects/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+      signal,
     }),
 
-  interpret: (id: string, instruction: string) =>
+  interpret: (id: string, instruction: string, signal?: AbortSignal) =>
     request<InterpretResponse<Project>>(`/projects/${id}/interpret`, {
       method: "POST",
       body: JSON.stringify({ instruction }),
+      signal,
     }),
 
-  delete: (id: string) =>
-    request<void>(`/projects/${id}`, { method: "DELETE" }),
+  delete: (id: string, signal?: AbortSignal) =>
+    request<void>(`/projects/${id}`, { method: "DELETE", signal }),
 };
 
 // =============================================================================
@@ -188,25 +193,27 @@ export interface IdeaListResponse {
 }
 
 export const ideas = {
-  list: (params?: { limit?: number; offset?: number }) =>
-    request<IdeaListResponse>(`/ideas?${new URLSearchParams(params as Record<string, string>)}`),
+  list: (params?: { limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<IdeaListResponse>(`/ideas?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  get: (id: string) => request<Idea>(`/ideas/${id}`),
+  get: (id: string, signal?: AbortSignal) => request<Idea>(`/ideas/${id}`, { signal }),
 
-  update: (id: string, data: Partial<Idea>) =>
+  update: (id: string, data: Partial<Idea>, signal?: AbortSignal) =>
     request<Idea>(`/ideas/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+      signal,
     }),
 
-  interpret: (id: string, instruction: string) =>
+  interpret: (id: string, instruction: string, signal?: AbortSignal) =>
     request<InterpretResponse<Idea>>(`/ideas/${id}/interpret`, {
       method: "POST",
       body: JSON.stringify({ instruction }),
+      signal,
     }),
 
-  delete: (id: string) =>
-    request<void>(`/ideas/${id}`, { method: "DELETE" }),
+  delete: (id: string, signal?: AbortSignal) =>
+    request<void>(`/ideas/${id}`, { method: "DELETE", signal }),
 };
 
 // =============================================================================
@@ -253,17 +260,18 @@ export interface ClarificationListResponse {
 }
 
 export const clarifications = {
-  list: (params?: { resolved?: string; limit?: number; offset?: number }) =>
-    request<ClarificationListResponse>(`/clarifications?${new URLSearchParams(params as Record<string, string>)}`),
+  list: (params?: { resolved?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<ClarificationListResponse>(`/clarifications?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  get: (id: string) => request<Clarification>(`/clarifications/${id}`),
+  get: (id: string, signal?: AbortSignal) => request<Clarification>(`/clarifications/${id}`, { signal }),
 
-  resolve: (id: string, answer: string) =>
+  resolve: (id: string, answer: string, signal?: AbortSignal) =>
     request<{ clarification: Clarification; receipt?: unknown; entity?: unknown }>(
       `/clarifications/${id}/resolve`,
       {
         method: "POST",
         body: JSON.stringify({ answer }),
+        signal,
       }
     ),
 };
@@ -299,10 +307,10 @@ export interface SummaryResponse {
 }
 
 export const digest = {
-  daily: (params?: { context?: string; maxItems?: number }) =>
-    request<DigestResponse>(`/digest/daily?${new URLSearchParams(params as Record<string, string>)}`),
+  daily: (params?: { context?: string; maxItems?: number }, signal?: AbortSignal) =>
+    request<DigestResponse>(`/digest/daily?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  summary: () => request<SummaryResponse>("/digest/summary"),
+  summary: (signal?: AbortSignal) => request<SummaryResponse>("/digest/summary", { signal }),
 };
 
 // =============================================================================
@@ -334,10 +342,10 @@ export interface ReceiptListResponse {
 }
 
 export const receipts = {
-  list: (params?: { inboxItemId?: string; limit?: number; offset?: number }) =>
-    request<ReceiptListResponse>(`/receipts?${new URLSearchParams(params as Record<string, string>)}`),
+  list: (params?: { inboxItemId?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<ReceiptListResponse>(`/receipts?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
-  get: (id: string) => request<Receipt>(`/receipts/${id}`),
+  get: (id: string, signal?: AbortSignal) => request<Receipt>(`/receipts/${id}`, { signal }),
 };
 
 // =============================================================================

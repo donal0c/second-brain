@@ -35,7 +35,7 @@ export function Browse() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Fetch data with React Query
+  // Fetch data with React Query (includes built-in abort handling)
   const tasksQuery = useTasks();
   const projectsQuery = useProjects();
   const ideasQuery = useIdeas();
