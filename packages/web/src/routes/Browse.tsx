@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   extractErrorMessage,
   type Task,
@@ -41,6 +42,7 @@ type EditingEntity =
   | null;
 
 export function Browse() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>("tasks");
   const [editing, setEditing] = useState<EditingEntity>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -97,6 +99,54 @@ export function Browse() {
     ideasQuery.refetch();
     personsQuery.refetch();
   };
+
+  // Handle URL parameters for deep linking from search results
+  useEffect(() => {
+    const type = searchParams.get("type");
+    const id = searchParams.get("id");
+
+    if (!type || !id || loading) return;
+
+    // Map search result type to tab type
+    const typeToTab: Record<string, TabType> = {
+      task: "tasks",
+      project: "projects",
+      idea: "ideas",
+      person: "persons",
+    };
+
+    const tab = typeToTab[type];
+    if (!tab) return;
+
+    // Set the active tab
+    setActiveTab(tab);
+
+    // Find and open the entity for editing
+    const numId = parseInt(id, 10);
+    if (isNaN(numId)) return;
+
+    let entity: EditingEntity = null;
+
+    if (type === "task") {
+      const task = taskList.find((t) => t.id === numId);
+      if (task) entity = { type: "task", item: task };
+    } else if (type === "project") {
+      const project = projectList.find((p) => p.id === numId);
+      if (project) entity = { type: "project", item: project };
+    } else if (type === "idea") {
+      const idea = ideaList.find((i) => i.id === numId);
+      if (idea) entity = { type: "idea", item: idea };
+    } else if (type === "person") {
+      const person = personList.find((p) => p.id === numId);
+      if (person) entity = { type: "person", item: person };
+    }
+
+    if (entity) {
+      setEditing(entity);
+      // Clear URL params after processing
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, loading, taskList, projectList, ideaList, personList, setSearchParams]);
 
   const handleSave = async (data: Record<string, unknown>) => {
     if (!editing) return;
