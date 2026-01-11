@@ -3,14 +3,17 @@ import {
   tasks,
   projects,
   ideas,
+  persons,
   fix,
   process,
   type Task,
   type Project,
   type Idea,
+  type Person,
   type TaskListResponse,
   type ProjectListResponse,
   type IdeaListResponse,
+  type PersonListResponse,
   type EntityType,
 } from "./api";
 
@@ -19,6 +22,7 @@ export const queryKeys = {
   tasks: ["tasks"] as const,
   projects: ["projects"] as const,
   ideas: ["ideas"] as const,
+  persons: ["persons"] as const,
 };
 
 // =============================================================================
@@ -43,6 +47,13 @@ export function useIdeas(params?: { limit?: number; offset?: number }) {
   return useQuery({
     queryKey: [...queryKeys.ideas, params],
     queryFn: () => ideas.list(params),
+  });
+}
+
+export function usePersons(params?: { limit?: number; offset?: number }) {
+  return useQuery({
+    queryKey: [...queryKeys.persons, params],
+    queryFn: () => persons.list(params),
   });
 }
 
@@ -120,6 +131,29 @@ export function useUpdateIdea() {
   });
 }
 
+export function useUpdatePerson() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Person> }) =>
+      persons.update(id, data),
+    onSuccess: (updatedPerson: Person) => {
+      queryClient.setQueriesData<PersonListResponse>(
+        { queryKey: queryKeys.persons },
+        (old: PersonListResponse | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((person: Person) =>
+              person.id === updatedPerson.id ? updatedPerson : person
+            ),
+          };
+        }
+      );
+    },
+  });
+}
+
 export function useInterpretTask() {
   const queryClient = useQueryClient();
 
@@ -189,6 +223,29 @@ export function useInterpretIdea() {
   });
 }
 
+export function useInterpretPerson() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, instruction }: { id: string; instruction: string }) =>
+      persons.interpret(id, instruction),
+    onSuccess: (result: { entity: Person }) => {
+      queryClient.setQueriesData<PersonListResponse>(
+        { queryKey: queryKeys.persons },
+        (old: PersonListResponse | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((person: Person) =>
+              person.id === result.entity.id ? result.entity : person
+            ),
+          };
+        }
+      );
+    },
+  });
+}
+
 export function useFixEntity() {
   const queryClient = useQueryClient();
 
@@ -207,6 +264,7 @@ export function useFixEntity() {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects });
       queryClient.invalidateQueries({ queryKey: queryKeys.ideas });
+      queryClient.invalidateQueries({ queryKey: queryKeys.persons });
     },
   });
 }
@@ -227,6 +285,7 @@ export function useReprocessEntity() {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects });
       queryClient.invalidateQueries({ queryKey: queryKeys.ideas });
+      queryClient.invalidateQueries({ queryKey: queryKeys.persons });
     },
   });
 }
@@ -286,6 +345,27 @@ export function useDeleteIdea() {
           return {
             ...old,
             items: old.items.filter((idea: Idea) => idea.id !== deletedId),
+            total: old.total - 1,
+          };
+        }
+      );
+    },
+  });
+}
+
+export function useDeletePerson() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => persons.delete(id),
+    onSuccess: (_: void, deletedId: string) => {
+      queryClient.setQueriesData<PersonListResponse>(
+        { queryKey: queryKeys.persons },
+        (old: PersonListResponse | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.filter((person: Person) => person.id !== deletedId),
             total: old.total - 1,
           };
         }

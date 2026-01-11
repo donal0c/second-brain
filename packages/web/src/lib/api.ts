@@ -227,11 +227,57 @@ export const ideas = {
 };
 
 // =============================================================================
+// Persons API
+// =============================================================================
+
+export interface Person {
+  id: string;
+  name: string;
+  relationshipContext: string | null;
+  lastTouchedAt: string | null;
+  followUpNextAction: string | null;
+  sourceInboxItemId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonListResponse {
+  items: Person[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export const persons = {
+  list: (params?: { limit?: number; offset?: number }, signal?: AbortSignal) =>
+    request<PersonListResponse>(`/persons?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+
+  get: (id: string, signal?: AbortSignal) => request<Person>(`/persons/${id}`, { signal }),
+
+  update: (id: string, data: Partial<Person>, signal?: AbortSignal) =>
+    request<Person>(`/persons/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      signal,
+    }),
+
+  interpret: (id: string, instruction: string, signal?: AbortSignal) =>
+    request<InterpretResponse<Person>>(`/persons/${id}/interpret`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+      signal,
+    }),
+
+  delete: (id: string, signal?: AbortSignal) =>
+    request<void>(`/persons/${id}`, { method: "DELETE", signal }),
+};
+
+// =============================================================================
 // Fix API (Cross-Entity)
 // =============================================================================
 
-export type EntityType = "tasks" | "projects" | "ideas";
-export type Entity = Task | Project | Idea;
+export type EntityType = "tasks" | "projects" | "ideas" | "persons";
+export type Entity = Task | Project | Idea | Person;
 
 export interface FixResponse {
   oldEntity: Entity;
@@ -454,8 +500,10 @@ export const process = {
       entity = await tasks.get(entityId, signal);
     } else if (entityType === "projects") {
       entity = await projects.get(entityId, signal);
-    } else {
+    } else if (entityType === "ideas") {
       entity = await ideas.get(entityId, signal);
+    } else {
+      entity = await persons.get(entityId, signal);
     }
 
     if (!entity.sourceInboxItemId) {

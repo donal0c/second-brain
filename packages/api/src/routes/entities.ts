@@ -68,10 +68,23 @@ const IdeaUpdateSchema = z.object({
 });
 
 // =============================================================================
+// Person Schemas
+// =============================================================================
+
+const PersonQuerySchema = PaginationSchema;
+
+const PersonUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  relationshipContext: z.string().nullable().optional(),
+  lastTouchedAt: z.coerce.date().nullable().optional(),
+  followUpNextAction: z.string().nullable().optional(),
+});
+
+// =============================================================================
 // Helper Functions
 // =============================================================================
 
-function getSortOrder(sort: string, table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas) {
+function getSortOrder(sort: string, table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas | typeof schema.persons) {
   switch (sort) {
     case "created":
       return asc(table.createdAt);
@@ -90,9 +103,9 @@ function getSortOrder(sort: string, table: typeof schema.tasks | typeof schema.p
 // =============================================================================
 
 interface EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema> {
-  entityName: string; // "task", "project", "idea"
-  entityNamePlural: string; // "tasks", "projects", "ideas"
-  table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas;
+  entityName: string; // "task", "project", "idea", "person"
+  entityNamePlural: string; // "tasks", "projects", "ideas", "persons"
+  table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas | typeof schema.persons;
   querySchema: z.ZodType<TQuerySchema, z.ZodTypeDef, unknown>;
   updateSchema: z.ZodType<TUpdateSchema, z.ZodTypeDef, unknown>;
   extractFieldsForLLM: (entity: TEntity) => Record<string, unknown>;
@@ -428,6 +441,37 @@ const ideaRoutes = createEntityRoutes<
 });
 
 // =============================================================================
+// Person Routes
+// =============================================================================
+
+const personRoutes = createEntityRoutes<
+  {
+    id: string;
+    name: string;
+    relationshipContext: string | null;
+    lastTouchedAt: Date | null;
+    followUpNextAction: string | null;
+    sourceInboxItemId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  z.infer<typeof PersonQuerySchema>,
+  z.infer<typeof PersonUpdateSchema>
+>({
+  entityName: "Person",
+  entityNamePlural: "persons",
+  table: schema.persons,
+  querySchema: PersonQuerySchema,
+  updateSchema: PersonUpdateSchema,
+  extractFieldsForLLM: (person) => ({
+    name: person.name,
+    relationshipContext: person.relationshipContext,
+    lastTouchedAt: person.lastTouchedAt,
+    followUpNextAction: person.followUpNextAction,
+  }),
+});
+
+// =============================================================================
 // Fix/Correction Routes (Cross-Entity)
 // =============================================================================
 
@@ -436,7 +480,7 @@ const FixBodySchema = z.object({
 });
 
 const FixParamsSchema = z.object({
-  entityType: z.enum(["tasks", "projects", "ideas"]),
+  entityType: z.enum(["tasks", "projects", "ideas", "persons"]),
   id: z.string().uuid(),
 });
 
@@ -482,6 +526,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
         tasks: { singular: "task" as const, table: schema.tasks },
         projects: { singular: "project" as const, table: schema.projects },
         ideas: { singular: "idea" as const, table: schema.ideas },
+        persons: { singular: "person" as const, table: schema.persons },
       };
 
       const { singular: singularType, table } = entityTypeMap[entityType];
@@ -566,6 +611,22 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
             };
             await db.insert(schema.ideas).values(ideaData);
             newEntity = ideaData;
+            break;
+          }
+
+          case "person": {
+            const personData = {
+              id: newEntityId,
+              name: (fixResult.fields.name as string) || "Unknown",
+              relationshipContext: (fixResult.fields.relationshipContext as string | null) || null,
+              lastTouchedAt: fixResult.fields.lastTouchedAt ? new Date(fixResult.fields.lastTouchedAt as string) : null,
+              followUpNextAction: (fixResult.fields.followUpNextAction as string | null) || null,
+              sourceInboxItemId: oldEntity.sourceInboxItemId || null,
+              createdAt: now,
+              updatedAt: now,
+            };
+            await db.insert(schema.persons).values(personData);
+            newEntity = personData;
             break;
           }
 
@@ -665,5 +726,6 @@ export async function entityRoutes(app: FastifyInstance): Promise<void> {
   await taskRoutes(app);
   await projectRoutes(app);
   await ideaRoutes(app);
+  await personRoutes(app);
   await fixRoutes(app);
 }
