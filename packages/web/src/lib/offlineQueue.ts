@@ -136,9 +136,5 @@ class OfflineQueue {
 
 export const offlineQueue = new OfflineQueue();
 
-// Auto-sync when coming back online
-if (typeof window !== "undefined") {
-  window.addEventListener("online", () => {
-    // Sync will be triggered by the component listening to online events
-  });
-}
+// Note: Auto-sync when coming back online is handled by useOfflineQueue hook consumers
+// (e.g., Capture.tsx) which call syncQueue() when isOnline becomes true

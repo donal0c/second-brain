@@ -20,7 +20,7 @@ export function Capture() {
     resetTranscript,
   } = useVoiceCapture({ continuous: false, interimResults: true });
 
-  const { isOnline, addToQueue } = useOfflineQueue();
+  const { isOnline, addToQueue, syncQueue } = useOfflineQueue();
 
   useEffect(() => {
     if (transcript) {
@@ -28,6 +28,15 @@ export function Capture() {
       resetTranscript();
     }
   }, [transcript, resetTranscript]);
+
+  // Sync offline queue when coming back online
+  useEffect(() => {
+    if (isOnline) {
+      syncQueue(async (text: string) => {
+        await inbox.capture(text);
+      }).catch(console.error);
+    }
+  }, [isOnline, syncQueue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
