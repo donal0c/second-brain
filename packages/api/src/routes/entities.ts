@@ -310,7 +310,8 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
           });
         }
 
-        const updates = { ...updateResult.data, updatedAt: new Date() };
+        const now = new Date();
+        const updates = { ...updateResult.data, updatedAt: now };
 
         const result = await db
           .update(table)
@@ -318,12 +319,53 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
           .where(eq(table.id, paramsResult.data.id))
           .returning();
 
+        // Create receipt for audit trail
+        const receiptId = randomUUID();
+
+        // Find the previous receipt (if entity has a source inbox item)
+        const previousReceipts = entity.sourceInboxItemId
+          ? await db
+              .select()
+              .from(schema.receipts)
+              .where(eq(schema.receipts.inboxItemId, entity.sourceInboxItemId))
+              .orderBy(desc(schema.receipts.timestamp))
+              .limit(1)
+          : [];
+
+        const previousReceiptId = previousReceipts[0]?.id || null;
+
+        const receipt = {
+          id: receiptId,
+          inboxItemId: entity.sourceInboxItemId || randomUUID(),
+          classification: entityName.toLowerCase() as "task" | "project" | "idea",
+          extractedFields: {
+            instruction: bodyResult.data.instruction,
+            appliedUpdates: interpretation.updates,
+            reasoning: interpretation.reasoning,
+          },
+          confidenceScore: 1.0, // User-directed interpretation
+          modelUsed: provider.model,
+          timestamp: now,
+          writes: [
+            {
+              entityType: entityName.toLowerCase() as "task" | "project" | "idea",
+              entityId: paramsResult.data.id,
+              action: "update" as const,
+            },
+          ],
+          previousReceiptId,
+          personalContextUsed: [],
+        };
+
+        await db.insert(schema.receipts).values(receipt);
+
         return reply.send({
           entity: result[0],
           interpretation: {
             updates: interpretation.updates,
             reasoning: interpretation.reasoning,
           },
+          receipt,
         });
       }
     );
