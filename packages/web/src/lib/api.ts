@@ -538,7 +538,13 @@ export interface NudgesResponse {
 }
 
 export const nudges = {
-  list: (signal?: AbortSignal) => request<NudgesResponse>("/nudges", { signal }),
+  list: async (signal?: AbortSignal): Promise<NudgesResponse> => {
+    const response = await request<{ data: Nudge[]; meta: { total: number } }>("/nudges", { signal });
+    return {
+      nudges: response.data,
+      count: response.meta.total,
+    };
+  },
 
   dismiss: (id: string, signal?: AbortSignal) =>
     request<{ success: boolean }>(`/nudges/${id}/dismiss`, {
