@@ -122,22 +122,19 @@ export function Browse() {
     setActiveTab(tab);
 
     // Find and open the entity for editing
-    const numId = parseInt(id, 10);
-    if (isNaN(numId)) return;
-
     let entity: EditingEntity = null;
 
     if (type === "task") {
-      const task = taskList.find((t) => t.id === numId);
+      const task = taskList.find((t) => t.id === id);
       if (task) entity = { type: "task", item: task };
     } else if (type === "project") {
-      const project = projectList.find((p) => p.id === numId);
+      const project = projectList.find((p) => p.id === id);
       if (project) entity = { type: "project", item: project };
     } else if (type === "idea") {
-      const idea = ideaList.find((i) => i.id === numId);
+      const idea = ideaList.find((i) => i.id === id);
       if (idea) entity = { type: "idea", item: idea };
     } else if (type === "person") {
-      const person = personList.find((p) => p.id === numId);
+      const person = personList.find((p) => p.id === id);
       if (person) entity = { type: "person", item: person };
     }
 
