@@ -24,46 +24,58 @@ export function Layout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Second Brain</h1>
-            <form onSubmit={handleSearch} className="flex-1 max-w-md mx-6">
-              <div className="relative">
+    <div className="min-h-screen flex flex-col bg-surface-subtle selection:bg-primary-subtle selection:text-primary-active">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/60 supports-[backdrop-filter]:bg-white/60">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16 gap-4">
+            <h1 className="text-lg font-semibold text-gray-900 tracking-tight flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary-hover"></span>
+              Second Brain
+            </h1>
+            
+            <form onSubmit={handleSearch} className="flex-1 max-w-sm">
+              <div className="relative group">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search tasks, projects, ideas..."
-                  className="w-full px-4 py-2.5 pl-10 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm placeholder:text-slate-400"
+                  placeholder="Search..."
+                  className="w-full px-4 py-1.5 pl-9 bg-gray-100/50 border border-transparent rounded-md 
+                           text-sm text-gray-900 placeholder:text-gray-500
+                           transition-all duration-200
+                           group-hover:bg-gray-100 group-hover:border-gray-200
+                           focus:bg-white focus:border-primary-hover/50 focus:ring-4 focus:ring-primary-subtle/30 focus:outline-none"
                 />
-                <span className="absolute left-3 top-2.5 text-slate-400 text-lg">🔍</span>
+                <span className="absolute left-2.5 top-1.5 text-gray-400 group-hover:text-gray-500 transition-colors text-sm">
+                  🔍
+                </span>
               </div>
             </form>
           </div>
-          <nav className="flex gap-1 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+          
+          <nav className="flex gap-1 overflow-x-auto pb-0 -mb-px scrollbar-hide">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap ${
+                  `px-3 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap flex items-center gap-2 ${
                     isActive
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      ? "border-primary-hover text-primary-active"
+                      : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
                   }`
                 }
               >
-                <span className="mr-1.5">{item.icon}</span>
+                <span className="opacity-70 text-xs">{item.icon}</span>
                 {item.label}
               </NavLink>
             ))}
           </nav>
         </div>
       </header>
+
       <main className="flex-1 px-6 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto animate-fade-in">
           <Outlet />
         </div>
       </main>

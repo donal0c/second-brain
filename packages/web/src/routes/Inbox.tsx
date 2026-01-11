@@ -3,11 +3,11 @@ import { inbox, type InboxItem, type ApiError } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  new: { label: "New", color: "bg-blue-100 text-blue-700" },
-  processing: { label: "Processing", color: "bg-yellow-100 text-yellow-700" },
-  processed: { label: "Processed", color: "bg-green-100 text-green-700" },
-  blocked: { label: "Needs Clarification", color: "bg-orange-100 text-orange-700" },
+const STATUS_CONFIG: Record<string, { label: string; dotColor: string }> = {
+  new: { label: "New", dotColor: "bg-blue-500" },
+  processing: { label: "Processing", dotColor: "bg-yellow-500" },
+  processed: { label: "Processed", dotColor: "bg-green-500" },
+  blocked: { label: "Needs Clarification", dotColor: "bg-orange-500" },
 };
 
 export function Inbox() {
@@ -57,66 +57,77 @@ export function Inbox() {
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Inbox</h2>
-          <p className="text-gray-600 mt-1">
-            {total} item{total !== 1 ? "s" : ""} captured
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Inbox</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {total} {total === 1 ? "item" : "items"} pending review
           </p>
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-        >
-          <option value="">All items</option>
-          <option value="new">New</option>
-          <option value="processing">Processing</option>
-          <option value="processed">Processed</option>
-          <option value="blocked">Needs Clarification</option>
-        </select>
-      </div>
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-subtle focus:border-primary-hover hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <option value="">All items</option>
+            <option value="new">New</option>
+            <option value="processing">Processing</option>
+            <option value="processed">Processed</option>
+            <option value="blocked">Needs Clarification</option>
+          </select>
+          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+          </div>
+        </div>
+      </header>
 
       {error && <ErrorBanner error={error} onRetry={() => loadItems()} />}
 
       {loading ? (
         <LoadingSkeleton />
       ) : items.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-          <p className="text-gray-500">
+        <div className="bg-white/50 rounded-xl border border-dashed border-gray-300 p-12 text-center">
+          <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            📥
+          </div>
+          <p className="text-gray-900 font-medium">Inbox Zero</p>
+          <p className="text-gray-500 text-sm mt-1">
             {statusFilter
-              ? "No items with this status"
-              : "Your inbox is empty. Capture something!"}
+              ? "No items found with this status"
+              : "You're all caught up! Capture something new to get started."}
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3">
           {items.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition-colors"
+              className="group relative bg-white rounded-xl p-4 shadow-sm ring-1 ring-gray-900/5 hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 ease-out cursor-pointer"
             >
               <div className="flex items-start justify-between gap-4">
-                <p className="text-gray-900 flex-1 whitespace-pre-wrap">
+                <p className="text-gray-900 text-sm leading-relaxed flex-1 whitespace-pre-wrap font-medium">
                   {item.rawText}
                 </p>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    STATUS_LABELS[item.status]?.color || "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  {STATUS_LABELS[item.status]?.label || item.status}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[item.status]?.dotColor || "bg-gray-300"}`} />
+                  <span className="text-xs font-medium text-gray-500">
+                    {STATUS_CONFIG[item.status]?.label || item.status}
+                  </span>
+                </div>
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+              <div className="mt-3 flex items-center gap-3 text-[11px] text-gray-400 font-medium uppercase tracking-wider">
                 <span>{formatDate(item.capturedAt)}</span>
-                <span>via {item.source}</span>
+                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                <span className="flex items-center gap-1">
+                  {item.source}
+                </span>
               </div>
             </div>
           ))}
