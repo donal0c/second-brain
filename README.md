@@ -372,4 +372,4 @@ Private use only.
 
 ---
 
-**Built with**: TypeScript, React, Fastify, SQLite, Drizzle ORM, Anthropic Claude API
+**Built with**: TypeScript, React, Fastify, PostgreSQL, Drizzle ORM, Anthropic Claude API

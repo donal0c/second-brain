@@ -1,5 +1,5 @@
-# Second Brain System (Local‑First Cognitive Architecture)
-*A high-level “what & why” brief + phased build plan to hand off to Claude Code for detailed spec’ing.*
+# Second Brain System (Cognitive Architecture)
+*A high-level "what & why" brief + phased build plan to hand off to Claude Code for detailed spec'ing.*
 
 ---
 
@@ -163,17 +163,17 @@ Start small. Expand only when pain appears.
 
 ---
 
-### Phase 1 — MVP (local-first)
+### Phase 1 — MVP ✅ (Complete)
 **Goal:** prove the loop closes.
 
-Build:
-- Local web app: capture + inbox + today digest.
-- Local DB (SQLite) as the filing cabinet + receipts ledger.
-- Processor job runs every few minutes:
+Built:
+- Web app (React + Vite + Tailwind): capture + inbox + today digest + browse + receipts.
+- PostgreSQL + Drizzle ORM as the filing cabinet + receipts ledger.
+- Processor pipeline:
   - classify + extract + confidence-gate
   - file into memory or create a clarification
   - write a receipt either way
-- Daily digest generated every morning (initially viewable in UI; “push” can come later).
+- Daily digest generated and viewable in Today view.
 
 ---
 
@@ -226,20 +226,18 @@ Build:
 
 ---
 
-## 9) Technology suggestions (pragmatic, low ceremony)
-Pick boring tools that won’t fight you.
+## 9) Technology stack (implemented)
 
-### MVP stack (local-first)
-- **Backend:** Python (FastAPI) *or* Node (Fastify/Express)
-- **DB:** SQLite (simple, durable, portable)
-- **UI:** minimal web (React/Vite) *or* server-rendered pages
-- **Jobs:** a simple scheduler (cron-like) or background worker loop
-- **LLM:** Claude Code / Anthropic models (start with hosted; consider local later)
+### Current stack
+- **Backend:** Fastify (TypeScript)
+- **DB:** PostgreSQL + Drizzle ORM
+- **UI:** React 18 + Vite + Tailwind CSS
+- **LLM:** Anthropic Claude API
+- **Package Manager:** pnpm (monorepo with workspaces)
 
-### Later (multi-device)
+### Future (multi-device)
 - **PWA** for phone-first UX with offline capture
-- **Server DB:** Postgres if/when you add central sync
-- **Vector search:** optional; defer until you feel pain with retrieval
+- **Vector search:** optional; defer until retrieval pain emerges
 
 ### Operational principles
 - Local capture must still work even if the model/API is temporarily unavailable:
