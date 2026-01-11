@@ -3,7 +3,7 @@
 // =============================================================================
 // Runs periodically to process new inbox items.
 
-import { processBatch, type ProcessResult } from "../services/processor.js";
+import { processBatch, recoverStaleProcessingItems, type ProcessResult } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
 
 // Job state
@@ -50,6 +50,12 @@ export async function runProcessingCycle(config: ProcessorJobConfig = {}): Promi
   isRunning = true;
 
   try {
+    // Recover any items stuck in 'processing' from previous crashes
+    const recovered = await recoverStaleProcessingItems();
+    if (recovered > 0) {
+      logger.info("Recovered stale processing items", { recovered });
+    }
+
     logger.info("Starting processing cycle", { batchSize });
 
     const { processed, results } = await processBatch(batchSize);

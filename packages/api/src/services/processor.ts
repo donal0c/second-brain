@@ -4,7 +4,7 @@
 // Core logic for classifying, extracting, and filing inbox items.
 
 import { randomUUID } from "crypto";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, lt } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
 import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext, ExtractionResult } from "../llm/types.js";
@@ -183,10 +183,10 @@ export async function processInboxItem(
     throw new Error(`Inbox item ${inboxItemId} is not in 'new' status (current: ${inboxItem.status})`);
   }
 
-  // Mark as processing
+  // Mark as processing with timestamp for stale detection
   await db
     .update(schema.inboxItems)
-    .set({ status: "processing" })
+    .set({ status: "processing", processingStartedAt: new Date() })
     .where(eq(schema.inboxItems.id, inboxItemId));
 
   try {
@@ -225,19 +225,19 @@ export async function processInboxItem(
       );
     }
 
-    // Update inbox item status
+    // Update inbox item status (clear processing timestamp on success)
     const finalStatus = result.clarification ? "blocked" : "processed";
     await db
       .update(schema.inboxItems)
-      .set({ status: finalStatus })
+      .set({ status: finalStatus, processingStartedAt: null })
       .where(eq(schema.inboxItems.id, inboxItemId));
 
     return result;
   } catch (error) {
-    // Reset status on error
+    // Reset status on error (clear processing timestamp)
     await db
       .update(schema.inboxItems)
-      .set({ status: "new" })
+      .set({ status: "new", processingStartedAt: null })
       .where(eq(schema.inboxItems.id, inboxItemId));
     throw error;
   }
@@ -514,6 +514,39 @@ export async function processBatch(
     processed: results.length,
     results,
   };
+}
+
+// =============================================================================
+// Stale Processing Recovery
+// =============================================================================
+
+/** Default threshold for stale processing detection (5 minutes) */
+const STALE_PROCESSING_THRESHOLD_MS = 5 * 60 * 1000;
+
+/**
+ * Recover items stuck in 'processing' status due to server crash.
+ * Items in 'processing' for longer than the threshold are reset to 'new'.
+ * @param thresholdMs - Time in ms before an item is considered stale (default: 5 minutes)
+ * @returns Number of items recovered
+ */
+export async function recoverStaleProcessingItems(
+  thresholdMs: number = STALE_PROCESSING_THRESHOLD_MS
+): Promise<number> {
+  const cutoffTime = new Date(Date.now() - thresholdMs);
+
+  // Find and reset items stuck in 'processing' for too long
+  const result = await db
+    .update(schema.inboxItems)
+    .set({ status: "new", processingStartedAt: null })
+    .where(
+      and(
+        eq(schema.inboxItems.status, "processing"),
+        lt(schema.inboxItems.processingStartedAt, cutoffTime)
+      )
+    )
+    .returning({ id: schema.inboxItems.id });
+
+  return result.length;
 }
 
 // =============================================================================

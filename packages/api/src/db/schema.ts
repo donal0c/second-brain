@@ -14,6 +14,7 @@ export const inboxItems = pgTable("inbox_items", {
   status: text("status", { enum: ["new", "processing", "processed", "blocked"] })
     .notNull()
     .default("new"),
+  processingStartedAt: timestamp("processing_started_at"),
 }, (table) => ({
   statusIdx: index("inbox_items_status_idx").on(table.status),
   capturedAtIdx: index("inbox_items_captured_at_idx").on(table.capturedAt),

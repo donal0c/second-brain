@@ -1,0 +1,1 @@
+ALTER TABLE "inbox_items" ADD COLUMN "processing_started_at" timestamp;
