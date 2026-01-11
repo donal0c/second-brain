@@ -67,7 +67,7 @@ Capture → Process → File (or Clarify) → Digest → Fix
 └─────────────────────────────────────────────────┘
                       ▼
 ┌─────────────────────────────────────────────────┐
-│  SQLite Database (Drizzle ORM)                 │
+│  PostgreSQL Database (Drizzle ORM)             │
 │  • Tasks • Projects • Ideas • Persons           │
 │  • Receipts • Clarifications • Personal Context │
 └─────────────────────────────────────────────────┘
@@ -77,7 +77,7 @@ Capture → Process → File (or Clarify) → Digest → Fix
 
 - **Backend**: Fastify (TypeScript)
 - **Frontend**: React 18 + Vite + Tailwind CSS
-- **Database**: SQLite + Drizzle ORM
+- **Database**: PostgreSQL + Drizzle ORM
 - **AI**: Anthropic Claude API
 - **Package Manager**: pnpm (monorepo with workspaces)
 - **Runtime**: Node.js ≥20.0.0
@@ -98,6 +98,7 @@ packages/
 
 - Node.js ≥20.0.0
 - pnpm ≥9.15.0
+- PostgreSQL ≥14.0
 - Anthropic API key
 
 ### Installation
@@ -113,17 +114,24 @@ packages/
    pnpm install
    ```
 
-3. **Configure environment**
+3. **Set up PostgreSQL database**
+   ```bash
+   # Create a database (using psql or your preferred method)
+   createdb second_brain
+   ```
+
+4. **Configure environment**
    ```bash
    cp .env.example .env
    ```
 
-   Edit `.env` and add your Anthropic API key:
+   Edit `.env` with your configuration (see [Environment Variables](#environment-variables) for details):
    ```
+   DATABASE_URL=postgresql://localhost:5432/second_brain
    ANTHROPIC_API_KEY=your_key_here
    ```
 
-4. **Initialize the database**
+5. **Initialize the database**
    ```bash
    pnpm --filter @second-brain/api db:migrate
    ```
@@ -216,6 +224,59 @@ pnpm format:check
 pnpm typecheck
 ```
 
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | `postgresql://localhost:5432/second_brain` | PostgreSQL connection string |
+| `ANTHROPIC_API_KEY` | Yes | - | Your Anthropic API key for Claude |
+| `PORT` | No | `3001` | API server port |
+| `HOST` | No | `0.0.0.0` | API server host binding |
+| `CORS_ORIGIN` | No | `http://localhost:5173` | Allowed CORS origin for web UI |
+| `LOG_LEVEL` | No | `info` | Logging level (debug, info, warn, error) |
+| `NODE_ENV` | No | `development` | Environment mode (development, production) |
+| `API_AUTH_TOKEN` | No | - | Bearer token for API authentication (production) |
+| `VITE_API_URL` | No | `http://localhost:3001` | API URL for the web frontend |
+
+## Troubleshooting
+
+### Database Connection Issues
+
+**Error: `connection refused` or `ECONNREFUSED`**
+- Ensure PostgreSQL is running: `pg_isready` or `brew services list` (macOS)
+- Verify the database exists: `psql -l | grep second_brain`
+- Check `DATABASE_URL` format: `postgresql://user:password@host:port/database`
+
+**Error: `relation does not exist`**
+- Run migrations: `pnpm --filter @second-brain/api db:migrate`
+
+### API Issues
+
+**Error: `ANTHROPIC_API_KEY is not set`**
+- Ensure `.env` file exists in project root
+- Verify the API key is set: `grep ANTHROPIC_API_KEY .env`
+
+**Error: CORS blocked**
+- Check `CORS_ORIGIN` matches your frontend URL
+- For local development, use `http://localhost:5173`
+
+### Port Conflicts
+
+**Error: `EADDRINUSE: address already in use`**
+- Another process is using the port
+- Find it: `lsof -i :3001` (API) or `lsof -i :5173` (Web)
+- Kill the process or change the port in `.env`
+
+### Build Issues
+
+**Error: TypeScript errors during build**
+- Run type check: `pnpm typecheck`
+- Ensure all packages are built: `pnpm build`
+
+**Error: Module not found**
+- Reinstall dependencies: `rm -rf node_modules && pnpm install`
+- Rebuild: `pnpm build`
+
 ## Schema Overview
 
 ### Core Entities
@@ -266,7 +327,7 @@ pnpm typecheck
    Everything else is automation
 
 2. **Separation of concerns**
-   Memory (SQLite) vs Compute (AI) vs Interface (Web UI)
+   Memory (PostgreSQL) vs Compute (AI) vs Interface (Web UI)
 
 3. **Next Action is the unit of execution**
    Extract specific steps, not vague intentions
