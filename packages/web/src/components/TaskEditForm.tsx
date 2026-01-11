@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import type { Task } from "../lib/api";
 
+// Convert ISO date string to yyyy-MM-dd format for HTML date input
+function formatDateForInput(date: string | null | undefined): string {
+  if (!date) return "";
+  // Handle ISO format: "2024-09-20T00:00:00.000Z" -> "2024-09-20"
+  return date.split("T")[0];
+}
+
 export function TaskEditForm({
   task,
   onSave,
@@ -23,7 +30,7 @@ export function TaskEditForm({
   const [showAllFields, setShowAllFields] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [nextAction, setNextAction] = useState(task.nextAction);
-  const [dueDate, setDueDate] = useState(task.dueDate || "");
+  const [dueDate, setDueDate] = useState(formatDateForInput(task.dueDate));
   const [context, setContext] = useState(task.context || "");
   const [status, setStatus] = useState(task.status);
 
@@ -31,7 +38,7 @@ export function TaskEditForm({
   useEffect(() => {
     setTitle(task.title);
     setNextAction(task.nextAction);
-    setDueDate(task.dueDate || "");
+    setDueDate(formatDateForInput(task.dueDate));
     setContext(task.context || "");
     setStatus(task.status);
     setInstruction("");
