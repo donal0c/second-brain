@@ -4,10 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-surface-subtle text-gray-900 font-sans antialiased;
-}
-
 /* Voice capture animation delays */
 .delay-75 {
   animation-delay: 75ms;
@@ -16,3 +12,4 @@ body {
 .delay-150 {
   animation-delay: 150ms;
 }
+/* Force Rebuild Sun 11 Jan 2026 08:43:09 GMT */

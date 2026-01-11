@@ -305,7 +305,7 @@ export function Browse() {
                         task.status === "active" ? "bg-green-100 text-green-700" :
                         task.status === "completed" ? "bg-gray-100 text-gray-600" :
                         task.status === "waiting" ? "bg-yellow-100 text-yellow-700" :
-                        "bg-blue-100 text-blue-700"
+                        "bg-primary-subtle text-primary-active"
                       }`}>
                         {task.status}
                       </span>
@@ -349,7 +349,7 @@ export function Browse() {
                         project.status === "active" ? "bg-green-100 text-green-700" :
                         project.status === "completed" ? "bg-gray-100 text-gray-600" :
                         project.status === "on_hold" ? "bg-yellow-100 text-yellow-700" :
-                        "bg-blue-100 text-blue-700"
+                        "bg-primary-subtle text-primary-active"
                       }`}>
                         {project.status.replace("_", " ")}
                       </span>
@@ -386,7 +386,7 @@ export function Browse() {
                             href={link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline"
+                            className="text-xs text-primary-hover hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {new URL(link).hostname}
@@ -545,7 +545,7 @@ function ProjectEditForm({
                   ? "bg-green-100 text-green-700 hover:bg-green-200"
                   : s === "on_hold"
                   ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                  : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                  : "bg-primary-subtle text-primary-active hover:bg-primary-200"
               }`}
             >
               {s === "completed" ? "Complete" : s === "on_hold" ? "On Hold" : "Someday"}

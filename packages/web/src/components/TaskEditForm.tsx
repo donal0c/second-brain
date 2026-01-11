@@ -73,7 +73,7 @@ export function TaskEditForm({
     <div className="space-y-5">
       {/* Quick Status Buttons */}
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Quick Status</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Quick Status</label>
         <div className="flex gap-2">
           {(["completed", "waiting", "someday"] as const).map((s) => (
             <button
@@ -82,12 +82,12 @@ export function TaskEditForm({
               disabled={saving || task.status === s}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                 task.status === s
-                  ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                   : s === "completed"
                   ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 hover:shadow-sm"
                   : s === "waiting"
                   ? "bg-amber-100 text-amber-700 hover:bg-amber-200 hover:shadow-sm"
-                  : "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-sm"
+                  : "bg-primary-subtle text-primary-active hover:bg-primary-200 hover:shadow-sm"
               }`}
             >
               {s === "completed" ? "Complete" : s === "waiting" ? "Waiting" : "Someday"}
@@ -98,20 +98,20 @@ export function TaskEditForm({
 
       {/* Natural Language Edit */}
       <form onSubmit={handleInterpret}>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Quick Edit</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Quick Edit</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="e.g., Move to September, change context to @phone"
-            className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm placeholder:text-slate-400"
+            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-hover/20 focus:border-primary-hover transition-all duration-150 text-sm placeholder:text-gray-400"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !instruction.trim()}
-            className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-150 shadow-sm hover:shadow disabled:shadow-none"
+            className="px-5 py-2.5 bg-primary-hover text-white rounded-lg hover:bg-primary-active active:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-150 shadow-sm hover:shadow disabled:shadow-none"
           >
             {saving ? "..." : "Update"}
           </button>
@@ -120,7 +120,7 @@ export function TaskEditForm({
 
       {/* Fix/Correction (may change entity type) - only show if onFix is provided */}
       {onFix && (
-        <form onSubmit={handleFix} className="border-t border-slate-200 pt-5">
+        <form onSubmit={handleFix} className="border-t border-gray-200 pt-5">
           <label className="block text-sm font-medium text-orange-600 mb-2">
             Fix (can change entity type)
           </label>
@@ -130,7 +130,7 @@ export function TaskEditForm({
               value={correction}
               onChange={(e) => setCorrection(e.target.value)}
               placeholder="e.g., This is actually a project, not a task"
-              className="flex-1 px-4 py-2.5 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm placeholder:text-slate-400"
+              className="flex-1 px-4 py-2.5 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm placeholder:text-gray-400"
               disabled={saving}
             />
             <button
@@ -141,14 +141,14 @@ export function TaskEditForm({
               {saving ? "..." : "Fix"}
             </button>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-gray-500">
             Use this to make corrections that might change the entity type
           </p>
         </form>
       )}
 
       {/* Delete - Moved above "Show all fields" for better visibility */}
-      <div className="border-t border-slate-200 pt-5">
+      <div className="border-t border-gray-200 pt-5">
         <button
           type="button"
           onClick={onDelete}
@@ -160,11 +160,11 @@ export function TaskEditForm({
       </div>
 
       {/* Collapsible Manual Fields */}
-      <div className="border-t border-slate-200 pt-5">
+      <div className="border-t border-gray-200 pt-5">
         <button
           type="button"
           onClick={() => setShowAllFields(!showAllFields)}
-          className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors group"
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors group"
         >
           <svg
             className={`w-4 h-4 transition-transform ${showAllFields ? "rotate-90" : ""}`}
@@ -180,54 +180,54 @@ export function TaskEditForm({
         {showAllFields && (
           <form onSubmit={handleManualSave} className="mt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-hover/20 focus:border-primary-hover transition-all duration-150 text-sm"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Next Action</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Next Action</label>
               <input
                 type="text"
                 value={nextAction}
                 onChange={(e) => setNextAction(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-hover/20 focus:border-primary-hover transition-all duration-150 text-sm"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Due Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Due Date</label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-hover/20 focus:border-primary-hover transition-all duration-150 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Context</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Context</label>
               <input
                 type="text"
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
                 placeholder="e.g., @home, @work, @phone"
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm placeholder:text-slate-400"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-hover/20 focus:border-primary-hover transition-all duration-150 text-sm placeholder:text-gray-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as Task["status"])}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-150 text-sm"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-hover/20 focus:border-primary-hover transition-all duration-150 text-sm"
               >
                 <option value="active">Active</option>
                 <option value="waiting">Waiting</option>
@@ -239,7 +239,7 @@ export function TaskEditForm({
             <button
               type="submit"
               disabled={saving}
-              className="w-full px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-150 shadow-sm hover:shadow disabled:shadow-none"
+              className="w-full px-5 py-2.5 bg-primary-hover text-white rounded-lg hover:bg-primary-active active:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all duration-150 shadow-sm hover:shadow disabled:shadow-none"
             >
               {saving ? "Saving..." : "Save All Changes"}
             </button>
@@ -252,7 +252,7 @@ export function TaskEditForm({
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-5 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 active:bg-slate-100 text-sm font-medium transition-all duration-150"
+          className="w-full px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium transition-all duration-150"
           disabled={saving}
         >
           Close

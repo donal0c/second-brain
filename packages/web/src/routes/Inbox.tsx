@@ -4,7 +4,7 @@ import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
 const STATUS_CONFIG: Record<string, { label: string; dotColor: string }> = {
-  new: { label: "New", dotColor: "bg-blue-500" },
+  new: { label: "New", dotColor: "bg-primary-hover" },
   processing: { label: "Processing", dotColor: "bg-yellow-500" },
   processed: { label: "Processed", dotColor: "bg-green-500" },
   blocked: { label: "Needs Clarification", dotColor: "bg-orange-500" },

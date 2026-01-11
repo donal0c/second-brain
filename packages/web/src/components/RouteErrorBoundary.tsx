@@ -78,7 +78,7 @@ class RouteErrorBoundaryClass extends Component<Props & { navigate: (path: strin
                 <div className="flex gap-3">
                   <button
                     onClick={this.handleReset}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                    className="bg-primary-hover text-white px-4 py-2 rounded-md hover:bg-primary-active transition-colors text-sm font-medium"
                   >
                     Try Again
                   </button>

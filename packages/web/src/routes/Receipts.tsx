@@ -77,7 +77,7 @@ export function Receipts() {
 
   const getClassificationColor = (classification: string) => {
     switch (classification) {
-      case "task": return "bg-blue-100 text-blue-700";
+      case "task": return "bg-primary-subtle text-primary-active";
       case "project": return "bg-purple-100 text-purple-700";
       case "idea": return "bg-amber-100 text-amber-700";
       case "person": return "bg-pink-100 text-pink-700";
@@ -274,7 +274,7 @@ export function Receipts() {
                     <div className="space-y-2">
                       {selectedReceipt.writes.map((write, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${write.action === "create" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${write.action === "create" ? "bg-green-100 text-green-700" : "bg-primary-subtle text-primary-active"}`}>
                             {write.action}
                           </span>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${getClassificationColor(write.entityType)}`}>
