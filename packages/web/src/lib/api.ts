@@ -65,6 +65,19 @@ interface ApiEnvelope<T> {
   };
 }
 
+function normalizeApiError(rawError: unknown, fallbackMessage: string): ApiError {
+  const error = rawError as { error?: { code?: string; message?: string; details?: unknown } } | null;
+  const message = error?.error?.message || fallbackMessage || "Request failed";
+  return {
+    error: {
+      code: error?.error?.code || "REQUEST_FAILED",
+      message,
+      details: error?.error?.details,
+    },
+    message,
+  };
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -81,19 +94,7 @@ async function request<T>(
 
   if (!response.ok) {
     const rawError = await response.json().catch(() => null);
-
-    // Normalize to consistent ApiError shape
-    // Server sends: { error: { code, message, details } }
-    const normalizedError: ApiError = {
-      error: {
-        code: rawError?.error?.code || "REQUEST_FAILED",
-        message: rawError?.error?.message || response.statusText || "Request failed",
-        details: rawError?.error?.details,
-      },
-      // Top-level message for UI convenience (what existing code expects)
-      message: rawError?.error?.message || response.statusText || "Request failed",
-    };
-    throw normalizedError;
+    throw normalizeApiError(rawError, response.statusText);
   }
 
   // Handle 204 No Content
@@ -110,6 +111,28 @@ async function request<T>(
   }
 
   return json;
+}
+
+async function requestEnvelope<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<ApiEnvelope<T>> {
+  const url = `${API_BASE}${path}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const rawError = await response.json().catch(() => null);
+    throw normalizeApiError(rawError, response.statusText);
+  }
+
+  return response.json();
 }
 
 // Helper for list endpoints that return { data: T[], meta: { total, limit, offset } }
@@ -136,11 +159,8 @@ async function requestList<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: "Request failed",
-      message: response.statusText,
-    }));
-    throw error;
+    const rawError = await response.json().catch(() => null);
+    throw normalizeApiError(rawError, response.statusText);
   }
 
   const json = await response.json();
@@ -619,7 +639,7 @@ export const search = {
       }
     });
     // Server returns { data: SearchResult[], meta: { total, limit, offset, query } }
-    const envelope = await request<ApiEnvelope<SearchResult[]> & { meta?: { query?: string } }>(
+    const envelope = await requestEnvelope<SearchResult[]>(
       `/search?${queryParams}`,
       { signal }
     );
