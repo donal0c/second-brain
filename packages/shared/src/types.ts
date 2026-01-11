@@ -256,3 +256,32 @@ export const NudgeSchema = z.object({
 });
 
 export type Nudge = z.infer<typeof NudgeSchema>;
+
+// =============================================================================
+// API Response Types (Date fields serialized as ISO strings over JSON)
+// =============================================================================
+
+/**
+ * Utility type that converts Date fields to string for API responses.
+ * When entities are serialized to JSON, Date objects become ISO strings.
+ */
+type DateToString<T> = {
+  [K in keyof T]: T[K] extends Date
+    ? string
+    : T[K] extends Date | null
+    ? string | null
+    : T[K] extends Date | null | undefined
+    ? string | null | undefined
+    : T[K];
+};
+
+// API response types for each entity - use these in frontend code
+export type InboxItemApi = DateToString<InboxItem>;
+export type TaskApi = DateToString<Task>;
+export type ProjectApi = DateToString<Project>;
+export type IdeaApi = DateToString<Idea>;
+export type PersonApi = DateToString<Person>;
+export type ReceiptApi = DateToString<Receipt>;
+export type ClarificationApi = DateToString<Clarification>;
+export type PersonalContextApi = DateToString<PersonalContext>;
+export type NudgeApi = DateToString<Nudge>;

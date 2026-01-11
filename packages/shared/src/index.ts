@@ -51,6 +51,20 @@ export {
   type PersonalContext,
   type CreatePersonalContext,
   type UpdatePersonalContext,
+  // Nudge
+  NudgeType,
+  NudgeSchema,
+  type Nudge,
+  // API Response Types (dates as strings for JSON serialization)
+  type InboxItemApi,
+  type TaskApi,
+  type ProjectApi,
+  type IdeaApi,
+  type PersonApi,
+  type ReceiptApi,
+  type ClarificationApi,
+  type PersonalContextApi,
+  type NudgeApi,
 } from "./types.js";
 
 // Taxonomy types

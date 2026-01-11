@@ -2,6 +2,30 @@
 // API Client
 // =============================================================================
 
+import type {
+  InboxItemApi,
+  TaskApi,
+  ProjectApi,
+  IdeaApi,
+  PersonApi,
+  ReceiptApi,
+  ClarificationApi,
+  PersonalContextApi,
+  NudgeApi,
+} from "@second-brain/shared";
+
+// Create local type aliases for use within this file
+// These types have Date fields as strings (JSON serialization)
+export type InboxItem = InboxItemApi;
+export type Task = TaskApi;
+export type Project = ProjectApi;
+export type Idea = IdeaApi;
+export type Person = PersonApi;
+export type Receipt = ReceiptApi;
+export type Clarification = ClarificationApi;
+export type PersonalContext = PersonalContextApi;
+export type Nudge = NudgeApi;
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export interface ApiError {
@@ -44,13 +68,7 @@ async function request<T>(
 // Inbox API
 // =============================================================================
 
-export interface InboxItem {
-  id: string;
-  capturedAt: string;
-  rawText: string;
-  source: string;
-  status: "new" | "processing" | "processed" | "blocked";
-}
+// InboxItem type is now imported from @second-brain/shared
 
 export interface InboxListResponse {
   items: InboxItem[];
@@ -84,17 +102,7 @@ export const inbox = {
 // Tasks API
 // =============================================================================
 
-export interface Task {
-  id: string;
-  title: string;
-  nextAction: string;
-  dueDate: string | null;
-  context: string | null;
-  status: "active" | "completed" | "waiting" | "someday";
-  sourceInboxItemId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Task type is now imported from @second-brain/shared
 
 export interface TaskListResponse {
   items: Task[];
@@ -139,16 +147,7 @@ export const tasks = {
 // Projects API
 // =============================================================================
 
-export interface Project {
-  id: string;
-  name: string;
-  desiredOutcome: string | null;
-  nextAction: string | null;
-  status: "active" | "completed" | "on_hold" | "someday";
-  sourceInboxItemId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Project type is now imported from @second-brain/shared
 
 export interface ProjectListResponse {
   items: Project[];
@@ -185,15 +184,7 @@ export const projects = {
 // Ideas API
 // =============================================================================
 
-export interface Idea {
-  id: string;
-  title: string;
-  summary: string | null;
-  links: string[];
-  sourceInboxItemId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Idea type is now imported from @second-brain/shared
 
 export interface IdeaListResponse {
   items: Idea[];
@@ -230,16 +221,7 @@ export const ideas = {
 // Persons API
 // =============================================================================
 
-export interface Person {
-  id: string;
-  name: string;
-  relationshipContext: string | null;
-  lastTouchedAt: string | null;
-  followUpNextAction: string | null;
-  sourceInboxItemId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Person type is now imported from @second-brain/shared
 
 export interface PersonListResponse {
   items: Person[];
@@ -298,15 +280,7 @@ export const fix = {
 // Clarifications API
 // =============================================================================
 
-export interface Clarification {
-  id: string;
-  inboxItemId: string;
-  question: string;
-  options: string[] | null;
-  userAnswer: string | null;
-  resolvedAt: string | null;
-  createdAt: string;
-}
+// Clarification type is now imported from @second-brain/shared
 
 export interface ClarificationListResponse {
   clarifications: Clarification[];
@@ -336,13 +310,7 @@ export const clarifications = {
 // Digest API
 // =============================================================================
 
-export interface PersonalContext {
-  id: string;
-  name: string;
-  type: string;
-  domain: string | null;
-  mentionCount: number;
-}
+// PersonalContext type is now imported from @second-brain/shared
 
 export interface DigestResponse {
   date: string;
@@ -425,22 +393,7 @@ export const digest = {
 // Receipts API
 // =============================================================================
 
-export interface Receipt {
-  id: string;
-  inboxItemId: string;
-  classification: "task" | "project" | "idea" | "person" | "unknown";
-  extractedFields: Record<string, unknown>;
-  confidenceScore: number;
-  modelUsed: string;
-  timestamp: string;
-  writes: Array<{
-    entityType: "task" | "project" | "idea" | "person";
-    entityId: string;
-    action: "create" | "update";
-  }>;
-  previousReceiptId: string | null;
-  personalContextUsed: string[];
-}
+// Receipt type is now imported from @second-brain/shared
 
 export interface ReceiptListResponse {
   receipts: Receipt[];
@@ -570,16 +523,7 @@ export const search = {
 // Nudges API
 // =============================================================================
 
-export interface Nudge {
-  id: string;
-  type: "follow_up_overdue" | "project_missing_next_action" | "task_due_soon" | "task_stale" | "person_follow_up";
-  message: string;
-  entityType: "task" | "project" | "person";
-  entityId: string;
-  createdAt: string;
-  dismissedAt: string | null;
-  snoozedUntil: string | null;
-}
+// Nudge type is now imported from @second-brain/shared
 
 export interface NudgesResponse {
   nudges: Nudge[];

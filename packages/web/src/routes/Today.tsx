@@ -135,7 +135,7 @@ export function Today() {
     }
   };
 
-  const formatDueDate = (dateStr: string | null) => {
+  const formatDueDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return null;
     const date = new Date(dateStr);
     const today = new Date();
