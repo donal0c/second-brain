@@ -34,6 +34,20 @@ export interface ApiError {
   details?: Record<string, string[]>;
 }
 
+// API response envelope types (match server's response format)
+interface ApiListResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
+interface ApiDataResponse<T> {
+  data: T;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -403,10 +417,23 @@ export interface ReceiptListResponse {
 }
 
 export const receipts = {
-  list: (params?: { inboxItemId?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<ReceiptListResponse>(`/receipts?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+  list: async (params?: { inboxItemId?: string; limit?: number; offset?: number }, signal?: AbortSignal): Promise<ReceiptListResponse> => {
+    const response = await request<ApiListResponse<Receipt>>(
+      `/receipts?${new URLSearchParams(params as Record<string, string>)}`,
+      { signal }
+    );
+    return {
+      receipts: response.data,
+      total: response.meta.total,
+      limit: response.meta.limit,
+      offset: response.meta.offset,
+    };
+  },
 
-  get: (id: string, signal?: AbortSignal) => request<Receipt>(`/receipts/${id}`, { signal }),
+  get: async (id: string, signal?: AbortSignal): Promise<Receipt> => {
+    const response = await request<ApiDataResponse<Receipt>>(`/receipts/${id}`, { signal });
+    return response.data;
+  },
 };
 
 // =============================================================================
