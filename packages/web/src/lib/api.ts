@@ -59,9 +59,16 @@ export interface InboxListResponse {
   offset: number;
 }
 
+export interface InboxCaptureResponse {
+  inboxItem: InboxItem;
+  processed: boolean;
+  result?: ProcessResult;
+  error?: string;
+}
+
 export const inbox = {
   capture: (rawText: string, source: string = "web", signal?: AbortSignal) =>
-    request<InboxItem>("/inbox", {
+    request<InboxCaptureResponse>("/inbox", {
       method: "POST",
       body: JSON.stringify({ rawText, source }),
       signal,
@@ -459,10 +466,10 @@ export const process = {
     const originalInboxItem = await inbox.get(entity.sourceInboxItemId, signal);
 
     // Create a new inbox item with the same rawText
-    const newInboxItem = await inbox.capture(originalInboxItem.rawText, "reprocess", signal);
+    const captureResponse = await inbox.capture(originalInboxItem.rawText, "reprocess", signal);
 
     // Process the new inbox item
-    const result = await request<ProcessResult>(`/process/${newInboxItem.id}`, { method: "POST", signal });
+    const result = await request<ProcessResult>(`/process/${captureResponse.inboxItem.id}`, { method: "POST", signal });
 
     return result;
   },
