@@ -698,7 +698,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
         // Create receipt
         const receipt = {
           id: newReceiptId,
-          inboxItemId: oldEntity.sourceInboxItemId,
+          inboxItemId: oldEntity.sourceInboxItemId || randomUUID(),
           classification: fixResult.newType,
           extractedFields: fixResult.fields,
           confidenceScore: 1.0,
@@ -737,7 +737,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
         // Create receipt
         const receipt = {
           id: newReceiptId,
-          inboxItemId: oldEntity.sourceInboxItemId,
+          inboxItemId: oldEntity.sourceInboxItemId || randomUUID(),
           classification: singularType,
           extractedFields: fixResult.fields,
           confidenceScore: 1.0,
