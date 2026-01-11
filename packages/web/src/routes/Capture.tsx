@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { inbox, extractErrorMessage } from "../lib/api";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
@@ -21,6 +21,7 @@ export function Capture() {
   } = useVoiceCapture({ continuous: false, interimResults: true });
 
   const { isOnline, addToQueue, syncQueue } = useOfflineQueue();
+  const wasOnlineRef = useRef(isOnline);
 
   useEffect(() => {
     if (transcript) {
@@ -29,13 +30,14 @@ export function Capture() {
     }
   }, [transcript, resetTranscript]);
 
-  // Sync offline queue when coming back online
+  // Sync offline queue when transitioning from offline to online
   useEffect(() => {
-    if (isOnline) {
-      syncQueue(async (text: string) => {
+    if (isOnline && !wasOnlineRef.current) {
+      syncQueue(async (text) => {
         await inbox.capture(text);
       }).catch(console.error);
     }
+    wasOnlineRef.current = isOnline;
   }, [isOnline, syncQueue]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,14 +100,14 @@ export function Capture() {
                 </div>
                 <span>to submit</span>
               </div>
-              
+
               {isSupported && (
                 <button
                   type="button"
                   onClick={() => isListening ? stopListening() : startListening()}
                   className={`p-3 rounded-full transition-all duration-300 ${
-                    isListening 
-                      ? "bg-rose-500 text-white shadow-glow animate-pulse" 
+                    isListening
+                      ? "bg-rose-500 text-white shadow-glow animate-pulse"
                       : "bg-white text-gray-400 hover:text-gray-600 border border-gray-200 shadow-sm"
                   }`}
                 >
