@@ -30,12 +30,15 @@ export function Nudges({ refreshInterval = 5 * 60 * 1000 }: NudgesProps) {
   };
 
   useEffect(() => {
-    const controller = new AbortController();
+    let controller = new AbortController();
     loadNudges(controller.signal);
 
     // Set up periodic refresh
     const interval = setInterval(() => {
-      loadNudges();
+      // Abort any in-flight request before starting a new one
+      controller.abort();
+      controller = new AbortController();
+      loadNudges(controller.signal);
     }, refreshInterval);
 
     return () => {
