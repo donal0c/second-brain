@@ -26,18 +26,17 @@ type NudgeCandidate = {
 async function detectNudges(): Promise<NudgeCandidate[]> {
   const candidates: NudgeCandidate[] = [];
   const now = Date.now();
-  const oneDayFromNow = new Date(now + 24 * 60 * 60 * 1000);
   const twoDaysFromNow = new Date(now + 2 * 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
-  // 1. Tasks due in the next 24-48 hours (not overdue yet)
+  // 1. Tasks due soon (due today through next 48 hours, not overdue)
   const tasksDueSoon = await db
     .select()
     .from(schema.tasks)
     .where(
       and(
         eq(schema.tasks.status, "active"),
-        gte(schema.tasks.dueDate, oneDayFromNow),
+        gte(schema.tasks.dueDate, new Date(now)),
         lte(schema.tasks.dueDate, twoDaysFromNow)
       )
     )
