@@ -18,8 +18,10 @@ export async function authMiddleware(
   const authHeader = request.headers.authorization;
   if (!authHeader) {
     return reply.status(401).send({
-      error: "Unauthorized",
-      message: "Missing Authorization header",
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Missing Authorization header",
+      },
     });
   }
 
@@ -27,16 +29,20 @@ export async function authMiddleware(
   const [scheme, token] = authHeader.split(" ");
   if (scheme !== "Bearer" || !token) {
     return reply.status(401).send({
-      error: "Unauthorized",
-      message: "Invalid Authorization header format. Expected: Bearer <token>",
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid Authorization header format. Expected: Bearer <token>",
+      },
     });
   }
 
   // Validate token
   if (token !== configuredToken) {
     return reply.status(401).send({
-      error: "Unauthorized",
-      message: "Invalid authentication token",
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid authentication token",
+      },
     });
   }
 }
@@ -62,15 +68,19 @@ export async function optionalAuthMiddleware(
   const [scheme, token] = authHeader.split(" ");
   if (scheme !== "Bearer" || !token) {
     return reply.status(401).send({
-      error: "Unauthorized",
-      message: "Invalid Authorization header format. Expected: Bearer <token>",
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid Authorization header format. Expected: Bearer <token>",
+      },
     });
   }
 
   if (token !== configuredToken) {
     return reply.status(401).send({
-      error: "Unauthorized",
-      message: "Invalid authentication token",
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Invalid authentication token",
+      },
     });
   }
 }
