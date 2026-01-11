@@ -6,6 +6,7 @@ import {
   type Task,
   type ApiError,
 } from "../lib/api";
+import { formatDueDate } from "../lib/dateUtils";
 import { LoadingSkeletonLarge } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { Modal } from "../components/Modal";
@@ -133,20 +134,6 @@ export function Today() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const formatDueDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (date < today) return { text: "Overdue", color: "text-red-600" };
-    if (date.toDateString() === today.toDateString()) return { text: "Today", color: "text-orange-600" };
-    if (date.toDateString() === tomorrow.toDateString()) return { text: "Tomorrow", color: "text-yellow-600" };
-    return { text: date.toLocaleDateString(), color: "text-gray-500" };
   };
 
   if (loading) {
