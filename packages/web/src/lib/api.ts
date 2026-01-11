@@ -61,7 +61,9 @@ async function request<T>(
     return {} as T;
   }
 
-  return response.json();
+  const json = await response.json();
+  // Unwrap standardized API envelope { data: T } if present
+  return json.data ?? json;
 }
 
 // =============================================================================
