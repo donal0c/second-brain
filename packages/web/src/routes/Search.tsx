@@ -17,36 +17,7 @@ export function Search() {
   const [typeFilter, setTypeFilter] = useState<"task" | "project" | "idea" | "">("");
   const [statusFilter, setStatusFilter] = useState("");
   const [contextFilter, setContextFilter] = useState("");
-
-  const performSearch = async () => {
-    if (!query.trim()) {
-      setResults([]);
-      setTotal(0);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await search.query({
-        q: query,
-        type: typeFilter || undefined,
-        status: statusFilter || undefined,
-        context: contextFilter || undefined,
-      });
-
-      setResults(response.results);
-      setTotal(response.total);
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Search failed");
-      setResults([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [searchTrigger, setSearchTrigger] = useState(0);
 
   // Perform search when query parameter changes
   useEffect(() => {
@@ -58,15 +29,56 @@ export function Search() {
 
   // Perform search when query or filters change
   useEffect(() => {
-    if (query) {
-      performSearch();
+    if (!query.trim()) {
+      setResults([]);
+      setTotal(0);
+      return;
     }
-  }, [query, typeFilter, statusFilter, contextFilter]);
+
+    const controller = new AbortController();
+
+    const performSearch = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await search.query(
+          {
+            q: query,
+            type: typeFilter || undefined,
+            status: statusFilter || undefined,
+            context: contextFilter || undefined,
+          },
+          controller.signal
+        );
+
+        setResults(response.results);
+        setTotal(response.total);
+      } catch (err) {
+        // Ignore AbortError - this is expected when the effect is cleaned up
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+        const apiError = err as ApiError;
+        setError(apiError.message || apiError.error || "Search failed");
+        setResults([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    performSearch();
+
+    return () => {
+      controller.abort();
+    };
+  }, [query, typeFilter, statusFilter, contextFilter, searchTrigger]);
 
   const handleQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      performSearch();
+      setSearchTrigger((t) => t + 1);
     }
   };
 

@@ -599,16 +599,19 @@ export interface SearchResponse {
 }
 
 export const search = {
-  query: async (params: {
-    q: string;
-    type?: "task" | "project" | "idea";
-    context?: string;
-    status?: string;
-    from?: string;
-    to?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<SearchResponse> => {
+  query: async (
+    params: {
+      q: string;
+      type?: "task" | "project" | "idea";
+      context?: string;
+      status?: string;
+      from?: string;
+      to?: string;
+      limit?: number;
+      offset?: number;
+    },
+    signal?: AbortSignal
+  ): Promise<SearchResponse> => {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -617,7 +620,8 @@ export const search = {
     });
     // Server returns { data: SearchResult[], meta: { total, limit, offset, query } }
     const envelope = await request<ApiEnvelope<SearchResult[]> & { meta?: { query?: string } }>(
-      `/search?${queryParams}`
+      `/search?${queryParams}`,
+      { signal }
     );
     return {
       results: envelope.data,
