@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { eq, sql, and, or, isNull, lt } from "drizzle-orm";
+import { eq, sql, and, or, isNull, lt, gte, lte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { randomUUID } from "crypto";
 
@@ -26,9 +26,9 @@ type NudgeCandidate = {
 async function detectNudges(): Promise<NudgeCandidate[]> {
   const candidates: NudgeCandidate[] = [];
   const now = Date.now();
-  const oneDayFromNow = now + 24 * 60 * 60 * 1000;
-  const twoDaysFromNow = now + 2 * 24 * 60 * 60 * 1000;
-  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const oneDayFromNow = new Date(now + 24 * 60 * 60 * 1000);
+  const twoDaysFromNow = new Date(now + 2 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
   // 1. Tasks due in the next 24-48 hours (not overdue yet)
   const tasksDueSoon = await db
@@ -37,8 +37,8 @@ async function detectNudges(): Promise<NudgeCandidate[]> {
     .where(
       and(
         eq(schema.tasks.status, "active"),
-        sql`${schema.tasks.dueDate} >= ${oneDayFromNow}`,
-        sql`${schema.tasks.dueDate} <= ${twoDaysFromNow}`
+        gte(schema.tasks.dueDate, oneDayFromNow),
+        lte(schema.tasks.dueDate, twoDaysFromNow)
       )
     )
     .limit(5);
@@ -61,7 +61,7 @@ async function detectNudges(): Promise<NudgeCandidate[]> {
     .where(
       and(
         eq(schema.tasks.status, "active"),
-        sql`${schema.tasks.updatedAt} < ${sevenDaysAgo}`
+        lt(schema.tasks.updatedAt, sevenDaysAgo)
       )
     )
     .orderBy(schema.tasks.updatedAt)
@@ -99,13 +99,13 @@ async function detectNudges(): Promise<NudgeCandidate[]> {
   }
 
   // 4. People follow-ups (if lastTouchedAt is > 14 days and followUpNextAction is set)
-  const fourteenDaysAgo = now - 14 * 24 * 60 * 60 * 1000;
+  const fourteenDaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000);
   const peopleNeedingFollowUp = await db
     .select()
     .from(schema.persons)
     .where(
       and(
-        sql`${schema.persons.lastTouchedAt} < ${fourteenDaysAgo}`,
+        lt(schema.persons.lastTouchedAt, fourteenDaysAgo),
         sql`${schema.persons.followUpNextAction} IS NOT NULL`
       )
     )
@@ -158,7 +158,7 @@ async function getActiveNudges(): Promise<Array<{
     .from(schema.nudges)
     .where(
       and(
-        sql`${schema.nudges.createdAt} >= ${todayStart.getTime()}`,
+        gte(schema.nudges.createdAt, todayStart),
         isNull(schema.nudges.dismissedAt)
       )
     );

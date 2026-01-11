@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { eq, sql, desc, isNull, and } from "drizzle-orm";
+import { eq, sql, desc, isNull, and, lt, gte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 
 // =============================================================================
@@ -103,7 +103,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
         .where(
           and(
             eq(schema.tasks.status, "active"),
-            sql`${schema.tasks.updatedAt} < ${staleThreshold.getTime()}`
+            lt(schema.tasks.updatedAt, staleThreshold)
           )
         )
         .orderBy(schema.tasks.updatedAt)
@@ -193,7 +193,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       .where(
         and(
           eq(schema.projects.status, "active"),
-          sql`${schema.projects.updatedAt} < ${twoWeeksAgo.getTime()}`
+          lt(schema.projects.updatedAt, twoWeeksAgo)
         )
       )
       .orderBy(schema.projects.updatedAt)
@@ -231,7 +231,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       .where(
         and(
           eq(schema.tasks.status, "completed"),
-          sql`${schema.tasks.updatedAt} >= ${weekAgo.getTime()}`
+          gte(schema.tasks.updatedAt, weekAgo)
         )
       )
       .orderBy(desc(schema.tasks.updatedAt))
@@ -243,7 +243,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       .where(
         and(
           eq(schema.projects.status, "completed"),
-          sql`${schema.projects.updatedAt} >= ${weekAgo.getTime()}`
+          gte(schema.projects.updatedAt, weekAgo)
         )
       )
       .orderBy(desc(schema.projects.updatedAt))
