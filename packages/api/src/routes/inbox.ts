@@ -5,6 +5,14 @@ import { eq, sql, desc } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { processInboxItem } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
+import {
+  sendData,
+  sendList,
+  sendCreated,
+  sendNotFound,
+  sendValidationError,
+  sendBadRequest,
+} from "../utils/response.js";
 
 // =============================================================================
 // Request/Response Types
@@ -42,10 +50,11 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
       // Validate request body
       const parseResult = CaptureBodySchema.safeParse(request.body);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { rawText, source } = parseResult.data;
@@ -73,7 +82,7 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
             { id, classification: result.classification.classification },
             "Inbox item processed"
           );
-          return reply.status(201).send({
+          return sendCreated(reply, {
             inboxItem: { ...newItem, status: result.clarification ? "blocked" : "processed" },
             processed: true,
             result,
@@ -81,16 +90,16 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
         } catch (err) {
           request.log.error({ id, error: err }, "Failed to process inbox item");
           // Return the unprocessed item - user can retry
-          return reply.status(201).send({
+          return sendCreated(reply, {
             inboxItem: newItem,
             processed: false,
-            error: "Processing failed - item saved for retry",
+            processingError: "Processing failed - item saved for retry",
           });
         }
       }
 
       // No LLM configured - just return the captured item
-      return reply.status(201).send({
+      return sendCreated(reply, {
         inboxItem: newItem,
         processed: false,
       });
@@ -109,10 +118,11 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
       // Validate query params
       const parseResult = ListQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { status, limit, offset } = parseResult.data;
@@ -148,12 +158,7 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
 
       const total = countResult[0]?.count ?? 0;
 
-      return reply.send({
-        items,
-        total,
-        limit,
-        offset,
-      });
+      return sendList(reply, items, { total, limit, offset });
     }
   );
 
@@ -169,10 +174,7 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
       // Validate params
       const parseResult = IdParamsSchema.safeParse(request.params);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Invalid ID format",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendBadRequest(reply, "Invalid ID format", parseResult.error.flatten().fieldErrors);
       }
 
       const { id } = parseResult.data;
@@ -185,13 +187,10 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       if (items.length === 0) {
-        return reply.status(404).send({
-          error: "Not found",
-          message: `Inbox item with id ${id} not found`,
-        });
+        return sendNotFound(reply, "Inbox item");
       }
 
-      return reply.send(items[0]);
+      return sendData(reply, items[0]);
     }
   );
 }

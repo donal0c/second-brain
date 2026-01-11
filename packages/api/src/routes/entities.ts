@@ -4,6 +4,15 @@ import { z } from "zod";
 import { eq, sql, desc, asc, like } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
+import {
+  sendData,
+  sendList,
+  sendNotFound,
+  sendValidationError,
+  sendBadRequest,
+  sendServiceUnavailable,
+  sendNoContent,
+} from "../utils/response.js";
 
 // =============================================================================
 // Shared Schemas
@@ -132,10 +141,11 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
       async (request: FastifyRequest<{ Querystring: TQuerySchema }>, reply: FastifyReply) => {
         const parseResult = querySchema.safeParse(request.query);
         if (!parseResult.success) {
-          return reply.status(400).send({
-            error: "Validation failed",
-            details: parseResult.error.flatten().fieldErrors,
-          });
+          return sendValidationError(
+            reply,
+            "Validation failed",
+            parseResult.error.flatten().fieldErrors
+          );
         }
 
         const query = parseResult.data as TQuerySchema & { limit: number; offset: number; sort: string };
@@ -165,8 +175,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
                 .where(sql`${conditions.map((c) => sql`${c}`).reduce((a, b) => sql`${a} AND ${b}`)}`)
             : await db.select({ count: sql<number>`count(*)` }).from(table);
 
-        return reply.send({
-          items,
+        return sendList(reply, items, {
           total: countResult[0]?.count ?? 0,
           limit,
           offset,
@@ -180,16 +189,16 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
       async (request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>, reply: FastifyReply) => {
         const parseResult = IdParamsSchema.safeParse(request.params);
         if (!parseResult.success) {
-          return reply.status(400).send({ error: "Invalid ID format" });
+          return sendBadRequest(reply, "Invalid ID format");
         }
 
         const items = await db.select().from(table).where(eq(table.id, parseResult.data.id)).limit(1);
 
         if (items.length === 0) {
-          return reply.status(404).send({ error: `${entityName} not found` });
+          return sendNotFound(reply, entityName);
         }
 
-        return reply.send(items[0]);
+        return sendData(reply, items[0]);
       }
     );
 
@@ -205,15 +214,16 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
       ) => {
         const paramsResult = IdParamsSchema.safeParse(request.params);
         if (!paramsResult.success) {
-          return reply.status(400).send({ error: "Invalid ID format" });
+          return sendBadRequest(reply, "Invalid ID format");
         }
 
         const bodyResult = updateSchema.safeParse(request.body);
         if (!bodyResult.success) {
-          return reply.status(400).send({
-            error: "Validation failed",
-            details: bodyResult.error.flatten().fieldErrors,
-          });
+          return sendValidationError(
+            reply,
+            "Validation failed",
+            bodyResult.error.flatten().fieldErrors
+          );
         }
 
         const updates = { ...bodyResult.data, updatedAt: new Date() };
@@ -225,10 +235,10 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
           .returning();
 
         if (result.length === 0) {
-          return reply.status(404).send({ error: `${entityName} not found` });
+          return sendNotFound(reply, entityName);
         }
 
-        return reply.send(result[0]);
+        return sendData(reply, result[0]);
       }
     );
 
@@ -238,7 +248,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
       async (request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>, reply: FastifyReply) => {
         const parseResult = IdParamsSchema.safeParse(request.params);
         if (!parseResult.success) {
-          return reply.status(400).send({ error: "Invalid ID format" });
+          return sendBadRequest(reply, "Invalid ID format");
         }
 
         const result = await db
@@ -247,10 +257,10 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
           .returning();
 
         if (result.length === 0) {
-          return reply.status(404).send({ error: `${entityName} not found` });
+          return sendNotFound(reply, entityName);
         }
 
-        return reply.status(204).send();
+        return sendNoContent(reply);
       }
     );
 
@@ -265,30 +275,28 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
         reply: FastifyReply
       ) => {
         if (!hasLLMProvider()) {
-          return reply.status(503).send({
-            error: "Service unavailable",
-            message: "LLM provider not configured",
-          });
+          return sendServiceUnavailable(reply, "LLM provider not configured");
         }
 
         const paramsResult = IdParamsSchema.safeParse(request.params);
         if (!paramsResult.success) {
-          return reply.status(400).send({ error: "Invalid ID format" });
+          return sendBadRequest(reply, "Invalid ID format");
         }
 
         const bodyResult = NaturalLanguageEditSchema.safeParse(request.body);
         if (!bodyResult.success) {
-          return reply.status(400).send({
-            error: "Validation failed",
-            details: bodyResult.error.flatten().fieldErrors,
-          });
+          return sendValidationError(
+            reply,
+            "Validation failed",
+            bodyResult.error.flatten().fieldErrors
+          );
         }
 
         // Fetch existing entity
         const items = await db.select().from(table).where(eq(table.id, paramsResult.data.id)).limit(1);
 
         if (items.length === 0) {
-          return reply.status(404).send({ error: `${entityName} not found` });
+          return sendNotFound(reply, entityName);
         }
 
         const entity = items[0];
@@ -303,11 +311,14 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
         // Validate and apply updates
         const updateResult = updateSchema.safeParse(interpretation.updates);
         if (!updateResult.success) {
-          return reply.status(400).send({
-            error: "AI interpretation produced invalid updates",
-            details: updateResult.error.flatten().fieldErrors,
-            interpretation,
-          });
+          return sendBadRequest(
+            reply,
+            "AI interpretation produced invalid updates",
+            {
+              validationErrors: updateResult.error.flatten().fieldErrors,
+              interpretation,
+            }
+          );
         }
 
         const now = new Date();
@@ -359,7 +370,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
 
         await db.insert(schema.receipts).values(receipt);
 
-        return reply.send({
+        return sendData(reply, {
           entity: result[0],
           interpretation: {
             updates: interpretation.updates,
@@ -538,26 +549,25 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ) => {
       if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured",
-        });
+        return sendServiceUnavailable(reply, "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.");
       }
 
       const paramsResult = FixParamsSchema.safeParse(request.params);
       if (!paramsResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: paramsResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          paramsResult.error.flatten().fieldErrors
+        );
       }
 
       const bodyResult = FixBodySchema.safeParse(request.body);
       if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          bodyResult.error.flatten().fieldErrors
+        );
       }
 
       const { entityType, id } = paramsResult.data;
@@ -577,7 +587,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
       const items = await db.select().from(table).where(eq(table.id, id)).limit(1);
 
       if (items.length === 0) {
-        return reply.status(404).send({ error: `${singularType} not found` });
+        return sendNotFound(reply, singularType);
       }
 
       const oldEntity = items[0];
@@ -673,10 +683,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
           }
 
           default:
-            return reply.status(400).send({
-              error: "Invalid transformation target type",
-              details: { newType: fixResult.newType },
-            });
+            return sendBadRequest(reply, "Invalid transformation target type", { newType: fixResult.newType });
         }
 
         // Mark old entity as completed (or delete it)
@@ -715,7 +722,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
 
         await db.insert(schema.receipts).values(receipt);
 
-        return reply.send({
+        return sendData(reply, {
           oldEntity,
           newEntity,
           receipt,
@@ -749,7 +756,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
 
         await db.insert(schema.receipts).values(receipt);
 
-        return reply.send({
+        return sendData(reply, {
           oldEntity,
           newEntity: result[0],
           receipt,

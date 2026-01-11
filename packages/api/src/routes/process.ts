@@ -2,6 +2,13 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { processInboxItem, processBatch } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
+import {
+  sendData,
+  sendNotFound,
+  sendValidationError,
+  sendConflict,
+  sendServiceUnavailable,
+} from "../utils/response.js";
 
 // =============================================================================
 // Request Schemas
@@ -31,19 +38,20 @@ export async function processRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       // Check LLM availability
       if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.",
-        });
+        return sendServiceUnavailable(
+          reply,
+          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+        );
       }
 
       // Validate params
       const parseResult = ProcessParamsSchema.safeParse(request.params);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Invalid ID format",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Invalid ID format",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { id } = parseResult.data;
@@ -54,20 +62,14 @@ export async function processRoutes(app: FastifyInstance): Promise<void> {
           { inboxItemId: id, action: result.action, classification: result.classification.classification },
           "Processed inbox item"
         );
-        return reply.send(result);
+        return sendData(reply, result);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message.includes("not found")) {
-            return reply.status(404).send({
-              error: "Not found",
-              message: error.message,
-            });
+            return sendNotFound(reply, "Inbox item");
           }
           if (error.message.includes("not in 'new' status")) {
-            return reply.status(409).send({
-              error: "Conflict",
-              message: error.message,
-            });
+            return sendConflict(reply, error.message);
           }
         }
         throw error;
@@ -86,19 +88,20 @@ export async function processRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       // Check LLM availability
       if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.",
-        });
+        return sendServiceUnavailable(
+          reply,
+          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+        );
       }
 
       // Validate body
       const parseResult = BatchBodySchema.safeParse(request.body || {});
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { limit } = parseResult.data;
@@ -106,7 +109,7 @@ export async function processRoutes(app: FastifyInstance): Promise<void> {
       const result = await processBatch(limit);
       request.log.info({ processed: result.processed }, "Batch processing complete");
 
-      return reply.send({
+      return sendData(reply, {
         processed: result.processed,
         receipts: result.results.map((r) => r.receipt),
       });
@@ -118,7 +121,7 @@ export async function processRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get("/process/status", async (_request: FastifyRequest, reply: FastifyReply) => {
     const available = hasLLMProvider();
-    return reply.send({
+    return sendData(reply, {
       available,
       message: available
         ? "Processing is available"

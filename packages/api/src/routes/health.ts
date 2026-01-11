@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { rawDb } from "../db/index.js";
+import { sendData } from "../utils/response.js";
 
-interface HealthResponse {
+interface HealthData {
   status: "healthy" | "unhealthy";
   database: "connected" | "disconnected";
   timestamp: string;
@@ -42,7 +43,7 @@ function checkEnvironmentVariables(): string[] {
 }
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/health", async (_request: FastifyRequest, _reply: FastifyReply): Promise<HealthResponse> => {
+  app.get("/health", async (_request: FastifyRequest, reply: FastifyReply) => {
     const errors: string[] = [];
 
     // Check database connection
@@ -58,7 +59,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     // Determine overall status - unhealthy if database is down
     const isHealthy = dbCheck.connected;
 
-    const response: HealthResponse = {
+    const healthData: HealthData = {
       status: isHealthy ? "healthy" : "unhealthy",
       database: dbCheck.connected ? "connected" : "disconnected",
       timestamp: new Date().toISOString(),
@@ -67,9 +68,9 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     };
 
     if (errors.length > 0) {
-      response.errors = errors;
+      healthData.errors = errors;
     }
 
-    return response;
+    return sendData(reply, healthData);
   });
 }

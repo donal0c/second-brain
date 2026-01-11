@@ -8,6 +8,13 @@ import {
   runProcessingCycle,
 } from "../jobs/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
+import {
+  sendData,
+  sendValidationError,
+  sendConflict,
+  sendServiceUnavailable,
+  sendInternalError,
+} from "../utils/response.js";
 
 // =============================================================================
 // Request Schemas
@@ -26,7 +33,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
    * GET /jobs/processor/status - Get processor job status
    */
   app.get("/jobs/processor/status", async (_request: FastifyRequest, reply: FastifyReply) => {
-    return reply.send({
+    return sendData(reply, {
       jobRunning: isProcessorJobRunning(),
       cycleInProgress: isProcessingCycleInProgress(),
       llmAvailable: hasLLMProvider(),
@@ -38,17 +45,14 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post("/jobs/processor/start", async (request: FastifyRequest, reply: FastifyReply) => {
     if (!hasLLMProvider()) {
-      return reply.status(503).send({
-        error: "Service unavailable",
-        message: "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.",
-      });
+      return sendServiceUnavailable(
+        reply,
+        "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+      );
     }
 
     if (isProcessorJobRunning()) {
-      return reply.status(409).send({
-        error: "Conflict",
-        message: "Processor job is already running",
-      });
+      return sendConflict(reply, "Processor job is already running");
     }
 
     startProcessorJob({
@@ -59,7 +63,7 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    return reply.send({
+    return sendData(reply, {
       message: "Processor job started",
       status: "running",
     });
@@ -70,15 +74,12 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post("/jobs/processor/stop", async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isProcessorJobRunning()) {
-      return reply.status(409).send({
-        error: "Conflict",
-        message: "Processor job is not running",
-      });
+      return sendConflict(reply, "Processor job is not running");
     }
 
     stopProcessorJob(request.log as unknown as { info: (msg: string) => void });
 
-    return reply.send({
+    return sendData(reply, {
       message: "Processor job stopped",
       status: "stopped",
     });
@@ -94,18 +95,19 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ) => {
       if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.",
-        });
+        return sendServiceUnavailable(
+          reply,
+          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+        );
       }
 
       const parseResult = TriggerBodySchema.safeParse(request.body || {});
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const result = await runProcessingCycle({
@@ -118,14 +120,10 @@ export async function jobRoutes(app: FastifyInstance): Promise<void> {
       });
 
       if (result.error) {
-        return reply.status(500).send({
-          error: "Processing failed",
-          message: result.error,
-          processed: result.processed,
-        });
+        return sendInternalError(reply, `Processing failed: ${result.error}`);
       }
 
-      return reply.send({
+      return sendData(reply, {
         message: "Processing cycle complete",
         processed: result.processed,
         results: result.results.map((r) => ({

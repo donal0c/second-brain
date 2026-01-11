@@ -2,6 +2,11 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { eq, ilike, or, and, sql } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import {
+  sendData,
+  sendValidationError,
+  sendInternalError,
+} from "../utils/response.js";
 
 // =============================================================================
 // Search Schemas
@@ -87,10 +92,11 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       const parseResult = SearchQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { q, type, context, status, from, to, limit, offset } = parseResult.data;
@@ -240,19 +246,22 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           return bScore - aScore;
         });
 
-        return reply.send({
-          results: results.slice(0, limit),
-          total: results.length,
-          query: q,
-          limit,
-          offset,
-        });
+        return sendData(
+          reply,
+          results.slice(0, limit),
+          {
+            total: results.length,
+            limit,
+            offset,
+            query: q,
+          }
+        );
       } catch (error) {
         app.log.error(error);
-        return reply.status(500).send({
-          error: "Search failed",
-          message: error instanceof Error ? error.message : "Unknown error",
-        });
+        return sendInternalError(
+          reply,
+          error instanceof Error ? error.message : "Search failed"
+        );
       }
     }
   );

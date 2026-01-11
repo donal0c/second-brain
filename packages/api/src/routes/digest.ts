@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { eq, sql, desc, isNull, and, lt, gte, or } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { sendData, sendValidationError } from "../utils/response.js";
 
 // =============================================================================
 // Request Schemas
@@ -29,10 +30,11 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       const parseResult = DigestQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { context, maxItems, staleDays } = parseResult.data;
@@ -148,27 +150,30 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
         (ctx) => ctx.createdAt >= yesterday
       );
 
-      return reply.send({
-        date: new Date().toISOString().split("T")[0],
-        context,
-        nextActions: topTasks,
-        flaggedItems: flaggedReceipts,
-        pendingClarifications,
-        staleTasks,
-        projectsWithoutNextAction,
-        newContexts: recentNewContexts.map((ctx) => ({
-          id: ctx.id,
-          name: ctx.name,
-          type: ctx.type,
-          domain: ctx.domain,
-          mentionCount: ctx.mentionCount,
-        })),
-        stats: {
-          activeTasks: taskCount[0]?.count ?? 0,
-          activeProjects: projectCount[0]?.count ?? 0,
-          ideas: ideaCount[0]?.count ?? 0,
-        },
-      });
+      return sendData(
+        reply,
+        {
+          date: new Date().toISOString().split("T")[0],
+          context,
+          nextActions: topTasks,
+          flaggedItems: flaggedReceipts,
+          pendingClarifications,
+          staleTasks,
+          projectsWithoutNextAction,
+          newContexts: recentNewContexts.map((ctx) => ({
+            id: ctx.id,
+            name: ctx.name,
+            type: ctx.type,
+            domain: ctx.domain,
+            mentionCount: ctx.mentionCount,
+          })),
+          stats: {
+            activeTasks: taskCount[0]?.count ?? 0,
+            activeProjects: projectCount[0]?.count ?? 0,
+            ideas: ideaCount[0]?.count ?? 0,
+          },
+        }
+      );
     }
   );
 
@@ -296,7 +301,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    return reply.send({
+    return sendData(reply, {
       weekStart: weekAgo.toISOString().split("T")[0],
       weekEnd: new Date().toISOString().split("T")[0],
       openLoops: {
@@ -356,7 +361,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
         .where(isNull(schema.clarifications.resolvedAt)),
     ]);
 
-    return reply.send({
+    return sendData(reply, {
       inbox: {
         new: inboxCount[0]?.count ?? 0,
         needsClarification: pendingProcessing[0]?.count ?? 0,

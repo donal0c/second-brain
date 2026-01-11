@@ -3,6 +3,12 @@ import { z } from "zod";
 import { eq, sql, and, or, isNull, lt, gte, lte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { randomUUID } from "crypto";
+import {
+  sendData,
+  sendList,
+  sendNotFound,
+  sendValidationError,
+} from "../utils/response.js";
 
 // =============================================================================
 // Request Schemas
@@ -214,9 +220,10 @@ export async function nudgeRoutes(app: FastifyInstance): Promise<void> {
   app.get("/nudges", async (_request: FastifyRequest, reply: FastifyReply) => {
     const activeNudges = await getActiveNudges();
 
-    return reply.send({
-      nudges: activeNudges,
-      count: activeNudges.length,
+    return sendList(reply, activeNudges, {
+      total: activeNudges.length,
+      limit: activeNudges.length,
+      offset: 0,
     });
   });
 
@@ -239,7 +246,7 @@ export async function nudgeRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       if (nudge.length === 0) {
-        return reply.status(404).send({ error: "Nudge not found" });
+        return sendNotFound(reply, "Nudge");
       }
 
       // Update nudge as dismissed
@@ -248,7 +255,7 @@ export async function nudgeRoutes(app: FastifyInstance): Promise<void> {
         .set({ dismissedAt: new Date() })
         .where(eq(schema.nudges.id, id));
 
-      return reply.send({ success: true });
+      return sendData(reply, { success: true });
     }
   );
 
@@ -268,10 +275,11 @@ export async function nudgeRoutes(app: FastifyInstance): Promise<void> {
 
       const parseResult = SnoozeSchema.safeParse(request.body);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { hours } = parseResult.data;
@@ -284,7 +292,7 @@ export async function nudgeRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       if (nudge.length === 0) {
-        return reply.status(404).send({ error: "Nudge not found" });
+        return sendNotFound(reply, "Nudge");
       }
 
       // Calculate snooze until time
@@ -296,7 +304,7 @@ export async function nudgeRoutes(app: FastifyInstance): Promise<void> {
         .set({ snoozedUntil })
         .where(eq(schema.nudges.id, id));
 
-      return reply.send({ success: true, snoozedUntil: snoozedUntil.toISOString() });
+      return sendData(reply, { success: true, snoozedUntil: snoozedUntil.toISOString() });
     }
   );
 }

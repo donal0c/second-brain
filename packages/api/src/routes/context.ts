@@ -7,6 +7,13 @@ import type { FastifyInstance } from "fastify";
 import { eq, isNull, gte, desc, and } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { UpdatePersonalContextSchema } from "@second-brain/shared";
+import {
+  sendData,
+  sendList,
+  sendNotFound,
+  sendValidationError,
+  sendNoContent,
+} from "../utils/response.js";
 
 export async function contextRoutes(fastify: FastifyInstance) {
   // ---------------------------------------------------------------------------
@@ -21,9 +28,10 @@ export async function contextRoutes(fastify: FastifyInstance) {
     // Sort by mention count descending (most mentioned first)
     const sorted = contexts.sort((a, b) => b.mentionCount - a.mentionCount);
 
-    return reply.send({
-      entities: sorted,
+    return sendList(reply, sorted, {
       total: sorted.length,
+      limit: sorted.length,
+      offset: 0,
     });
   });
 
@@ -40,10 +48,10 @@ export async function contextRoutes(fastify: FastifyInstance) {
       .limit(1);
 
     if (results.length === 0) {
-      return reply.status(404).send({ error: "Context entity not found" });
+      return sendNotFound(reply, "Context entity");
     }
 
-    return reply.send(results[0]);
+    return sendData(reply, results[0]);
   });
 
   // ---------------------------------------------------------------------------
@@ -57,10 +65,7 @@ export async function contextRoutes(fastify: FastifyInstance) {
       // Validate body
       const parsed = UpdatePersonalContextSchema.safeParse(request.body);
       if (!parsed.success) {
-        return reply.status(400).send({
-          error: "Invalid request body",
-          details: parsed.error.issues,
-        });
+        return sendValidationError(reply, "Invalid request body", parsed.error.issues);
       }
 
       // Check entity exists
@@ -71,7 +76,7 @@ export async function contextRoutes(fastify: FastifyInstance) {
         .limit(1);
 
       if (existing.length === 0) {
-        return reply.status(404).send({ error: "Context entity not found" });
+        return sendNotFound(reply, "Context entity");
       }
 
       // Build update object (only include provided fields)
@@ -99,7 +104,7 @@ export async function contextRoutes(fastify: FastifyInstance) {
         .where(eq(schema.personalContexts.id, id))
         .limit(1);
 
-      return reply.send(updated[0]);
+      return sendData(reply, updated[0]);
     }
   );
 
@@ -135,9 +140,10 @@ export async function contextRoutes(fastify: FastifyInstance) {
         filtered = results.filter((ctx) => ctx.createdAt >= cutoff);
       }
 
-      return reply.send({
-        entities: filtered,
+      return sendList(reply, filtered, {
         total: filtered.length,
+        limit: filtered.length,
+        offset: 0,
       });
     }
   );
@@ -174,9 +180,10 @@ export async function contextRoutes(fastify: FastifyInstance) {
         };
       });
 
-      return reply.send({
-        questions,
+      return sendList(reply, questions, {
         total: questions.length,
+        limit: questions.length,
+        offset: 0,
       });
     }
   );
@@ -197,7 +204,7 @@ export async function contextRoutes(fastify: FastifyInstance) {
         .limit(1);
 
       if (existing.length === 0) {
-        return reply.status(404).send({ error: "Context entity not found" });
+        return sendNotFound(reply, "Context entity");
       }
 
       // Delete
@@ -205,7 +212,7 @@ export async function contextRoutes(fastify: FastifyInstance) {
         .delete(schema.personalContexts)
         .where(eq(schema.personalContexts.id, id));
 
-      return reply.status(204).send();
+      return sendNoContent(reply);
     }
   );
 }

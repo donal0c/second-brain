@@ -4,6 +4,15 @@ import { eq, sql, desc, isNull, isNotNull } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { processInboxItem } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
+import {
+  sendData,
+  sendList,
+  sendNotFound,
+  sendValidationError,
+  sendBadRequest,
+  sendConflict,
+  sendServiceUnavailable,
+} from "../utils/response.js";
 
 // =============================================================================
 // Request Schemas
@@ -43,10 +52,11 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       const parseResult = ReceiptQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { inboxItemId, limit, offset } = parseResult.data;
@@ -73,8 +83,7 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
             .where(eq(schema.receipts.inboxItemId, inboxItemId))
         : await db.select({ count: sql<number>`count(*)` }).from(schema.receipts);
 
-      return reply.send({
-        receipts: items,
+      return sendList(reply, items, {
         total: countResult[0]?.count ?? 0,
         limit,
         offset,
@@ -91,7 +100,7 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       const parseResult = IdParamsSchema.safeParse(request.params);
       if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
+        return sendBadRequest(reply, "Invalid ID format");
       }
 
       const items = await db
@@ -101,10 +110,10 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       if (items.length === 0) {
-        return reply.status(404).send({ error: "Receipt not found" });
+        return sendNotFound(reply, "Receipt");
       }
 
-      return reply.send(items[0]);
+      return sendData(reply, items[0]);
     }
   );
 }
@@ -123,10 +132,11 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       const parseResult = ClarificationQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
       }
 
       const { resolved, limit, offset } = parseResult.data;
@@ -168,8 +178,7 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
         countResult = await db.select({ count: sql<number>`count(*)` }).from(schema.clarifications);
       }
 
-      return reply.send({
-        clarifications: items,
+      return sendList(reply, items, {
         total: countResult[0]?.count ?? 0,
         limit,
         offset,
@@ -186,7 +195,7 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       const parseResult = IdParamsSchema.safeParse(request.params);
       if (!parseResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
+        return sendBadRequest(reply, "Invalid ID format");
       }
 
       const items = await db
@@ -196,10 +205,10 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       if (items.length === 0) {
-        return reply.status(404).send({ error: "Clarification not found" });
+        return sendNotFound(reply, "Clarification");
       }
 
-      return reply.send(items[0]);
+      return sendData(reply, items[0]);
     }
   );
 
@@ -215,23 +224,24 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
     ) => {
       // Check LLM availability
       if (!hasLLMProvider()) {
-        return reply.status(503).send({
-          error: "Service unavailable",
-          message: "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.",
-        });
+        return sendServiceUnavailable(
+          reply,
+          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+        );
       }
 
       const paramsResult = IdParamsSchema.safeParse(request.params);
       if (!paramsResult.success) {
-        return reply.status(400).send({ error: "Invalid ID format" });
+        return sendBadRequest(reply, "Invalid ID format");
       }
 
       const bodyResult = ResolveBodySchema.safeParse(request.body);
       if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: "Validation failed",
-          details: bodyResult.error.flatten().fieldErrors,
-        });
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          bodyResult.error.flatten().fieldErrors
+        );
       }
 
       // Get the clarification
@@ -242,13 +252,13 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       if (clarifications.length === 0) {
-        return reply.status(404).send({ error: "Clarification not found" });
+        return sendNotFound(reply, "Clarification");
       }
 
       const clarification = clarifications[0];
 
       if (clarification.resolvedAt) {
-        return reply.status(409).send({ error: "Clarification already resolved" });
+        return sendConflict(reply, "Clarification already resolved");
       }
 
       // Update the clarification with the answer
@@ -280,7 +290,7 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(schema.clarifications.id, paramsResult.data.id))
           .limit(1);
 
-        return reply.send({
+        return sendData(reply, {
           clarification: updatedClarifications[0],
           receipt: processResult.receipt,
           entity: processResult.entity,
@@ -293,9 +303,9 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(schema.clarifications.id, paramsResult.data.id))
           .limit(1);
 
-        return reply.send({
+        return sendData(reply, {
           clarification: updatedClarifications[0],
-          error: error instanceof Error ? error.message : "Processing failed",
+          processingError: error instanceof Error ? error.message : "Processing failed",
         });
       }
     }
