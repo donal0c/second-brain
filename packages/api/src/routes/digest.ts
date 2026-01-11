@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { eq, sql, desc, isNull, and, lt, gte } from "drizzle-orm";
+import { eq, sql, desc, isNull, and, lt, gte, or } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 
 // =============================================================================
@@ -180,10 +180,16 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     // Get open loops (active tasks without due dates or overdue)
+    const now = new Date();
     const openLoops = await db
       .select()
       .from(schema.tasks)
-      .where(eq(schema.tasks.status, "active"))
+      .where(
+        and(
+          eq(schema.tasks.status, "active"),
+          or(isNull(schema.tasks.dueDate), lt(schema.tasks.dueDate, now))
+        )
+      )
       .orderBy(schema.tasks.createdAt);
 
     // Get stale projects (not updated in 14+ days)
