@@ -297,9 +297,22 @@ export interface ClarificationListResponse {
   offset: number;
 }
 
+// Internal type matching API envelope format
+interface ClarificationApiResponse {
+  data: Clarification[];
+  meta: { total: number; limit: number; offset: number };
+}
+
 export const clarifications = {
-  list: (params?: { resolved?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<ClarificationListResponse>(`/clarifications?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+  list: async (params?: { resolved?: string; limit?: number; offset?: number }, signal?: AbortSignal): Promise<ClarificationListResponse> => {
+    const response = await request<ClarificationApiResponse>(`/clarifications?${new URLSearchParams(params as Record<string, string>)}`, { signal });
+    return {
+      clarifications: response.data,
+      total: response.meta.total,
+      limit: response.meta.limit,
+      offset: response.meta.offset,
+    };
+  },
 
   get: (id: string, signal?: AbortSignal) => request<Clarification>(`/clarifications/${id}`, { signal }),
 
