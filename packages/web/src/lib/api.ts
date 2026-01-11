@@ -77,13 +77,60 @@ async function request<T>(
 
   const json = await response.json();
 
-  // Transform list responses: { data: [], meta: { total, limit, offset } } -> { items: [], total, limit, offset }
-  if (Array.isArray(json.data) && json.meta && typeof json.meta.total !== 'undefined') {
-    return { items: json.data, ...json.meta } as T;
+  // Unwrap API envelope: { data: T, meta?: {...} }
+  // The API standardizes responses with a data wrapper
+  if (json && typeof json === "object" && "data" in json) {
+    return json.data as T;
   }
 
-  // Unwrap standardized API envelope { data: T } if present
-  return json.data ?? json;
+  return json;
+}
+
+// Helper for list endpoints that return { data: T[], meta: { total, limit, offset } }
+// Transforms to { items: T[], total, limit, offset } for frontend compatibility
+interface ListResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+async function requestList<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<ListResponse<T>> {
+  const url = `${API_BASE}${path}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      error: "Request failed",
+      message: response.statusText,
+    }));
+    throw error;
+  }
+
+  const json = await response.json();
+
+  // Transform { data: T[], meta: {...} } to { items: T[], total, limit, offset }
+  if (json && typeof json === "object" && "data" in json && "meta" in json) {
+    return {
+      items: json.data as T[],
+      total: json.meta.total ?? 0,
+      limit: json.meta.limit ?? 0,
+      offset: json.meta.offset ?? 0,
+    };
+  }
+
+  // Fallback for non-envelope responses
+  return json;
 }
 
 // =============================================================================
@@ -115,7 +162,7 @@ export const inbox = {
     }),
 
   list: (params?: { status?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<InboxListResponse>(`/inbox?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+    requestList<InboxItem>(`/inbox?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<InboxItem>(`/inbox/${id}`, { signal }),
 };
@@ -143,7 +190,7 @@ export interface InterpretResponse<T> {
 
 export const tasks = {
   list: (params?: { status?: string; context?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<TaskListResponse>(`/tasks?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+    requestList<Task>(`/tasks?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Task>(`/tasks/${id}`, { signal }),
 
@@ -180,7 +227,7 @@ export interface ProjectListResponse {
 
 export const projects = {
   list: (params?: { status?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<ProjectListResponse>(`/projects?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+    requestList<Project>(`/projects?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Project>(`/projects/${id}`, { signal }),
 
@@ -217,7 +264,7 @@ export interface IdeaListResponse {
 
 export const ideas = {
   list: (params?: { limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<IdeaListResponse>(`/ideas?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+    requestList<Idea>(`/ideas?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Idea>(`/ideas/${id}`, { signal }),
 
@@ -254,7 +301,7 @@ export interface PersonListResponse {
 
 export const persons = {
   list: (params?: { limit?: number; offset?: number }, signal?: AbortSignal) =>
-    request<PersonListResponse>(`/persons?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+    requestList<Person>(`/persons?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Person>(`/persons/${id}`, { signal }),
 
@@ -311,22 +358,9 @@ export interface ClarificationListResponse {
   offset: number;
 }
 
-// Internal type matching API envelope format
-interface ClarificationApiResponse {
-  data: Clarification[];
-  meta: { total: number; limit: number; offset: number };
-}
-
 export const clarifications = {
-  list: async (params?: { resolved?: string; limit?: number; offset?: number }, signal?: AbortSignal): Promise<ClarificationListResponse> => {
-    const response = await request<ClarificationApiResponse>(`/clarifications?${new URLSearchParams(params as Record<string, string>)}`, { signal });
-    return {
-      clarifications: response.data,
-      total: response.meta.total,
-      limit: response.meta.limit,
-      offset: response.meta.offset,
-    };
-  },
+  list: (params?: { resolved?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    requestList<Clarification>(`/clarifications?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Clarification>(`/clarifications/${id}`, { signal }),
 
@@ -438,18 +472,8 @@ export interface ReceiptListResponse {
 }
 
 export const receipts = {
-  list: async (params?: { inboxItemId?: string; limit?: number; offset?: number }, signal?: AbortSignal): Promise<ReceiptListResponse> => {
-    const response = await request<ApiListResponse<Receipt>>(
-      `/receipts?${new URLSearchParams(params as Record<string, string>)}`,
-      { signal }
-    );
-    return {
-      receipts: response.data,
-      total: response.meta.total,
-      limit: response.meta.limit,
-      offset: response.meta.offset,
-    };
-  },
+  list: (params?: { inboxItemId?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
+    requestList<Receipt>(`/receipts?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: async (id: string, signal?: AbortSignal): Promise<Receipt> => {
     const response = await request<ApiDataResponse<Receipt>>(`/receipts/${id}`, { signal });
@@ -580,10 +604,11 @@ export interface NudgesResponse {
 
 export const nudges = {
   list: async (signal?: AbortSignal): Promise<NudgesResponse> => {
-    const response = await request<{ data: Nudge[]; meta: { total: number } }>("/nudges", { signal });
+    // API returns { data: Nudge[], meta: { total, ... } }, transform to { nudges: [], count }
+    const result = await requestList<Nudge>("/nudges", { signal });
     return {
-      nudges: response.data,
-      count: response.meta.total,
+      nudges: result.items,
+      count: result.total,
     };
   },
 
