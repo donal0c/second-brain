@@ -12,7 +12,7 @@ import { hasLLMProvider } from "../llm/index.js";
 
 const CaptureBodySchema = z.object({
   rawText: z.string().min(1, "rawText is required"),
-  source: z.enum(["web", "api"]).optional().default("web"),
+  source: z.enum(["web", "api", "reprocess"]).optional().default("web"),
 });
 
 const ListQuerySchema = z.object({
