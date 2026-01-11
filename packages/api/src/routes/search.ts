@@ -28,11 +28,30 @@ const SearchQuerySchema = z.object({
 // =============================================================================
 
 /**
+ * Escape HTML entities to prevent XSS when rendering user content
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
  * Generate a snippet with highlighted search terms
  * @param text The full text to extract snippet from
  * @param query The search query
  * @param maxLength Maximum length of snippet
- * @returns Snippet with <mark> tags around matching terms
+ * @returns Snippet with <mark> tags around matching terms (HTML-escaped)
  */
 function generateSnippet(text: string, query: string, maxLength: number = 200): string {
   if (!text) return "";
@@ -57,7 +76,8 @@ function generateSnippet(text: string, query: string, maxLength: number = 200): 
   // If no match found, return beginning of text
   if (firstMatchIndex === -1) {
     const snippet = text.substring(0, maxLength);
-    return snippet + (text.length > maxLength ? "..." : "");
+    // Escape HTML before returning
+    return escapeHtml(snippet) + (text.length > maxLength ? "..." : "");
   }
 
   // Extract snippet around the match
@@ -69,9 +89,13 @@ function generateSnippet(text: string, query: string, maxLength: number = 200): 
   if (start > 0) snippet = "..." + snippet;
   if (end < text.length) snippet = snippet + "...";
 
-  // Highlight all occurrences of search terms
+  // Escape HTML entities BEFORE adding highlight marks
+  snippet = escapeHtml(snippet);
+
+  // Highlight all occurrences of search terms (escape both HTML and regex special chars)
   for (const term of terms) {
-    const regex = new RegExp(`(${term})`, "gi");
+    const escapedTerm = escapeRegex(escapeHtml(term));
+    const regex = new RegExp(`(${escapedTerm})`, "gi");
     snippet = snippet.replace(regex, "<mark>$1</mark>");
   }
 
