@@ -422,8 +422,7 @@ export interface ProcessResult {
   inboxItemId: string;
   classification: {
     classification: string;
-    extractedFields: Record<string, unknown>;
-    confidenceScore: number;
+    confidence: number;
     reasoning: string;
   };
   action: "filed" | "flagged" | "clarify";
