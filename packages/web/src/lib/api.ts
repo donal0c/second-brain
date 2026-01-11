@@ -499,23 +499,26 @@ export interface SearchResponse {
 }
 
 export const search = {
-  query: (params: {
-    q: string;
-    type?: "task" | "project" | "idea";
-    context?: string;
-    status?: string;
-    from?: string;
-    to?: string;
-    limit?: number;
-    offset?: number;
-  }) => {
+  query: (
+    params: {
+      q: string;
+      type?: "task" | "project" | "idea";
+      context?: string;
+      status?: string;
+      from?: string;
+      to?: string;
+      limit?: number;
+      offset?: number;
+    },
+    signal?: AbortSignal
+  ) => {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         queryParams.append(key, value.toString());
       }
     });
-    return request<SearchResponse>(`/search?${queryParams}`);
+    return request<SearchResponse>(`/search?${queryParams}`, { signal });
   },
 };
 
