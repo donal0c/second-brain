@@ -53,11 +53,14 @@ export function Today() {
 
     try {
       const updated = await tasks.update(editingTask.id, taskData);
-      // Update the task in our local state
+      // Update the task in our local state (could be in nextActions or staleTasks)
       if (data) {
         setData({
           ...data,
           nextActions: data.nextActions.map((t) =>
+            t.id === updated.id ? updated : t
+          ),
+          staleTasks: data.staleTasks.map((t) =>
             t.id === updated.id ? updated : t
           ),
         });
@@ -86,6 +89,9 @@ export function Today() {
         setData({
           ...data,
           nextActions: data.nextActions.map((t) =>
+            t.id === result.entity.id ? result.entity : t
+          ),
+          staleTasks: data.staleTasks.map((t) =>
             t.id === result.entity.id ? result.entity : t
           ),
         });
@@ -117,6 +123,7 @@ export function Today() {
         setData({
           ...data,
           nextActions: data.nextActions.filter((t) => t.id !== editingTask.id),
+          staleTasks: data.staleTasks.filter((t) => t.id !== editingTask.id),
         });
       }
       setEditingTask(null);
@@ -232,6 +239,139 @@ export function Today() {
           </div>
         )}
       </div>
+
+      {/* Flagged Items */}
+      {data?.flaggedItems && data.flaggedItems.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            Flagged for Review ({data.flaggedItems.length})
+          </h3>
+          <div className="space-y-2">
+            {data.flaggedItems.map((receipt) => (
+              <div
+                key={receipt.id}
+                className="bg-rose-50 border border-rose-200 rounded-lg p-4"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs px-2 py-0.5 bg-rose-100 rounded text-rose-700 capitalize">
+                        {receipt.classification}
+                      </span>
+                      {receipt.confidenceScore < 0.7 && (
+                        <span className="text-xs px-2 py-0.5 bg-orange-100 rounded text-orange-700">
+                          Low confidence ({Math.round(receipt.confidenceScore * 100)}%)
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700">
+                      {receipt.extractedFields?.title as string || receipt.extractedFields?.content as string || 'Review required'}
+                    </p>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {new Date(receipt.timestamp).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stale Tasks */}
+      {data?.staleTasks && data.staleTasks.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            Stale Tasks ({data.staleTasks.length})
+          </h3>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-gray-600 text-sm mb-3">
+              These tasks haven't been updated recently.
+            </p>
+            <div className="space-y-2">
+              {data.staleTasks.map((task) => {
+                const due = formatDueDate(task.dueDate);
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => setEditingTask(task)}
+                    className="bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-gray-300 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                        {task.nextAction && (
+                          <p className="text-xs text-gray-600 mt-1">{task.nextAction}</p>
+                        )}
+                      </div>
+                      {due && (
+                        <span className={`text-xs font-medium ${due.color}`}>
+                          {due.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Projects Without Next Action */}
+      {data?.projectsWithoutNextAction && data.projectsWithoutNextAction.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            Projects Needing Next Action ({data.projectsWithoutNextAction.length})
+          </h3>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <p className="text-indigo-700 text-sm mb-3">
+              These projects don't have a next action defined.
+            </p>
+            <div className="space-y-2">
+              {data.projectsWithoutNextAction.map((project) => (
+                <a
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="block bg-white rounded-lg border border-indigo-100 p-3 hover:border-indigo-300 transition-all"
+                >
+                  <h4 className="font-medium text-gray-900 text-sm">{project.name}</h4>
+                  {project.desiredOutcome && (
+                    <p className="text-xs text-gray-600 mt-1">{project.desiredOutcome}</p>
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Contexts */}
+      {data?.newContexts && data.newContexts.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            New Contexts ({data.newContexts.length})
+          </h3>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <p className="text-purple-700 text-sm mb-3">
+              Recently learned contexts that may need descriptions.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {data.newContexts.map((ctx) => (
+                <div
+                  key={ctx.id}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-white rounded border border-purple-100 text-sm"
+                >
+                  <span className="font-medium text-gray-900">{ctx.name}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-purple-100 rounded text-purple-700 capitalize">
+                    {ctx.type}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pending Clarifications */}
       {data?.pendingClarifications && data.pendingClarifications.length > 0 && (
