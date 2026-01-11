@@ -71,7 +71,9 @@ function generateSnippet(text: string, query: string, maxLength: number = 200): 
 
   // Highlight all occurrences of search terms
   for (const term of terms) {
-    const regex = new RegExp(`(${term})`, "gi");
+    // Escape regex metacharacters to prevent RegExp injection
+    const safeTerm = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${safeTerm})`, "gi");
     snippet = snippet.replace(regex, "<mark>$1</mark>");
   }
 
