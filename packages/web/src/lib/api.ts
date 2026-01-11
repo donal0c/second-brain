@@ -68,6 +68,7 @@ async function request<T>(
     return { items: json.data, ...json.meta } as T;
   }
 
+  // Unwrap standardized API envelope { data: T } if present
   return json.data ?? json;
 }
 
