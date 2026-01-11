@@ -58,13 +58,22 @@ export function Layout() {
         <div className="px-6 mb-8">
            <form onSubmit={handleSearch} className="relative group">
               <Icon name="search" className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-focus-within:text-gray-900 transition-colors" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search anything..."
-                className="w-full bg-white border border-gray-200/80 rounded-xl py-2 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 transition-all shadow-subtle"
+                className="w-full bg-white border border-gray-200/80 rounded-xl py-2 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 transition-all shadow-subtle"
               />
+              <button
+                type="submit"
+                className="absolute right-2 top-1.5 p-1 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                aria-label="Search"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
            </form>
         </div>
 
