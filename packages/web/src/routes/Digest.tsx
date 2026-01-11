@@ -138,16 +138,23 @@ export function Digest() {
 
   const formatDueDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return null;
-    const date = new Date(dateStr);
+
+    // Extract date portion (YYYY-MM-DD) to avoid timezone issues
+    // Due dates are date-only values, not specific moments in time
+    const datePart = dateStr.split("T")[0];
+    const [year, month, day] = datePart.split("-").map(Number);
+
+    // Create dates at local midnight for consistent comparison
+    const dueDate = new Date(year, month - 1, day);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (date < today) return { text: "Overdue", color: "text-red-600" };
-    if (date.toDateString() === today.toDateString()) return { text: "Today", color: "text-orange-600" };
-    if (date.toDateString() === tomorrow.toDateString()) return { text: "Tomorrow", color: "text-yellow-600" };
-    return { text: date.toLocaleDateString(), color: "text-gray-500" };
+    if (dueDate < today) return { text: "Overdue", color: "text-red-600" };
+    if (dueDate.getTime() === today.getTime()) return { text: "Today", color: "text-orange-600" };
+    if (dueDate.getTime() === tomorrow.getTime()) return { text: "Tomorrow", color: "text-yellow-600" };
+    return { text: dueDate.toLocaleDateString(), color: "text-gray-500" };
   };
 
   if (loading) {
