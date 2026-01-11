@@ -139,9 +139,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           const tasks = await db
             .select()
             .from(schema.tasks)
-            .where(and(...taskConditions))
-            .limit(limit)
-            .offset(offset);
+            .where(and(...taskConditions));
 
           for (const task of tasks) {
             results.push({
@@ -181,9 +179,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           const projects = await db
             .select()
             .from(schema.projects)
-            .where(and(...projectConditions))
-            .limit(limit)
-            .offset(offset);
+            .where(and(...projectConditions));
 
           for (const project of projects) {
             results.push({
@@ -222,9 +218,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           const ideas = await db
             .select()
             .from(schema.ideas)
-            .where(and(...ideaConditions))
-            .limit(limit)
-            .offset(offset);
+            .where(and(...ideaConditions));
 
           for (const idea of ideas) {
             results.push({
@@ -248,7 +242,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
         return sendData(
           reply,
-          results.slice(0, limit),
+          results.slice(offset, offset + limit),
           {
             total: results.length,
             limit,
