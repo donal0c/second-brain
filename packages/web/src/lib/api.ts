@@ -62,6 +62,12 @@ async function request<T>(
   }
 
   const json = await response.json();
+
+  // Transform list responses: { data: [], meta: { total, limit, offset } } -> { items: [], total, limit, offset }
+  if (Array.isArray(json.data) && json.meta && typeof json.meta.total !== 'undefined') {
+    return { items: json.data, ...json.meta } as T;
+  }
+
   return json.data ?? json;
 }
 
@@ -284,7 +290,7 @@ export const fix = {
 // Clarification type is now imported from @second-brain/shared
 
 export interface ClarificationListResponse {
-  clarifications: Clarification[];
+  items: Clarification[];
   total: number;
   limit: number;
   offset: number;
@@ -397,7 +403,7 @@ export const digest = {
 // Receipt type is now imported from @second-brain/shared
 
 export interface ReceiptListResponse {
-  receipts: Receipt[];
+  items: Receipt[];
   total: number;
   limit: number;
   offset: number;

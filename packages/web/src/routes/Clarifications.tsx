@@ -17,12 +17,12 @@ export function Clarifications() {
 
     try {
       const response = await clarifications.list({ resolved: "false" }, signal);
-      setItems(response.clarifications);
+      setItems(response.items);
 
       // Load the original inbox text for each clarification
       const texts: Record<string, string> = {};
       await Promise.all(
-        response.clarifications.map(async (c) => {
+        response.items.map(async (c) => {
           try {
             const inboxItem = await inbox.get(c.inboxItemId, signal);
             texts[c.inboxItemId] = inboxItem.rawText;

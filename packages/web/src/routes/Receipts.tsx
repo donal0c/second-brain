@@ -20,14 +20,14 @@ export function Receipts() {
 
     try {
       const response = await receipts.list({ limit, offset: newOffset }, signal);
-      setItems(response.receipts);
+      setItems(response.items);
       setTotal(response.total);
       setOffset(newOffset);
 
       // Load the original inbox text for each receipt
       const texts: Record<string, string> = {};
       await Promise.all(
-        response.receipts.map(async (r) => {
+        response.items.map(async (r) => {
           if (!inboxTexts[r.inboxItemId]) {
             try {
               const inboxItem = await inbox.get(r.inboxItemId, signal);
