@@ -6,6 +6,7 @@ import {
   type Task,
   type ApiError,
 } from "../lib/api";
+import { formatDueDate } from "../lib/dateUtils";
 import { Nudges } from "../components/Nudges";
 import { LoadingSkeletonLarge } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
@@ -156,6 +157,7 @@ export function Digest() {
     if (dueDate.getTime() === tomorrow.getTime()) return { text: "Tomorrow", color: "text-yellow-600" };
     return { text: dueDate.toLocaleDateString(), color: "text-gray-500" };
   };
+
 
   if (loading) {
     return (
