@@ -15,6 +15,13 @@
       "when": 1768123244892,
       "tag": "0001_steep_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768128681333,
+      "tag": "0002_smart_maddog",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "receipts" ALTER COLUMN "inbox_item_id" DROP NOT NULL;

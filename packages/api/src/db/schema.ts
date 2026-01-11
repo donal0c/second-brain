@@ -78,7 +78,6 @@ export const persons = pgTable("persons", {
 export const receipts = pgTable("receipts", {
   id: text("id").primaryKey(),
   inboxItemId: text("inbox_item_id")
-    .notNull()
     .references(() => inboxItems.id),
   classification: text("classification", {
     enum: ["task", "project", "idea", "person", "unknown"],
