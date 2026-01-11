@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
+import type { InferSelectModel } from "drizzle-orm";
 import { eq, ilike, or, and, sql } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import {
@@ -7,6 +8,39 @@ import {
   sendValidationError,
   sendInternalError,
 } from "../utils/response.js";
+
+// =============================================================================
+// Search Result Types
+// =============================================================================
+
+type DbTask = InferSelectModel<typeof schema.tasks>;
+type DbProject = InferSelectModel<typeof schema.projects>;
+type DbIdea = InferSelectModel<typeof schema.ideas>;
+
+type SearchResultSnippet = { title: string; content: string };
+
+type TaskSearchResult = {
+  type: "task";
+  id: string;
+  entity: DbTask;
+  snippet: SearchResultSnippet;
+};
+
+type ProjectSearchResult = {
+  type: "project";
+  id: string;
+  entity: DbProject;
+  snippet: SearchResultSnippet;
+};
+
+type IdeaSearchResult = {
+  type: "idea";
+  id: string;
+  entity: DbIdea;
+  snippet: SearchResultSnippet;
+};
+
+type SearchResult = TaskSearchResult | ProjectSearchResult | IdeaSearchResult;
 
 // =============================================================================
 // Search Schemas
@@ -105,12 +139,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const searchPattern = `%${q}%`;
-        const results: Array<{
-          type: string;
-          id: string;
-          entity: any;
-          snippet: { title: string; content: string };
-        }> = [];
+        const results: SearchResult[] = [];
 
         // Search tasks
         if (!type || type === "task") {
@@ -242,9 +271,22 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
         }
 
         // Sort results by relevance (simple scoring based on title matches)
+        const getEntityTitle = (result: SearchResult): string => {
+          switch (result.type) {
+            case "task":
+              return result.entity.title;
+            case "project":
+              return result.entity.name;
+            case "idea":
+              return result.entity.title;
+          }
+        };
+
         results.sort((a, b) => {
-          const aScore = a.entity.title?.toLowerCase().includes(q.toLowerCase()) ? 1 : 0;
-          const bScore = b.entity.title?.toLowerCase().includes(q.toLowerCase()) ? 1 : 0;
+          const aTitle = getEntityTitle(a);
+          const bTitle = getEntityTitle(b);
+          const aScore = aTitle.toLowerCase().includes(q.toLowerCase()) ? 1 : 0;
+          const bScore = bTitle.toLowerCase().includes(q.toLowerCase()) ? 1 : 0;
           return bScore - aScore;
         });
 
