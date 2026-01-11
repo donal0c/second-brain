@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   digest,
+  extractErrorMessage,
   type WeeklyReviewResponse,
-  type ApiError,
 } from "../lib/api";
 
 export function WeeklyReview() {
@@ -21,8 +21,7 @@ export function WeeklyReview() {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load weekly review");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }

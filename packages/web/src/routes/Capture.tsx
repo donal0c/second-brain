@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { inbox, type ApiError } from "../lib/api";
+import { inbox, extractErrorMessage } from "../lib/api";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 
@@ -20,7 +20,7 @@ export function Capture() {
     resetTranscript,
   } = useVoiceCapture({ continuous: false, interimResults: true });
 
-  const { queueCount, isOnline, addToQueue, syncQueue } = useOfflineQueue();
+  const { isOnline, addToQueue } = useOfflineQueue();
 
   useEffect(() => {
     if (transcript) {
@@ -44,8 +44,7 @@ export function Capture() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to capture");
+      setError(extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

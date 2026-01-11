@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { inbox, type InboxItem, type ApiError } from "../lib/api";
+import { inbox, extractErrorMessage, type InboxItem } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
@@ -32,8 +32,7 @@ export function Inbox() {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load inbox items");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }

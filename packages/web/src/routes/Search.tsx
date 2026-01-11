@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { search, type SearchResult, type Task, type Project, type Idea, type ApiError } from "../lib/api";
+import { search, extractErrorMessage, type SearchResult, type Task, type Project, type Idea } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
@@ -59,8 +59,7 @@ export function Search() {
         if (err instanceof DOMException && err.name === "AbortError") {
           return;
         }
-        const apiError = err as ApiError;
-        setError(apiError.message || apiError.error || "Search failed");
+        setError(extractErrorMessage(err));
         setResults([]);
         setTotal(0);
       } finally {

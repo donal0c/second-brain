@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { clarifications, inbox, type Clarification, type ApiError } from "../lib/api";
+import { clarifications, inbox, extractErrorMessage, type Clarification } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
@@ -39,8 +39,7 @@ export function Clarifications() {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load clarifications");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -70,8 +69,7 @@ export function Clarifications() {
         return next;
       });
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to resolve clarification");
+      setError(extractErrorMessage(err));
     } finally {
       setResolvingId(null);
     }

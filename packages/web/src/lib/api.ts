@@ -40,14 +40,22 @@ export interface ApiError {
   message: string;
 }
 
-// API response envelope types (match server's response format)
-interface ApiListResponse<T> {
-  data: T[];
-  meta: {
-    total: number;
-    limit: number;
-    offset: number;
-  };
+// Helper to extract error message string from various error types
+export function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object") {
+    // Handle ApiError type (thrown by normalizeApiError)
+    if ("message" in error && typeof (error as ApiError).message === "string") {
+      return (error as ApiError).message;
+    }
+    // Handle Error type
+    if (error instanceof Error) {
+      return error.message;
+    }
+  }
+  return "An unexpected error occurred";
 }
 
 interface ApiDataResponse<T> {
@@ -137,7 +145,7 @@ async function requestEnvelope<T>(
 
 // Helper for list endpoints that return { data: T[], meta: { total, limit, offset } }
 // Transforms to { items: T[], total, limit, offset } for frontend compatibility
-interface ListResponse<T> {
+export interface ListResponse<T> {
   items: T[];
   total: number;
   limit: number;

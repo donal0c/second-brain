@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { nudges, type Nudge, type ApiError } from "../lib/api";
+import { nudges, extractErrorMessage, type Nudge } from "../lib/api";
 
 interface NudgesProps {
   /** Refresh interval in milliseconds (default: 5 minutes) */
@@ -22,8 +22,7 @@ export function Nudges({ refreshInterval = 5 * 60 * 1000 }: NudgesProps) {
       if (err instanceof Error && err.name === "AbortError") {
         return;
       }
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load nudges");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -52,8 +51,7 @@ export function Nudges({ refreshInterval = 5 * 60 * 1000 }: NudgesProps) {
       await nudges.dismiss(nudgeId);
       setActiveNudges((prev) => prev.filter((n) => n.id !== nudgeId));
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to dismiss nudge");
+      setError(extractErrorMessage(err));
     }
   };
 
@@ -62,8 +60,7 @@ export function Nudges({ refreshInterval = 5 * 60 * 1000 }: NudgesProps) {
       await nudges.snooze(nudgeId, hours);
       setActiveNudges((prev) => prev.filter((n) => n.id !== nudgeId));
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to snooze nudge");
+      setError(extractErrorMessage(err));
     }
   };
 

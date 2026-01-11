@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import {
   digest,
   tasks,
+  extractErrorMessage,
   type DigestResponse,
   type Task,
-  type ApiError,
 } from "../lib/api";
 import { formatDueDate } from "../lib/dateUtils";
 import { Nudges } from "../components/Nudges";
@@ -33,8 +33,7 @@ export function Digest() {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load digest");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -71,8 +70,7 @@ export function Digest() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 1500);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to save");
+      setSaveError(extractErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -102,8 +100,7 @@ export function Digest() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 1500);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to interpret");
+      setSaveError(extractErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -130,8 +127,7 @@ export function Digest() {
       }
       setEditingTask(null);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to delete");
+      setSaveError(extractErrorMessage(err));
     } finally {
       setSaving(false);
     }

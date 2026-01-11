@@ -1,10 +1,10 @@
 import { useState } from "react";
 import {
+  extractErrorMessage,
   type Task,
   type Project,
   type Idea,
   type Person,
-  type ApiError,
   type EntityType,
 } from "../lib/api";
 import {
@@ -121,8 +121,7 @@ export function Browse() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 1500);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to save");
+      setSaveError(extractErrorMessage(err));
     }
   };
 
@@ -149,8 +148,7 @@ export function Browse() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 1500);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to interpret");
+      setSaveError(extractErrorMessage(err));
     }
   };
 
@@ -190,8 +188,7 @@ export function Browse() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to fix");
+      setSaveError(extractErrorMessage(err));
     }
   };
 
@@ -221,8 +218,7 @@ export function Browse() {
       }
       setEditing(null);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to delete");
+      setSaveError(extractErrorMessage(err));
     }
   };
 
@@ -256,8 +252,7 @@ export function Browse() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      const apiError = err as ApiError;
-      setSaveError(apiError.message || apiError.error || "Failed to reprocess");
+      setSaveError(extractErrorMessage(err));
     }
   };
 
@@ -304,7 +299,7 @@ export function Browse() {
 
       {error && (
         <ErrorBanner
-          error={(error as unknown as ApiError).message || (error as unknown as ApiError).error || "Failed to load data"}
+          error={extractErrorMessage(error)}
           onRetry={loadData}
         />
       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { receipts, inbox, type Receipt, type ApiError } from "../lib/api";
+import { receipts, inbox, extractErrorMessage, type Receipt } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { Modal } from "../components/Modal";
@@ -46,8 +46,7 @@ export function Receipts() {
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      const apiError = err as ApiError;
-      setError(apiError.message || apiError.error || "Failed to load receipts");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
