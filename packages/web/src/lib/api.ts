@@ -61,7 +61,8 @@ async function request<T>(
     return {} as T;
   }
 
-  return response.json();
+  const json = await response.json();
+  return json.data ?? json;
 }
 
 // =============================================================================
