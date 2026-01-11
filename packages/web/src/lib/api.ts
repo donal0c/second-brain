@@ -34,6 +34,17 @@ export interface ApiError {
   details?: Record<string, string[]>;
 }
 
+// API response envelope types (server returns { data, meta? })
+interface ApiEnvelope<T> {
+  data: T;
+  meta?: {
+    total?: number;
+    limit?: number;
+    offset?: number;
+    [key: string]: unknown;
+  };
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -499,7 +510,7 @@ export interface SearchResponse {
 }
 
 export const search = {
-  query: (params: {
+  query: async (params: {
     q: string;
     type?: "task" | "project" | "idea";
     context?: string;
@@ -508,14 +519,24 @@ export const search = {
     to?: string;
     limit?: number;
     offset?: number;
-  }) => {
+  }): Promise<SearchResponse> => {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         queryParams.append(key, value.toString());
       }
     });
-    return request<SearchResponse>(`/search?${queryParams}`);
+    // Server returns { data: SearchResult[], meta: { total, limit, offset, query } }
+    const envelope = await request<ApiEnvelope<SearchResult[]> & { meta?: { query?: string } }>(
+      `/search?${queryParams}`
+    );
+    return {
+      results: envelope.data,
+      total: envelope.meta?.total ?? envelope.data.length,
+      limit: envelope.meta?.limit ?? envelope.data.length,
+      offset: envelope.meta?.offset ?? 0,
+      query: (envelope.meta?.query as string) ?? params.q,
+    };
   },
 };
 
