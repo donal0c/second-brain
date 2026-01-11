@@ -93,7 +93,7 @@ export function Search() {
       case "on_hold":
         return "bg-yellow-100 text-yellow-700";
       case "someday":
-        return "bg-blue-100 text-blue-700";
+        return "bg-primary-subtle text-primary-active";
       default:
         return "bg-gray-100 text-gray-600";
     }

@@ -131,7 +131,7 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
       case "task_stale":
         return "bg-yellow-50 border-yellow-200 text-yellow-800";
       case "project_missing_next_action":
-        return "bg-blue-50 border-blue-200 text-blue-800";
+        return "bg-primary-subtle border-primary-200 text-primary-800";
       case "person_follow_up":
         return "bg-purple-50 border-purple-200 text-purple-800";
       case "follow_up_overdue":

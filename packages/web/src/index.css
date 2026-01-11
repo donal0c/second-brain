@@ -1,12 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-body {
-  @apply bg-slate-50 text-slate-900 font-sans;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
 
 /* Voice capture animation delays */
 .delay-75 {
@@ -16,3 +12,4 @@ body {
 .delay-150 {
   animation-delay: 150ms;
 }
+/* Force Rebuild Sun 11 Jan 2026 08:43:09 GMT */

@@ -141,7 +141,7 @@ export function WeeklyReview() {
               </div>
             ))}
             {data.openLoops.total > 5 && (
-              <a href="/browse" className="text-sm text-blue-600 hover:text-blue-800 mt-2 inline-block">
+              <a href="/browse" className="text-sm text-primary-hover hover:text-primary-800 mt-2 inline-block">
                 View all tasks →
               </a>
             )}
@@ -182,13 +182,13 @@ export function WeeklyReview() {
           <h3 className="text-lg font-semibold text-gray-900 mb-3">
             Personal Context Questions ({data.contextQuestions.total})
           </h3>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800 mb-3">
+          <div className="bg-primary-subtle border border-primary-200 rounded-lg p-4">
+            <p className="text-sm text-primary-800 mb-3">
               These people/places have been mentioned multiple times without descriptions.
             </p>
             <div className="space-y-2">
               {data.contextQuestions.questions.map((question) => (
-                <div key={question.contextId} className="bg-white rounded border border-blue-300 p-3">
+                <div key={question.contextId} className="bg-white rounded border border-primary-300 p-3">
                   <p className="text-sm font-medium text-gray-900">{question.suggestedQuestion}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Mentioned {question.mentionCount} times • {question.type}
