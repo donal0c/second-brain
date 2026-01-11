@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { eq, desc, sql } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
-import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext } from "../llm/types.js";
+import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext, ExtractionResult } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
 // =============================================================================
@@ -19,6 +19,66 @@ type EntityWrite = {
   entityId: string;
   action: "create" | "update";
 };
+
+// Validation result for extraction
+type ValidationResult =
+  | { valid: true }
+  | { valid: false; missingFields: string[]; entityType: string };
+
+/**
+ * Validate extraction results have required fields
+ * Returns missing required fields if validation fails
+ */
+function validateExtraction(extraction: ExtractionResult): ValidationResult {
+  switch (extraction.type) {
+    case "task": {
+      const missing: string[] = [];
+      if (!extraction.data.title?.trim()) missing.push("title");
+      if (!extraction.data.nextAction?.trim()) missing.push("next action");
+      return missing.length > 0
+        ? { valid: false, missingFields: missing, entityType: "task" }
+        : { valid: true };
+    }
+    case "project": {
+      const missing: string[] = [];
+      if (!extraction.data.name?.trim()) missing.push("name");
+      return missing.length > 0
+        ? { valid: false, missingFields: missing, entityType: "project" }
+        : { valid: true };
+    }
+    case "idea": {
+      const missing: string[] = [];
+      if (!extraction.data.title?.trim()) missing.push("title");
+      return missing.length > 0
+        ? { valid: false, missingFields: missing, entityType: "idea" }
+        : { valid: true };
+    }
+    case "person": {
+      const missing: string[] = [];
+      if (!extraction.data.name?.trim()) missing.push("name");
+      return missing.length > 0
+        ? { valid: false, missingFields: missing, entityType: "person" }
+        : { valid: true };
+    }
+  }
+}
+
+/**
+ * Generate a clarification question for missing required fields
+ */
+function buildValidationClarificationQuestion(
+  missingFields: string[],
+  entityType: string,
+  rawText: string
+): { question: string; options: string[] | null } {
+  const fieldList = missingFields.join(" and ");
+  const truncatedText = rawText.length > 100 ? rawText.substring(0, 100) + "..." : rawText;
+
+  return {
+    question: `I couldn't determine the ${fieldList} for this ${entityType}. From your capture "${truncatedText}", what should the ${fieldList} be?`,
+    options: null, // Free-form answer needed
+  };
+}
 
 export interface ProcessResult {
   inboxItemId: string;
@@ -255,6 +315,58 @@ async function handleExtraction(
     personalContexts,
     clarification
   );
+
+  // Validate extraction results before DB insert
+  const validation = validateExtraction(extraction);
+  if (!validation.valid) {
+    // Create clarification for missing required fields
+    const clarificationQuestion = buildValidationClarificationQuestion(
+      validation.missingFields,
+      validation.entityType,
+      inboxItem.rawText
+    );
+
+    const clarificationId = randomUUID();
+    await db.insert(schema.clarifications).values({
+      id: clarificationId,
+      inboxItemId: inboxItem.id,
+      question: clarificationQuestion.question,
+      options: clarificationQuestion.options,
+      createdAt: new Date(),
+    });
+
+    // Create error receipt for debugging (tracks validation failure)
+    const receiptId = randomUUID();
+    const timestamp = new Date();
+    const receiptData = {
+      id: receiptId,
+      inboxItemId: inboxItem.id,
+      classification: classification.classification,
+      extractedFields: {
+        ...extraction.data as unknown as Record<string, unknown>,
+        _validationError: `Missing required fields: ${validation.missingFields.join(", ")}`,
+      },
+      confidenceScore: classification.confidence,
+      modelUsed: provider.model,
+      timestamp,
+      writes: [] as EntityWrite[],
+      personalContextUsed: relevantContextIds,
+    };
+
+    await db.insert(schema.receipts).values(receiptData);
+
+    return {
+      inboxItemId: inboxItem.id,
+      classification,
+      action: "clarify",
+      receipt: receiptData,
+      clarification: {
+        id: clarificationId,
+        question: clarificationQuestion.question,
+        options: clarificationQuestion.options,
+      },
+    };
+  }
 
   // Create the entity and receipt in a transaction for data consistency
   const entityId = randomUUID();
