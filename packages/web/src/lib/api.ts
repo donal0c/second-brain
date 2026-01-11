@@ -28,10 +28,16 @@ export type Nudge = NudgeApi;
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+export interface ApiErrorDetail {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
 export interface ApiError {
-  error: string;
-  message?: string;
-  details?: Record<string, string[]>;
+  error: ApiErrorDetail;
+  // Convenience property for UI display (extracted from error.message)
+  message: string;
 }
 
 async function request<T>(
@@ -49,11 +55,20 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: "Request failed",
-      message: response.statusText,
-    }));
-    throw error;
+    const rawError = await response.json().catch(() => null);
+
+    // Normalize to consistent ApiError shape
+    // Server sends: { error: { code, message, details } }
+    const normalizedError: ApiError = {
+      error: {
+        code: rawError?.error?.code || "REQUEST_FAILED",
+        message: rawError?.error?.message || response.statusText || "Request failed",
+        details: rawError?.error?.details,
+      },
+      // Top-level message for UI convenience (what existing code expects)
+      message: rawError?.error?.message || response.statusText || "Request failed",
+    };
+    throw normalizedError;
   }
 
   // Handle 204 No Content
@@ -460,7 +475,10 @@ export const process = {
     }
 
     if (!entity.sourceInboxItemId) {
-      throw { error: "No source inbox item", message: "This entity has no original inbox item to reprocess" };
+      throw {
+        error: { code: "NO_SOURCE_INBOX_ITEM", message: "This entity has no original inbox item to reprocess" },
+        message: "This entity has no original inbox item to reprocess",
+      } as ApiError;
     }
 
     // Fetch the original inbox item
