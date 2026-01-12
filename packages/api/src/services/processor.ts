@@ -7,7 +7,8 @@ import { randomUUID } from "crypto";
 import { eq, desc, sql, and, lt } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
-import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext, ExtractionResult } from "../llm/types.js";
+import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext } from "../llm/types.js";
+import { validateExtractionResult } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
 // =============================================================================
@@ -20,58 +21,22 @@ type EntityWrite = {
   action: "create" | "update";
 };
 
-// Validation result for extraction
-type ValidationResult =
-  | { valid: true }
-  | { valid: false; missingFields: string[]; entityType: string };
-
 /**
- * Validate extraction results have required fields
- * Returns missing required fields if validation fails
- */
-function validateExtraction(extraction: ExtractionResult): ValidationResult {
-  switch (extraction.type) {
-    case "task": {
-      const missing: string[] = [];
-      if (!extraction.data.title?.trim()) missing.push("title");
-      if (!extraction.data.nextAction?.trim()) missing.push("next action");
-      return missing.length > 0
-        ? { valid: false, missingFields: missing, entityType: "task" }
-        : { valid: true };
-    }
-    case "project": {
-      const missing: string[] = [];
-      if (!extraction.data.name?.trim()) missing.push("name");
-      return missing.length > 0
-        ? { valid: false, missingFields: missing, entityType: "project" }
-        : { valid: true };
-    }
-    case "idea": {
-      const missing: string[] = [];
-      if (!extraction.data.title?.trim()) missing.push("title");
-      return missing.length > 0
-        ? { valid: false, missingFields: missing, entityType: "idea" }
-        : { valid: true };
-    }
-    case "person": {
-      const missing: string[] = [];
-      if (!extraction.data.name?.trim()) missing.push("name");
-      return missing.length > 0
-        ? { valid: false, missingFields: missing, entityType: "person" }
-        : { valid: true };
-    }
-  }
-}
-
-/**
- * Generate a clarification question for missing required fields
+ * Generate a clarification question for validation errors.
+ * Handles Zod validation errors and formats them into a user-friendly question.
  */
 function buildValidationClarificationQuestion(
-  missingFields: string[],
+  errors: { path: string; message: string }[],
   entityType: string,
   rawText: string
 ): { question: string; options: string[] | null } {
-  const fieldList = missingFields.join(" and ");
+  // Extract field names from error paths (e.g., "data.title" -> "title")
+  const fieldNames = errors.map((e) => {
+    const parts = e.path.split(".");
+    return parts[parts.length - 1] || e.path;
+  });
+  const uniqueFields = [...new Set(fieldNames)];
+  const fieldList = uniqueFields.join(" and ");
   const truncatedText = rawText.length > 100 ? rawText.substring(0, 100) + "..." : rawText;
 
   return {
@@ -309,20 +274,20 @@ async function handleExtraction(
   clarification?: ClarificationContext
 ): Promise<ProcessResult> {
   // Extract structured data based on classification (with context and clarification injection)
-  const extraction = await provider.extract(
+  const rawExtraction = await provider.extract(
     inboxItem.rawText,
     classification.classification,
     personalContexts,
     clarification
   );
 
-  // Validate extraction results before DB insert
-  const validation = validateExtraction(extraction);
-  if (!validation.valid) {
-    // Create clarification for missing required fields
+  // Validate extraction results using Zod schemas before DB insert
+  const validation = validateExtractionResult(rawExtraction);
+  if (!validation.success) {
+    // Create clarification for validation errors (missing/invalid fields)
     const clarificationQuestion = buildValidationClarificationQuestion(
-      validation.missingFields,
-      validation.entityType,
+      validation.errors,
+      classification.classification,
       inboxItem.rawText
     );
 
@@ -338,13 +303,14 @@ async function handleExtraction(
     // Create error receipt for debugging (tracks validation failure)
     const receiptId = randomUUID();
     const timestamp = new Date();
+    const errorDetails = validation.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
     const receiptData = {
       id: receiptId,
       inboxItemId: inboxItem.id,
       classification: classification.classification,
       extractedFields: {
-        ...extraction.data as unknown as Record<string, unknown>,
-        _validationError: `Missing required fields: ${validation.missingFields.join(", ")}`,
+        _rawExtraction: rawExtraction,
+        _validationError: `Zod validation failed: ${errorDetails}`,
       },
       confidenceScore: classification.confidence,
       modelUsed: provider.model,
@@ -367,6 +333,9 @@ async function handleExtraction(
       },
     };
   }
+
+  // Validation passed - use the validated extraction data
+  const extraction = validation.data;
 
   // Create the entity and receipt in a transaction for data consistency
   const entityId = randomUUID();

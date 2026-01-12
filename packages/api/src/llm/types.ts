@@ -4,6 +4,7 @@
 // These types define the structure of LLM responses for classification,
 // extraction, clarification, and correction operations.
 
+import { z } from "zod";
 import type { EntityType } from "@second-brain/shared";
 
 // -----------------------------------------------------------------------------
@@ -52,6 +53,74 @@ export type ExtractionResult =
   | { type: "project"; data: ProjectExtraction }
   | { type: "idea"; data: IdeaExtraction }
   | { type: "person"; data: PersonExtraction };
+
+// -----------------------------------------------------------------------------
+// Extraction Validation Schemas (Zod)
+// -----------------------------------------------------------------------------
+// These schemas validate LLM extraction output before database insertion.
+// They ensure the LLM returns properly structured data.
+
+/** Schema for task extraction - title and nextAction are required */
+export const TaskExtractionSchema = z.object({
+  title: z.string().min(1, "Task title is required"),
+  nextAction: z.string().min(1, "Task next action is required"),
+  dueDate: z.string().nullable(),
+  context: z.string().nullable(),
+});
+
+/** Schema for project extraction - name is required */
+export const ProjectExtractionSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  desiredOutcome: z.string().nullable(),
+  nextAction: z.string().nullable(),
+});
+
+/** Schema for idea extraction - title is required */
+export const IdeaExtractionSchema = z.object({
+  title: z.string().min(1, "Idea title is required"),
+  summary: z.string().nullable(),
+  links: z.array(z.string()).default([]),
+});
+
+/** Schema for person extraction - name is required */
+export const PersonExtractionSchema = z.object({
+  name: z.string().min(1, "Person name is required"),
+  relationshipContext: z.string().nullable(),
+  followUpNextAction: z.string().nullable(),
+});
+
+/** Discriminated union schema for all extraction results */
+export const ExtractionResultSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("task"), data: TaskExtractionSchema }),
+  z.object({ type: z.literal("project"), data: ProjectExtractionSchema }),
+  z.object({ type: z.literal("idea"), data: IdeaExtractionSchema }),
+  z.object({ type: z.literal("person"), data: PersonExtractionSchema }),
+]);
+
+/** Validation result type for extraction validation */
+export type ExtractionValidationResult =
+  | { success: true; data: ExtractionResult }
+  | { success: false; errors: { path: string; message: string }[] };
+
+/**
+ * Validate an extraction result from the LLM.
+ * Returns a discriminated union for type-safe error handling.
+ */
+export function validateExtractionResult(data: unknown): ExtractionValidationResult {
+  const result = ExtractionResultSchema.safeParse(data);
+
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+
+  return {
+    success: false,
+    errors: result.error.errors.map((err) => ({
+      path: err.path.join("."),
+      message: err.message,
+    })),
+  };
+}
 
 // -----------------------------------------------------------------------------
 // Clarification
