@@ -11,10 +11,11 @@ export const inboxItems = pgTable("inbox_items", {
   capturedAt: timestamp("captured_at").notNull(),
   rawText: text("raw_text").notNull(),
   source: text("source").notNull().default("web"),
-  status: text("status", { enum: ["new", "processing", "processed", "blocked"] })
+  status: text("status", { enum: ["new", "processing", "processed", "blocked", "error"] })
     .notNull()
     .default("new"),
   processingStartedAt: timestamp("processing_started_at"),
+  errorMessage: text("error_message"),
 }, (table) => ({
   statusIdx: index("inbox_items_status_idx").on(table.status),
   capturedAtIdx: index("inbox_items_captured_at_idx").on(table.capturedAt),

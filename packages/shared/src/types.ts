@@ -9,6 +9,7 @@ export const InboxItemStatus = {
   PROCESSING: "processing",
   PROCESSED: "processed",
   BLOCKED: "blocked",
+  ERROR: "error",
 } as const;
 
 export const EntityType = {
@@ -43,7 +44,8 @@ export const InboxItemSchema = z.object({
   capturedAt: z.coerce.date(),
   rawText: z.string().min(1),
   source: z.string().default("web"),
-  status: z.enum(["new", "processing", "processed", "blocked"]).default("new"),
+  status: z.enum(["new", "processing", "processed", "blocked", "error"]).default("new"),
+  errorMessage: z.string().nullable().optional(),
 });
 
 export type InboxItem = z.infer<typeof InboxItemSchema>;

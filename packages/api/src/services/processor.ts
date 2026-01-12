@@ -199,10 +199,15 @@ export async function processInboxItem(
 
     return result;
   } catch (error) {
-    // Reset status on error (clear processing timestamp)
+    // Set error status with message for debugging
+    const errorMessage = error instanceof Error ? error.message : String(error);
     await db
       .update(schema.inboxItems)
-      .set({ status: "new", processingStartedAt: null })
+      .set({
+        status: "error",
+        processingStartedAt: null,
+        errorMessage: errorMessage.substring(0, 1000), // Truncate to reasonable length
+      })
       .where(eq(schema.inboxItems.id, inboxItemId));
     throw error;
   }
