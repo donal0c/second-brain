@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
+import { Link } from "react-router-dom";
 import { inbox, extractErrorMessage } from "../lib/api";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
@@ -9,6 +10,7 @@ export function Capture() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [wasQueued, setWasQueued] = useState(false);
+  const [clarificationCreated, setClarificationCreated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -49,15 +51,20 @@ export function Capture() {
     setIsSubmitting(true);
     setError(null);
     setSuccess(false);
+    setClarificationCreated(false);
 
     try {
       const queued = !isOnline;
-      if (isOnline) await inbox.capture(text.trim());
-      else await addToQueue(text.trim());
+      if (isOnline) {
+        const response = await inbox.capture(text.trim());
+        setClarificationCreated(!!response.result?.clarification);
+      } else {
+        await addToQueue(text.trim());
+      }
       setText("");
       setWasQueued(queued);
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -152,8 +159,19 @@ export function Capture() {
 
           {success && (
             <div className="p-4 bg-gray-900 border border-gray-800 rounded-2xl text-white text-sm font-semibold animate-scale-in flex items-center gap-3 shadow-card">
-               <span className={`w-2 h-2 rounded-full animate-pulse ${wasQueued ? "bg-amber-400" : "bg-emerald-400"}`} />
-               {wasQueued ? "Queued for sync — will upload when online" : "Successfully captured to inbox"}
+               <span className={`w-2 h-2 rounded-full animate-pulse ${wasQueued ? "bg-amber-400" : clarificationCreated ? "bg-blue-400" : "bg-emerald-400"}`} />
+               {wasQueued ? (
+                 "Queued for sync — will upload when online"
+               ) : clarificationCreated ? (
+                 <span>
+                   Captured! We have a question about this item.{" "}
+                   <Link to="/clarifications" className="underline hover:text-blue-300">
+                     View clarification
+                   </Link>
+                 </span>
+               ) : (
+                 "Successfully captured to inbox"
+               )}
             </div>
           )}
         </div>
