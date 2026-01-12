@@ -55,14 +55,25 @@ export function Today() {
       const updated = await tasks.update(editingTask.id, taskData);
       // Update the task in our local state (could be in nextActions or staleTasks)
       if (data) {
+        // If task is no longer active, remove it from lists and update stats
+        const isNowInactive = updated.status !== "active";
+        const wasInNextActions = data.nextActions.some((t) => t.id === updated.id);
+
         setData({
           ...data,
-          nextActions: data.nextActions.map((t) =>
-            t.id === updated.id ? updated : t
-          ),
-          staleTasks: data.staleTasks.map((t) =>
-            t.id === updated.id ? updated : t
-          ),
+          nextActions: isNowInactive
+            ? data.nextActions.filter((t) => t.id !== updated.id)
+            : data.nextActions.map((t) => (t.id === updated.id ? updated : t)),
+          staleTasks: isNowInactive
+            ? data.staleTasks.filter((t) => t.id !== updated.id)
+            : data.staleTasks.map((t) => (t.id === updated.id ? updated : t)),
+          stats: {
+            ...data.stats,
+            activeTasks:
+              isNowInactive && wasInNextActions
+                ? data.stats.activeTasks - 1
+                : data.stats.activeTasks,
+          },
         });
       }
       setEditingTask(updated);
@@ -85,14 +96,25 @@ export function Today() {
     try {
       const result = await tasks.interpret(editingTask.id, instruction);
       if (data) {
+        // If task is no longer active, remove it from lists and update stats
+        const isNowInactive = result.entity.status !== "active";
+        const wasInNextActions = data.nextActions.some((t) => t.id === result.entity.id);
+
         setData({
           ...data,
-          nextActions: data.nextActions.map((t) =>
-            t.id === result.entity.id ? result.entity : t
-          ),
-          staleTasks: data.staleTasks.map((t) =>
-            t.id === result.entity.id ? result.entity : t
-          ),
+          nextActions: isNowInactive
+            ? data.nextActions.filter((t) => t.id !== result.entity.id)
+            : data.nextActions.map((t) => (t.id === result.entity.id ? result.entity : t)),
+          staleTasks: isNowInactive
+            ? data.staleTasks.filter((t) => t.id !== result.entity.id)
+            : data.staleTasks.map((t) => (t.id === result.entity.id ? result.entity : t)),
+          stats: {
+            ...data.stats,
+            activeTasks:
+              isNowInactive && wasInNextActions
+                ? data.stats.activeTasks - 1
+                : data.stats.activeTasks,
+          },
         });
       }
       setEditingTask(result.entity);
