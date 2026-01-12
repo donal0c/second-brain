@@ -22,7 +22,7 @@ export function Capture() {
     resetTranscript,
   } = useVoiceCapture({ continuous: false, interimResults: true });
 
-  const { isOnline, addToQueue, syncQueue } = useOfflineQueue();
+  const { queueCount, isOnline, addToQueue, syncQueue } = useOfflineQueue();
   const wasOnlineRef = useRef(isOnline);
 
   useEffect(() => {
@@ -104,6 +104,15 @@ export function Capture() {
                 </div>
                 <span>to submit</span>
               </div>
+
+              {(!isOnline || queueCount > 0) && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
+                  <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-amber-400" : "bg-amber-500 animate-pulse"}`} />
+                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">
+                    {!isOnline ? "Offline" : ""}{!isOnline && queueCount > 0 ? " · " : ""}{queueCount > 0 ? `${queueCount} queued` : ""}
+                  </span>
+                </div>
+              )}
 
               {isSupported && (
                 <button
