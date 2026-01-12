@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { eq, sql, desc, asc, like } from "drizzle-orm";
+import { eq, sql, desc, asc, like, and } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
 import {
@@ -259,6 +259,19 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
         const parseResult = IdParamsSchema.safeParse(request.params);
         if (!parseResult.success) {
           return sendBadRequest(reply, "Invalid ID format");
+        }
+
+        // Clean up any nudges referencing this entity (tasks, projects, persons only)
+        const nudgeEntityType = entityName.toLowerCase() as "task" | "project" | "person";
+        if (nudgeEntityType === "task" || nudgeEntityType === "project" || nudgeEntityType === "person") {
+          await db
+            .delete(schema.nudges)
+            .where(
+              and(
+                eq(schema.nudges.entityType, nudgeEntityType),
+                eq(schema.nudges.entityId, parseResult.data.id)
+              )
+            );
         }
 
         const result = await db
