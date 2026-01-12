@@ -33,7 +33,7 @@ export const tasks = pgTable("tasks", {
     .notNull()
     .default("active"),
   needsReview: boolean("needs_review").notNull().default(false),
-  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
+  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
@@ -52,7 +52,7 @@ export const projects = pgTable("projects", {
     .notNull()
     .default("active"),
   needsReview: boolean("needs_review").notNull().default(false),
-  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
+  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
@@ -66,7 +66,7 @@ export const ideas = pgTable("ideas", {
   summary: text("summary"),
   links: jsonb("links").$type<string[]>().default([]),
   needsReview: boolean("needs_review").notNull().default(false),
-  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
+  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
@@ -81,7 +81,7 @@ export const persons = pgTable("persons", {
   lastTouchedAt: timestamp("last_touched_at"),
   followUpNextAction: text("follow_up_next_action"),
   needsReview: boolean("needs_review").notNull().default(false),
-  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
+  sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
@@ -92,7 +92,7 @@ export const persons = pgTable("persons", {
 export const receipts = pgTable("receipts", {
   id: text("id").primaryKey(),
   inboxItemId: text("inbox_item_id")
-    .references(() => inboxItems.id),
+    .references(() => inboxItems.id, { onDelete: 'set null' }),
   classification: text("classification", {
     enum: ["task", "project", "idea", "person", "unknown"],
   }).notNull(),
@@ -128,7 +128,7 @@ export const clarifications = pgTable("clarifications", {
   id: text("id").primaryKey(),
   inboxItemId: text("inbox_item_id")
     .notNull()
-    .references(() => inboxItems.id),
+    .references(() => inboxItems.id, { onDelete: 'cascade' }),
   question: text("question").notNull(),
   options: jsonb("options").$type<string[] | null>(),
   userAnswer: text("user_answer"),

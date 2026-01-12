@@ -10,6 +10,7 @@ import {
   sendList,
   sendCreated,
   sendNotFound,
+  sendNoContent,
   sendValidationError,
   sendBadRequest,
   sendConflict,
@@ -271,6 +272,43 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
           processingError: err instanceof Error ? err.message : "Processing failed",
         });
       }
+    }
+  );
+
+  /**
+   * DELETE /inbox/:id - Delete an inbox item
+   *
+   * Deletes the inbox item and relies on database cascades for cleanup:
+   * - Clarifications: CASCADE (deleted automatically)
+   * - Entity sourceInboxItemId: SET NULL (entities preserved, link cleared)
+   * - Receipt inboxItemId: SET NULL (audit trail preserved, link cleared)
+   */
+  app.delete(
+    "/inbox/:id",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      // Validate params
+      const parseResult = IdParamsSchema.safeParse(request.params);
+      if (!parseResult.success) {
+        return sendBadRequest(reply, "Invalid ID format", parseResult.error.flatten().fieldErrors);
+      }
+
+      const { id } = parseResult.data;
+
+      // Delete the item (cascades handle related records)
+      const result = await db
+        .delete(schema.inboxItems)
+        .where(eq(schema.inboxItems.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return sendNotFound(reply, "Inbox item");
+      }
+
+      request.log.info({ id }, "Inbox item deleted");
+      return sendNoContent(reply);
     }
   );
 }
