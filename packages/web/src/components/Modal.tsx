@@ -13,6 +13,7 @@ export function Modal({
   children: ReactNode;
 }) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = useRef(`modal-title-${Math.random().toString(36).substring(2, 11)}`);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -52,7 +53,7 @@ export function Modal({
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId.current}
     >
       <div
         ref={modalRef}
@@ -61,7 +62,7 @@ export function Modal({
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 id="modal-title" className="text-xl font-semibold text-gray-900">
+            <h3 id={titleId.current} className="text-xl font-semibold text-gray-900">
               {title}
             </h3>
             <button
