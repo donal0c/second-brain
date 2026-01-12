@@ -4,6 +4,7 @@ import {
   projects,
   ideas,
   persons,
+  inbox,
   fix,
   process,
   type Task,
@@ -23,6 +24,7 @@ export const queryKeys = {
   projects: ["projects"] as const,
   ideas: ["ideas"] as const,
   persons: ["persons"] as const,
+  inbox: ["inbox"] as const,
 };
 
 // =============================================================================
@@ -282,6 +284,22 @@ export function useReprocessEntity() {
     }) => process.reprocess(entityType, id),
     onSuccess: (_result: unknown) => {
       // Invalidate all queries since the entity type might have changed
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ideas });
+      queryClient.invalidateQueries({ queryKey: queryKeys.persons });
+    },
+  });
+}
+
+export function useReprocessInboxItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => inbox.reprocess(id),
+    onSuccess: (_result: unknown) => {
+      // Invalidate inbox and all entity queries since reprocessing may create new entities
+      queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects });
       queryClient.invalidateQueries({ queryKey: queryKeys.ideas });

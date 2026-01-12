@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { processInboxItem } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
@@ -241,6 +241,55 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
       // Prevent reprocessing if currently being processed (avoid race conditions)
       if (inboxItem.status === "processing") {
         return sendConflict(reply, "Item is currently being processed. Please wait for completion.");
+      }
+
+      // Delete any existing entities linked to this inbox item to avoid duplicates
+      // First, find all entity IDs that we need to delete nudges for
+      const [linkedTasks, linkedProjects, linkedIdeas, linkedPersons] = await Promise.all([
+        db.select({ id: schema.tasks.id }).from(schema.tasks).where(eq(schema.tasks.sourceInboxItemId, id)),
+        db.select({ id: schema.projects.id }).from(schema.projects).where(eq(schema.projects.sourceInboxItemId, id)),
+        db.select({ id: schema.ideas.id }).from(schema.ideas).where(eq(schema.ideas.sourceInboxItemId, id)),
+        db.select({ id: schema.persons.id }).from(schema.persons).where(eq(schema.persons.sourceInboxItemId, id)),
+      ]);
+
+      // Delete nudges for linked entities
+      const nudgeDeletions = [];
+      for (const task of linkedTasks) {
+        nudgeDeletions.push(
+          db.delete(schema.nudges).where(
+            and(eq(schema.nudges.entityType, "task"), eq(schema.nudges.entityId, task.id))
+          )
+        );
+      }
+      for (const project of linkedProjects) {
+        nudgeDeletions.push(
+          db.delete(schema.nudges).where(
+            and(eq(schema.nudges.entityType, "project"), eq(schema.nudges.entityId, project.id))
+          )
+        );
+      }
+      for (const person of linkedPersons) {
+        nudgeDeletions.push(
+          db.delete(schema.nudges).where(
+            and(eq(schema.nudges.entityType, "person"), eq(schema.nudges.entityId, person.id))
+          )
+        );
+      }
+      if (nudgeDeletions.length > 0) {
+        await Promise.all(nudgeDeletions);
+      }
+
+      // Delete the entities themselves
+      await Promise.all([
+        db.delete(schema.tasks).where(eq(schema.tasks.sourceInboxItemId, id)),
+        db.delete(schema.projects).where(eq(schema.projects.sourceInboxItemId, id)),
+        db.delete(schema.ideas).where(eq(schema.ideas.sourceInboxItemId, id)),
+        db.delete(schema.persons).where(eq(schema.persons.sourceInboxItemId, id)),
+      ]);
+
+      const deletedCount = linkedTasks.length + linkedProjects.length + linkedIdeas.length + linkedPersons.length;
+      if (deletedCount > 0) {
+        request.log.info({ id, deletedCount }, "Deleted existing entities before reprocessing");
       }
 
       // Reset status to 'new' to allow reprocessing
