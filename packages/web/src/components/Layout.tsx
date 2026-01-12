@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
+import { digest } from "../lib/api";
 
 const navItems = [
   { to: "/capture", label: "Capture", icon: "plus" },
@@ -37,6 +38,22 @@ function Icon({ name, className }: { name: string; className?: string }) {
 export function Layout() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingClarifications, setPendingClarifications] = useState(0);
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const summary = await digest.summary();
+        setPendingClarifications(summary.pendingClarifications);
+      } catch {
+        // Silently fail - badge just won't show
+      }
+    };
+    fetchSummary();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchSummary, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -105,22 +122,30 @@ export function Layout() {
               System
             </div>
             <nav className="space-y-1">
-              {secondaryItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                      isActive
-                        ? "bg-white text-gray-900 shadow-premium border border-gray-100"
-                        : "text-gray-400 hover:text-gray-900 hover:bg-white/50"
-                    }`
-                  }
-                >
-                  <Icon name={item.icon} className="w-4 h-4" />
-                  {item.label}
-                </NavLink>
-              ))}
+              {secondaryItems.map((item) => {
+                const showBadge = item.to === "/clarifications" && pendingClarifications > 0;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                        isActive
+                          ? "bg-white text-gray-900 shadow-premium border border-gray-100"
+                          : "text-gray-400 hover:text-gray-900 hover:bg-white/50"
+                      }`
+                    }
+                  >
+                    <Icon name={item.icon} className="w-4 h-4" />
+                    <span className="flex-1">{item.label}</span>
+                    {showBadge && (
+                      <span className="bg-amber-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1.5">
+                        {pendingClarifications}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </nav>
           </div>
         </div>
