@@ -80,31 +80,31 @@ export function Capture() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-12 animate-fade-in">
-      <header className="mb-12">
-        <h2 className="text-4xl font-bold text-gray-900 tracking-tight mb-3">Capture</h2>
-        <p className="text-gray-500 text-lg">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-12 animate-fade-in">
+      <header className="mb-6 sm:mb-12">
+        <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-2 sm:mb-3">Capture</h2>
+        <p className="text-gray-500 text-base sm:text-lg">
           Quickly dump thoughts, tasks, and ideas into your second brain.
         </p>
       </header>
 
       <form onSubmit={handleSubmit} className="relative">
-        <div className="bg-white rounded-3xl shadow-card border border-gray-100 overflow-hidden transition-all duration-500 focus-within:shadow-card-hover focus-within:ring-1 focus-within:ring-gray-200">
-          <div className="p-8">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-card border border-gray-100 overflow-hidden transition-all duration-500 focus-within:shadow-card-hover focus-within:ring-1 focus-within:ring-gray-200">
+          <div className="p-4 sm:p-8">
             <textarea
               value={text + (interimTranscript ? ` ${interimTranscript}` : "")}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full h-56 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-xl leading-relaxed placeholder:text-gray-200 text-gray-900 font-medium"
+              className="w-full h-40 sm:h-56 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-lg sm:text-xl leading-relaxed placeholder:text-gray-200 text-gray-900 font-medium"
               placeholder="What's on your mind?"
               disabled={isSubmitting || isListening}
               autoFocus
             />
           </div>
 
-          <div className="px-8 py-6 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">
+          <div className="px-4 sm:px-8 py-4 sm:py-6 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-6">
+              <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">
                 <div className="flex gap-1">
                   <kbd className="px-2 py-1 bg-white border border-gray-200 rounded-md text-gray-400 shadow-sm font-sans">CMD</kbd>
                   <kbd className="px-2 py-1 bg-white border border-gray-200 rounded-md text-gray-400 shadow-sm font-sans">ENTER</kbd>
@@ -125,7 +125,7 @@ export function Capture() {
                 <button
                   type="button"
                   onClick={() => isListening ? stopListening() : startListening()}
-                  className={`p-3 rounded-full transition-all duration-300 ${
+                  className={`p-2.5 sm:p-3 rounded-full transition-all duration-300 ${
                     isListening
                       ? "bg-rose-500 text-white shadow-glow animate-pulse"
                       : "bg-white text-gray-400 hover:text-gray-600 border border-gray-200 shadow-sm"
@@ -141,7 +141,7 @@ export function Capture() {
             <button
               type="submit"
               disabled={!text.trim() || isSubmitting}
-              className="px-8 py-3 bg-primary text-white rounded-full font-bold text-sm shadow-premium hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 disabled:opacity-10 disabled:grayscale disabled:pointer-events-none tracking-wide"
+              className="px-5 sm:px-8 py-2.5 sm:py-3 bg-primary text-white rounded-full font-bold text-sm shadow-premium hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 disabled:opacity-10 disabled:grayscale disabled:pointer-events-none tracking-wide"
             >
               {isSubmitting ? "Capturing..." : "Capture"}
             </button>
@@ -149,17 +149,17 @@ export function Capture() {
         </div>
 
         {/* Status Messages */}
-        <div className="absolute -bottom-16 left-0 right-0">
+        <div className="absolute -bottom-14 sm:-bottom-16 left-0 right-0">
           {(error || voiceError) && (
-            <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm font-semibold animate-slide-up flex items-center gap-3">
-               <span className="w-2 h-2 bg-rose-500 rounded-full" />
-               {error || voiceError}
+            <div className="p-3 sm:p-4 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 text-sm font-semibold animate-slide-up flex items-center gap-2 sm:gap-3">
+               <span className="w-2 h-2 bg-rose-500 rounded-full flex-shrink-0" />
+               <span className="truncate">{error || voiceError}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-4 bg-gray-900 border border-gray-800 rounded-2xl text-white text-sm font-semibold animate-scale-in flex items-center gap-3 shadow-card">
-               <span className={`w-2 h-2 rounded-full animate-pulse ${wasQueued ? "bg-amber-400" : clarificationCreated ? "bg-blue-400" : "bg-emerald-400"}`} />
+            <div className="p-3 sm:p-4 bg-gray-900 border border-gray-800 rounded-xl sm:rounded-2xl text-white text-sm font-semibold animate-scale-in flex items-center gap-2 sm:gap-3 shadow-card">
+               <span className={`w-2 h-2 rounded-full animate-pulse flex-shrink-0 ${wasQueued ? "bg-amber-400" : clarificationCreated ? "bg-blue-400" : "bg-emerald-400"}`} />
                {wasQueued ? (
                  "Queued for sync — will upload when online"
                ) : clarificationCreated ? (
@@ -177,15 +177,15 @@ export function Capture() {
         </div>
       </form>
 
-      <section className="mt-32 pt-12 border-t border-gray-100">
-        <h3 className="text-xs font-bold text-gray-300 uppercase tracking-[0.3em] mb-8">Best Practices</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="mt-20 sm:mt-32 pt-8 sm:pt-12 border-t border-gray-100">
+        <h3 className="text-xs font-bold text-gray-300 uppercase tracking-[0.3em] mb-6 sm:mb-8">Best Practices</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {[
             { title: "Stream of Consciousness", desc: "Don't edit yourself. Just get the words out. We'll handle the formatting later.", icon: "✍️" },
             { title: "Atomic Thoughts", desc: "One idea per capture works best for our processing engine to categorize correctly.", icon: "🎯" }
           ].map(tip => (
-            <div key={tip.title} className="p-6 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-card transition-all duration-300 group">
-              <div className="text-2xl mb-4 group-hover:scale-110 transition-transform duration-300 inline-block">{tip.icon}</div>
+            <div key={tip.title} className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-card transition-all duration-300 group">
+              <div className="text-2xl mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300 inline-block">{tip.icon}</div>
               <h4 className="text-base font-bold text-gray-900 mb-1">{tip.title}</h4>
               <p className="text-sm text-gray-500 leading-relaxed">{tip.desc}</p>
             </div>
