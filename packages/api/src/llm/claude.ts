@@ -406,14 +406,23 @@ Guidelines:
 - "the office" is NOT an entity. "Acme Corp headquarters" IS.
 - "a meeting" is NOT an entity. "Q4 Planning" might be a concept.
 - Infer the domain (work, family, health, finance, etc.) when context clues exist
-- Provide a brief description (1 sentence) of who/what the entity is based on context
+- ALWAYS provide a brief description (1 sentence) explaining who/what the entity is based on context clues in the text. Even if context is limited, infer what you can.
 - Return an empty array if no specific named entities are found
 - Be conservative - only extract entities you're confident about
 
-Respond with JSON only:
+Example input: "Need to send the quarterly report to Sarah before the Acme meeting on Friday"
+Example output:
 {
   "entities": [
-    { "name": "...", "type": "person|place|organization|concept", "description": "Brief description based on context" or null, "domain": "work|family|health|..." or null }
+    { "name": "Sarah", "type": "person", "description": "Recipient of the quarterly report, likely a colleague or stakeholder", "domain": "work" },
+    { "name": "Acme", "type": "organization", "description": "Company the user has a meeting with", "domain": "work" }
+  ]
+}
+
+Respond with JSON matching this structure:
+{
+  "entities": [
+    { "name": "string", "type": "person|place|organization|concept", "description": "string (required - brief description based on context)", "domain": "string or null" }
   ]
 }`;
 
