@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, timestamp, jsonb, index, boolean } from "drizzle-orm/pg-core";
 
 // =============================================================================
 // Database Schema
@@ -32,12 +32,14 @@ export const tasks = pgTable("tasks", {
   status: text("status", { enum: ["active", "completed", "waiting", "someday"] })
     .notNull()
     .default("active"),
+  needsReview: boolean("needs_review").notNull().default(false),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 }, (table) => ({
   statusIdx: index("tasks_status_idx").on(table.status),
   contextIdx: index("tasks_context_idx").on(table.context),
+  needsReviewIdx: index("tasks_needs_review_idx").on(table.needsReview),
 }));
 
 // --- Projects ---
@@ -49,10 +51,13 @@ export const projects = pgTable("projects", {
   status: text("status", { enum: ["active", "completed", "on_hold", "someday"] })
     .notNull()
     .default("active"),
+  needsReview: boolean("needs_review").notNull().default(false),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
-});
+}, (table) => ({
+  needsReviewIdx: index("projects_needs_review_idx").on(table.needsReview),
+}));
 
 // --- Ideas ---
 export const ideas = pgTable("ideas", {
@@ -60,10 +65,13 @@ export const ideas = pgTable("ideas", {
   title: text("title").notNull(),
   summary: text("summary"),
   links: jsonb("links").$type<string[]>().default([]),
+  needsReview: boolean("needs_review").notNull().default(false),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
-});
+}, (table) => ({
+  needsReviewIdx: index("ideas_needs_review_idx").on(table.needsReview),
+}));
 
 // --- Persons ---
 export const persons = pgTable("persons", {
@@ -72,10 +80,13 @@ export const persons = pgTable("persons", {
   relationshipContext: text("relationship_context"),
   lastTouchedAt: timestamp("last_touched_at"),
   followUpNextAction: text("follow_up_next_action"),
+  needsReview: boolean("needs_review").notNull().default(false),
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
-});
+}, (table) => ({
+  needsReviewIdx: index("persons_needs_review_idx").on(table.needsReview),
+}));
 
 // --- Receipts (Audit Trail) ---
 export const receipts = pgTable("receipts", {

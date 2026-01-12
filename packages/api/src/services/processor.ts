@@ -428,6 +428,7 @@ async function handleForceFile(
   };
 
   // Execute entity creation in transaction
+  // Force-filed items always need review
   await db.transaction(async (tx) => {
     switch (extraction.type) {
       case "task": {
@@ -438,6 +439,7 @@ async function handleForceFile(
           dueDate: extraction.data.dueDate ? new Date(extraction.data.dueDate) : null,
           context: extraction.data.context,
           status: "active" as const,
+          needsReview: true,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -453,6 +455,7 @@ async function handleForceFile(
           desiredOutcome: extraction.data.desiredOutcome,
           nextAction: extraction.data.nextAction,
           status: "active" as const,
+          needsReview: true,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -467,6 +470,7 @@ async function handleForceFile(
           title: extraction.data.title,
           summary: extraction.data.summary,
           links: extraction.data.links,
+          needsReview: true,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -482,6 +486,7 @@ async function handleForceFile(
           relationshipContext: extraction.data.relationshipContext,
           followUpNextAction: extraction.data.followUpNextAction,
           lastTouchedAt: now,
+          needsReview: true,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -609,6 +614,9 @@ async function handleExtraction(
     personalContextUsed: relevantContextIds,
   };
 
+  // Flagged items need human review - set needsReview flag
+  const needsReview = action === "flagged";
+
   // Execute entity creation and receipt in a transaction
   await db.transaction(async (tx) => {
     switch (extraction.type) {
@@ -620,6 +628,7 @@ async function handleExtraction(
           dueDate: extraction.data.dueDate ? new Date(extraction.data.dueDate) : null,
           context: extraction.data.context,
           status: "active" as const,
+          needsReview,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -636,6 +645,7 @@ async function handleExtraction(
           desiredOutcome: extraction.data.desiredOutcome,
           nextAction: extraction.data.nextAction,
           status: "active" as const,
+          needsReview,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -651,6 +661,7 @@ async function handleExtraction(
           title: extraction.data.title,
           summary: extraction.data.summary,
           links: extraction.data.links,
+          needsReview,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,
@@ -667,6 +678,7 @@ async function handleExtraction(
           relationshipContext: extraction.data.relationshipContext,
           followUpNextAction: extraction.data.followUpNextAction,
           lastTouchedAt: now,
+          needsReview,
           sourceInboxItemId: inboxItem.id,
           createdAt: now,
           updatedAt: now,

@@ -39,6 +39,7 @@ const NaturalLanguageEditSchema = z.object({
 const TaskQuerySchema = PaginationSchema.extend({
   status: z.enum(["active", "completed", "waiting", "someday"]).optional(),
   context: z.string().optional(),
+  needsReview: z.coerce.boolean().optional(),
 });
 
 const TaskUpdateSchema = z.object({
@@ -47,6 +48,7 @@ const TaskUpdateSchema = z.object({
   dueDate: z.coerce.date().nullable().optional(),
   context: z.string().nullable().optional(),
   status: z.enum(["active", "completed", "waiting", "someday"]).optional(),
+  needsReview: z.boolean().optional(),
 });
 
 // =============================================================================
@@ -55,6 +57,7 @@ const TaskUpdateSchema = z.object({
 
 const ProjectQuerySchema = PaginationSchema.extend({
   status: z.enum(["active", "completed", "on_hold", "someday"]).optional(),
+  needsReview: z.coerce.boolean().optional(),
 });
 
 const ProjectUpdateSchema = z.object({
@@ -62,31 +65,38 @@ const ProjectUpdateSchema = z.object({
   desiredOutcome: z.string().nullable().optional(),
   nextAction: z.string().nullable().optional(),
   status: z.enum(["active", "completed", "on_hold", "someday"]).optional(),
+  needsReview: z.boolean().optional(),
 });
 
 // =============================================================================
 // Idea Schemas
 // =============================================================================
 
-const IdeaQuerySchema = PaginationSchema;
+const IdeaQuerySchema = PaginationSchema.extend({
+  needsReview: z.coerce.boolean().optional(),
+});
 
 const IdeaUpdateSchema = z.object({
   title: z.string().min(1).optional(),
   summary: z.string().nullable().optional(),
   links: z.array(z.string().url()).optional(),
+  needsReview: z.boolean().optional(),
 });
 
 // =============================================================================
 // Person Schemas
 // =============================================================================
 
-const PersonQuerySchema = PaginationSchema;
+const PersonQuerySchema = PaginationSchema.extend({
+  needsReview: z.coerce.boolean().optional(),
+});
 
 const PersonUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   relationshipContext: z.string().nullable().optional(),
   lastTouchedAt: z.coerce.date().nullable().optional(),
   followUpNextAction: z.string().nullable().optional(),
+  needsReview: z.boolean().optional(),
 });
 
 // =============================================================================
@@ -395,6 +405,7 @@ const taskRoutes = createEntityRoutes<
     dueDate: Date | null;
     context: string | null;
     status: string;
+    needsReview: boolean;
     sourceInboxItemId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -422,6 +433,9 @@ const taskRoutes = createEntityRoutes<
     if (query.context) {
       conditions.push(like(schema.tasks.context, `%${query.context}%`));
     }
+    if (query.needsReview !== undefined) {
+      conditions.push(eq(schema.tasks.needsReview, query.needsReview));
+    }
     return conditions;
   },
 });
@@ -437,6 +451,7 @@ const projectRoutes = createEntityRoutes<
     desiredOutcome: string | null;
     nextAction: string | null;
     status: string;
+    needsReview: boolean;
     sourceInboxItemId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -460,6 +475,9 @@ const projectRoutes = createEntityRoutes<
     if (query.status) {
       conditions.push(eq(schema.projects.status, query.status));
     }
+    if (query.needsReview !== undefined) {
+      conditions.push(eq(schema.projects.needsReview, query.needsReview));
+    }
     return conditions;
   },
 });
@@ -474,6 +492,7 @@ const ideaRoutes = createEntityRoutes<
     title: string;
     summary: string | null;
     links: string[];
+    needsReview: boolean;
     sourceInboxItemId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -491,6 +510,13 @@ const ideaRoutes = createEntityRoutes<
     summary: idea.summary,
     links: idea.links,
   }),
+  buildListFilters: (query) => {
+    const conditions = [];
+    if (query.needsReview !== undefined) {
+      conditions.push(eq(schema.ideas.needsReview, query.needsReview));
+    }
+    return conditions;
+  },
 });
 
 // =============================================================================
@@ -504,6 +530,7 @@ const personRoutes = createEntityRoutes<
     relationshipContext: string | null;
     lastTouchedAt: Date | null;
     followUpNextAction: string | null;
+    needsReview: boolean;
     sourceInboxItemId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -522,6 +549,13 @@ const personRoutes = createEntityRoutes<
     lastTouchedAt: person.lastTouchedAt,
     followUpNextAction: person.followUpNextAction,
   }),
+  buildListFilters: (query) => {
+    const conditions = [];
+    if (query.needsReview !== undefined) {
+      conditions.push(eq(schema.persons.needsReview, query.needsReview));
+    }
+    return conditions;
+  },
 });
 
 // =============================================================================
