@@ -679,12 +679,12 @@ export function Browse() {
                     onClick={() => setEditing({ type: "task", item: task })}
                     className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{task.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{task.nextAction}</p>
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-gray-900 truncate">{task.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{task.nextAction}</p>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
                         task.status === "active" ? "bg-green-100 text-green-700" :
                         task.status === "completed" ? "bg-gray-100 text-gray-600" :
                         task.status === "waiting" ? "bg-yellow-100 text-yellow-700" :
@@ -789,17 +789,17 @@ export function Browse() {
                     onClick={() => setEditing({ type: "project", item: project })}
                     className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{project.name}</h4>
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-gray-900 truncate">{project.name}</h4>
                         {project.desiredOutcome && (
-                          <p className="text-sm text-gray-600 mt-1">{project.desiredOutcome}</p>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{project.desiredOutcome}</p>
                         )}
                         {project.nextAction && (
-                          <p className="text-sm text-gray-500 mt-1">Next: {project.nextAction}</p>
+                          <p className="text-sm text-gray-500 mt-1 truncate">Next: {project.nextAction}</p>
                         )}
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
                         project.status === "active" ? "bg-green-100 text-green-700" :
                         project.status === "completed" ? "bg-gray-100 text-gray-600" :
                         project.status === "on_hold" ? "bg-yellow-100 text-yellow-700" :
@@ -826,11 +826,11 @@ export function Browse() {
                   <div
                     key={idea.id}
                     onClick={() => setEditing({ type: "idea", item: idea })}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all min-w-0"
                   >
-                    <h4 className="font-medium text-gray-900">{idea.title}</h4>
+                    <h4 className="font-medium text-gray-900 truncate">{idea.title}</h4>
                     {idea.summary && (
-                      <p className="text-sm text-gray-600 mt-1">{idea.summary}</p>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{idea.summary}</p>
                     )}
                     {idea.links.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -927,7 +927,7 @@ export function Browse() {
                   No people match this filter.
                 </div>
               ) : (
-                sortedPersonList.map((person) => {
+sortedPersonList.map((person) => {
                   const hasFollowUp = !!person.followUpNextAction;
                   const daysSinceLastTouch = person.lastTouchedAt
                     ? Math.floor((Date.now() - new Date(person.lastTouchedAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -949,12 +949,12 @@ export function Browse() {
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2 min-w-0">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-gray-900">{person.name}</h4>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h4 className="font-medium text-gray-900 truncate">{person.name}</h4>
                             {hasFollowUp && (
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                                 isOverdue
                                   ? "bg-red-100 text-red-700"
                                   : isStale
@@ -966,17 +966,17 @@ export function Browse() {
                             )}
                           </div>
                           {person.relationshipContext && (
-                            <p className="text-sm text-gray-600 mt-1">{person.relationshipContext}</p>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{person.relationshipContext}</p>
                           )}
                           {person.followUpNextAction && (
-                            <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
+                            <p className="text-sm text-gray-700 mt-1 truncate">
                               <span className="font-medium">Next:</span> {person.followUpNextAction}
                             </p>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-2 ml-4">
+                        <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
                           {daysSinceLastTouch !== null && (
-                            <span className={`text-xs ${
+                            <span className={`text-xs whitespace-nowrap ${
                               isOverdue ? "text-red-600 font-medium" : isStale ? "text-yellow-600" : "text-gray-400"
                             }`}>
                               {daysSinceLastTouch === 0 ? "Today" : daysSinceLastTouch === 1 ? "1 day ago" : `${daysSinceLastTouch} days ago`}
