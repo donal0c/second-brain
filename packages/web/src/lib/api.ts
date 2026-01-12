@@ -585,9 +585,29 @@ export interface ReceiptListResponse {
   offset: number;
 }
 
+export interface ReceiptListParams {
+  inboxItemId?: string;
+  classification?: string;
+  minConfidence?: number;
+  maxConfidence?: number;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export const receipts = {
-  list: (params?: { inboxItemId?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    requestList<Receipt>(`/receipts?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
+  list: (params?: ReceiptListParams, signal?: AbortSignal) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          searchParams.set(key, String(value));
+        }
+      });
+    }
+    return requestList<Receipt>(`/receipts?${searchParams}`, { signal });
+  },
 
   get: async (id: string, signal?: AbortSignal): Promise<Receipt> => {
     const response = await request<ApiDataResponse<Receipt>>(`/receipts/${id}`, { signal });

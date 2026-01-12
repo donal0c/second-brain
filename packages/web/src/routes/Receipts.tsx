@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { receipts, inbox, extractErrorMessage, type Receipt } from "../lib/api";
+import { Link } from "react-router-dom";
+import { receipts, inbox, extractErrorMessage, type Receipt, type ReceiptListParams } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { Modal } from "../components/Modal";
@@ -14,12 +15,33 @@ export function Receipts() {
   const [offset, setOffset] = useState(0);
   const limit = 20;
 
+  // Filter state
+  const [classificationFilter, setClassificationFilter] = useState<string>("");
+  const [confidenceFilter, setConfidenceFilter] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  // Previous receipt for diff view
+  const [previousReceipt, setPreviousReceipt] = useState<Receipt | null>(null);
+  const [loadingPrevious, setLoadingPrevious] = useState(false);
+
   const loadReceipts = async (newOffset = 0, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await receipts.list({ limit, offset: newOffset }, signal);
+      // Build filter params
+      const params: ReceiptListParams = { limit, offset: newOffset };
+      if (classificationFilter) params.classification = classificationFilter;
+      if (confidenceFilter) {
+        const [min, max] = confidenceFilter.split("-").map(Number);
+        if (!isNaN(min)) params.minConfidence = min;
+        if (!isNaN(max)) params.maxConfidence = max;
+      }
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const response = await receipts.list(params, signal);
       setItems(response.items);
       setTotal(response.total);
       setOffset(newOffset);
@@ -56,7 +78,29 @@ export function Receipts() {
     const controller = new AbortController();
     loadReceipts(0, controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [classificationFilter, confidenceFilter, startDate, endDate]);
+
+  // Load previous receipt when selected receipt has previousReceiptId
+  useEffect(() => {
+    if (!selectedReceipt?.previousReceiptId) {
+      setPreviousReceipt(null);
+      return;
+    }
+
+    const loadPrevious = async () => {
+      setLoadingPrevious(true);
+      try {
+        const prev = await receipts.get(selectedReceipt.previousReceiptId!);
+        setPreviousReceipt(prev);
+      } catch {
+        setPreviousReceipt(null);
+      } finally {
+        setLoadingPrevious(false);
+      }
+    };
+
+    loadPrevious();
+  }, [selectedReceipt?.previousReceiptId]);
 
   const getConfidenceColor = (score: number) => {
     if (score >= 0.8) return "text-green-600 bg-green-50";
@@ -102,6 +146,15 @@ export function Receipts() {
     return acc;
   }, {} as Record<string, Receipt[]>);
 
+  const clearFilters = () => {
+    setClassificationFilter("");
+    setConfidenceFilter("");
+    setStartDate("");
+    setEndDate("");
+  };
+
+  const hasActiveFilters = classificationFilter || confidenceFilter || startDate || endDate;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -117,6 +170,76 @@ export function Receipts() {
         >
           Refresh
         </button>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Classification filter */}
+          <div className="relative">
+            <select
+              value={classificationFilter}
+              onChange={(e) => setClassificationFilter(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-subtle focus:border-primary-hover hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <option value="">All types</option>
+              <option value="task">Task</option>
+              <option value="project">Project</option>
+              <option value="idea">Idea</option>
+              <option value="person">Person</option>
+              <option value="unknown">Unknown</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
+
+          {/* Confidence filter */}
+          <div className="relative">
+            <select
+              value={confidenceFilter}
+              onChange={(e) => setConfidenceFilter(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-subtle focus:border-primary-hover hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <option value="">All confidence</option>
+              <option value="0.8-1">High (80%+)</option>
+              <option value="0.5-0.8">Medium (50-80%)</option>
+              <option value="0-0.5">Low (&lt;50%)</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
+
+          {/* Date range filters */}
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-subtle focus:border-primary-hover"
+              placeholder="Start date"
+            />
+            <span className="text-gray-400">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-subtle focus:border-primary-hover"
+              placeholder="End date"
+            />
+          </div>
+
+          {/* Clear filters button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <ErrorBanner error={error} onRetry={() => loadReceipts(0)} />}
@@ -279,7 +402,13 @@ export function Receipts() {
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${getClassificationColor(write.entityType)}`}>
                             {write.entityType}
                           </span>
-                          <code className="text-xs text-gray-500 font-mono">{write.entityId}</code>
+                          <Link
+                            to={`/browse?type=${write.entityType}&id=${write.entityId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-primary-hover hover:underline font-mono"
+                          >
+                            {write.entityId}
+                          </Link>
                         </div>
                       ))}
                     </div>
@@ -312,14 +441,68 @@ export function Receipts() {
                   </div>
                 </div>
 
+                {/* Diff View for Fix Receipts */}
+                {selectedReceipt.previousReceiptId && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <label className="block text-xs font-medium text-orange-600 mb-2">
+                      This is a fix receipt - showing changes from previous
+                    </label>
+                    {loadingPrevious ? (
+                      <div className="text-sm text-gray-500">Loading previous receipt...</div>
+                    ) : previousReceipt ? (
+                      <div className="bg-orange-50 rounded-lg p-3 space-y-3">
+                        {/* Classification change */}
+                        {previousReceipt.classification !== selectedReceipt.classification && (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-700">Classification: </span>
+                            <span className="line-through text-red-600">{previousReceipt.classification}</span>
+                            <span className="mx-2">→</span>
+                            <span className="text-green-600">{selectedReceipt.classification}</span>
+                          </div>
+                        )}
+
+                        {/* Extracted fields diff */}
+                        <div>
+                          <span className="text-xs font-medium text-gray-600">Field changes:</span>
+                          <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                            <div className="bg-red-50 p-2 rounded">
+                              <span className="text-red-700 font-medium">Previous:</span>
+                              <pre className="mt-1 text-gray-700 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(previousReceipt.extractedFields, null, 2)}
+                              </pre>
+                            </div>
+                            <div className="bg-green-50 p-2 rounded">
+                              <span className="text-green-700 font-medium">Current:</span>
+                              <pre className="mt-1 text-gray-700 overflow-x-auto whitespace-pre-wrap">
+                                {JSON.stringify(selectedReceipt.extractedFields, null, 2)}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">Could not load previous receipt</div>
+                    )}
+                  </div>
+                )}
+
                 {/* IDs */}
                 <div className="pt-4 border-t border-gray-200">
                   <label className="block text-xs font-medium text-gray-500 mb-1">IDs</label>
                   <div className="text-xs text-gray-500 font-mono space-y-1">
                     <p>Receipt: {selectedReceipt.id}</p>
-                    <p>Inbox Item: {selectedReceipt.inboxItemId}</p>
+                    <p>
+                      Inbox Item:{" "}
+                      <Link
+                        to={`/inbox?id=${selectedReceipt.inboxItemId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-primary-hover hover:underline"
+                      >
+                        {selectedReceipt.inboxItemId}
+                      </Link>
+                    </p>
                     {selectedReceipt.previousReceiptId && (
-                      <p>Previous: {selectedReceipt.previousReceiptId}</p>
+                      <p>Previous Receipt: {selectedReceipt.previousReceiptId}</p>
                     )}
                   </div>
                 </div>
