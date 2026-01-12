@@ -12,6 +12,8 @@ import {
   sendNotFound,
   sendValidationError,
   sendBadRequest,
+  sendConflict,
+  sendServiceUnavailable,
 } from "../utils/response.js";
 
 // =============================================================================
@@ -191,6 +193,84 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return sendData(reply, items[0]);
+    }
+  );
+
+  /**
+   * POST /inbox/:id/reprocess - Manually reprocess an inbox item
+   *
+   * Resets the item status to 'new' and processes it again.
+   * Useful for retrying after LLM model updates, mis-classification,
+   * or debugging processing logic on existing items.
+   */
+  app.post(
+    "/inbox/:id/reprocess",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      // Check LLM availability
+      if (!hasLLMProvider()) {
+        return sendServiceUnavailable(
+          reply,
+          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+        );
+      }
+
+      // Validate params
+      const parseResult = IdParamsSchema.safeParse(request.params);
+      if (!parseResult.success) {
+        return sendBadRequest(reply, "Invalid ID format", parseResult.error.flatten().fieldErrors);
+      }
+
+      const { id } = parseResult.data;
+
+      // Fetch item
+      const items = await db
+        .select()
+        .from(schema.inboxItems)
+        .where(eq(schema.inboxItems.id, id))
+        .limit(1);
+
+      if (items.length === 0) {
+        return sendNotFound(reply, "Inbox item");
+      }
+
+      const inboxItem = items[0];
+
+      // Prevent reprocessing if currently being processed (avoid race conditions)
+      if (inboxItem.status === "processing") {
+        return sendConflict(reply, "Item is currently being processed. Please wait for completion.");
+      }
+
+      // Reset status to 'new' to allow reprocessing
+      await db
+        .update(schema.inboxItems)
+        .set({
+          status: "new",
+          processingStartedAt: null,
+          errorMessage: null,
+        })
+        .where(eq(schema.inboxItems.id, id));
+
+      // Process the item
+      try {
+        const result = await processInboxItem(id);
+        request.log.info(
+          { id, action: result.action, classification: result.classification.classification },
+          "Inbox item reprocessed"
+        );
+        return sendData(reply, {
+          reprocessed: true,
+          result,
+        });
+      } catch (err) {
+        request.log.error({ id, error: err }, "Failed to reprocess inbox item");
+        return sendData(reply, {
+          reprocessed: false,
+          processingError: err instanceof Error ? err.message : "Processing failed",
+        });
+      }
     }
   );
 }
