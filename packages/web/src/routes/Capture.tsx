@@ -8,6 +8,7 @@ export function Capture() {
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [wasQueued, setWasQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -50,9 +51,11 @@ export function Capture() {
     setSuccess(false);
 
     try {
+      const queued = !isOnline;
       if (isOnline) await inbox.capture(text.trim());
       else await addToQueue(text.trim());
       setText("");
+      setWasQueued(queued);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -140,8 +143,8 @@ export function Capture() {
 
           {success && (
             <div className="p-4 bg-gray-900 border border-gray-800 rounded-2xl text-white text-sm font-semibold animate-scale-in flex items-center gap-3 shadow-card">
-               <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-               Successfully captured to inbox
+               <span className={`w-2 h-2 rounded-full animate-pulse ${wasQueued ? "bg-amber-400" : "bg-emerald-400"}`} />
+               {wasQueued ? "Queued for sync — will upload when online" : "Successfully captured to inbox"}
             </div>
           )}
         </div>
