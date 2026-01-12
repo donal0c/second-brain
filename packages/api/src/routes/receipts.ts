@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { eq, sql, desc, isNull, isNotNull } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { processInboxItem } from "../services/processor.js";
+import { processInboxItem, extractAndStoreContext } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
 import {
   sendData,
@@ -20,6 +20,7 @@ import {
 
 const ReceiptQuerySchema = z.object({
   inboxItemId: z.string().uuid().optional(),
+  contextExtractionStatus: z.enum(["pending", "success", "failed", "skipped"]).optional(),
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
 });
@@ -59,13 +60,22 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      const { inboxItemId, limit, offset } = parseResult.data;
+      const { inboxItemId, contextExtractionStatus, limit, offset } = parseResult.data;
 
-      const items = inboxItemId
+      // Build where conditions
+      const conditions = [];
+      if (inboxItemId) {
+        conditions.push(eq(schema.receipts.inboxItemId, inboxItemId));
+      }
+      if (contextExtractionStatus) {
+        conditions.push(eq(schema.receipts.contextExtractionStatus, contextExtractionStatus));
+      }
+
+      const items = conditions.length > 0
         ? await db
             .select()
             .from(schema.receipts)
-            .where(eq(schema.receipts.inboxItemId, inboxItemId))
+            .where(sql`${sql.join(conditions, sql` AND `)}`)
             .orderBy(desc(schema.receipts.timestamp))
             .limit(limit)
             .offset(offset)
@@ -76,11 +86,11 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
             .limit(limit)
             .offset(offset);
 
-      const countResult = inboxItemId
+      const countResult = conditions.length > 0
         ? await db
             .select({ count: sql<number>`count(*)` })
             .from(schema.receipts)
-            .where(eq(schema.receipts.inboxItemId, inboxItemId))
+            .where(sql`${sql.join(conditions, sql` AND `)}`)
         : await db.select({ count: sql<number>`count(*)` }).from(schema.receipts);
 
       return sendList(reply, items, {
@@ -114,6 +124,99 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return sendData(reply, items[0]);
+    }
+  );
+
+  // POST /receipts/:id/retry-context-extraction - Retry context extraction for a receipt
+  app.post(
+    "/receipts/:id/retry-context-extraction",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      // Check LLM availability
+      if (!hasLLMProvider()) {
+        return sendServiceUnavailable(
+          reply,
+          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable context extraction."
+        );
+      }
+
+      const parseResult = IdParamsSchema.safeParse(request.params);
+      if (!parseResult.success) {
+        return sendBadRequest(reply, "Invalid ID format");
+      }
+
+      // Get the receipt
+      const receipts = await db
+        .select()
+        .from(schema.receipts)
+        .where(eq(schema.receipts.id, parseResult.data.id))
+        .limit(1);
+
+      if (receipts.length === 0) {
+        return sendNotFound(reply, "Receipt");
+      }
+
+      const receipt = receipts[0];
+
+      // Only allow retry for failed or skipped extractions
+      if (receipt.contextExtractionStatus === "success") {
+        return sendConflict(reply, "Context extraction already succeeded for this receipt");
+      }
+
+      // Check if receipt has an associated inbox item
+      if (!receipt.inboxItemId) {
+        return sendBadRequest(reply, "Receipt has no associated inbox item");
+      }
+
+      // Get the inbox item to retrieve raw text
+      const inboxItems = await db
+        .select()
+        .from(schema.inboxItems)
+        .where(eq(schema.inboxItems.id, receipt.inboxItemId))
+        .limit(1);
+
+      if (inboxItems.length === 0) {
+        return sendNotFound(reply, "Associated inbox item not found");
+      }
+
+      const inboxItem = inboxItems[0];
+
+      // Reset status to pending before retrying
+      await db
+        .update(schema.receipts)
+        .set({ contextExtractionStatus: "pending" })
+        .where(eq(schema.receipts.id, receipt.id));
+
+      // Retry context extraction
+      try {
+        const extractedIds = await extractAndStoreContext(inboxItem.rawText, receipt.id);
+
+        // Fetch the updated receipt
+        const updatedReceipts = await db
+          .select()
+          .from(schema.receipts)
+          .where(eq(schema.receipts.id, receipt.id))
+          .limit(1);
+
+        return sendData(reply, {
+          receipt: updatedReceipts[0],
+          extractedContextIds: extractedIds,
+        });
+      } catch (error) {
+        // Status will be set to "failed" by extractAndStoreContext
+        const updatedReceipts = await db
+          .select()
+          .from(schema.receipts)
+          .where(eq(schema.receipts.id, receipt.id))
+          .limit(1);
+
+        return sendData(reply, {
+          receipt: updatedReceipts[0],
+          error: error instanceof Error ? error.message : "Context extraction failed",
+        });
+      }
     }
   );
 }
