@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { eq, sql, desc, isNull, isNotNull } from "drizzle-orm";
+import { eq, sql, desc, isNull, isNotNull, and, gte, lte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { processInboxItem } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
@@ -20,6 +20,11 @@ import {
 
 const ReceiptQuerySchema = z.object({
   inboxItemId: z.string().uuid().optional(),
+  classification: z.enum(["task", "project", "idea", "person", "unknown"]).optional(),
+  minConfidence: z.coerce.number().min(0).max(1).optional(),
+  maxConfidence: z.coerce.number().min(0).max(1).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
 });
@@ -59,29 +64,52 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      const { inboxItemId, limit, offset } = parseResult.data;
+      const { inboxItemId, classification, minConfidence, maxConfidence, startDate, endDate, limit, offset } = parseResult.data;
 
-      const items = inboxItemId
-        ? await db
-            .select()
-            .from(schema.receipts)
-            .where(eq(schema.receipts.inboxItemId, inboxItemId))
-            .orderBy(desc(schema.receipts.timestamp))
-            .limit(limit)
-            .offset(offset)
-        : await db
-            .select()
-            .from(schema.receipts)
-            .orderBy(desc(schema.receipts.timestamp))
-            .limit(limit)
-            .offset(offset);
+      // Build filter conditions
+      const conditions = [];
 
-      const countResult = inboxItemId
-        ? await db
-            .select({ count: sql<number>`count(*)` })
-            .from(schema.receipts)
-            .where(eq(schema.receipts.inboxItemId, inboxItemId))
-        : await db.select({ count: sql<number>`count(*)` }).from(schema.receipts);
+      if (inboxItemId) {
+        conditions.push(eq(schema.receipts.inboxItemId, inboxItemId));
+      }
+
+      if (classification) {
+        conditions.push(eq(schema.receipts.classification, classification));
+      }
+
+      if (minConfidence !== undefined) {
+        conditions.push(gte(schema.receipts.confidenceScore, minConfidence));
+      }
+
+      if (maxConfidence !== undefined) {
+        conditions.push(lte(schema.receipts.confidenceScore, maxConfidence));
+      }
+
+      if (startDate) {
+        conditions.push(gte(schema.receipts.timestamp, new Date(startDate)));
+      }
+
+      if (endDate) {
+        // Add one day to include the end date fully
+        const endDateTime = new Date(endDate);
+        endDateTime.setDate(endDateTime.getDate() + 1);
+        conditions.push(lte(schema.receipts.timestamp, endDateTime));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const items = await db
+        .select()
+        .from(schema.receipts)
+        .where(whereClause)
+        .orderBy(desc(schema.receipts.timestamp))
+        .limit(limit)
+        .offset(offset);
+
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.receipts)
+        .where(whereClause);
 
       return sendList(reply, items, {
         total: countResult[0]?.count ?? 0,
