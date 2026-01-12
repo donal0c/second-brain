@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { Layout } from "./components/Layout";
+import { PWAPrompt } from "./components/PWAPrompt";
 import { Capture } from "./routes/Capture";
 import { Inbox } from "./routes/Inbox";
 import { Today } from "./routes/Today";
@@ -27,6 +28,7 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <ErrorBoundary>
+      <PWAPrompt />
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Routes>
