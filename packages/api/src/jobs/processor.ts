@@ -7,7 +7,7 @@ import { processBatch, recoverStaleProcessingItems, type ProcessResult } from ".
 import { hasLLMProvider } from "../llm/index.js";
 
 // Job state
-let jobTimer: NodeJS.Timeout | null = null;
+let jobTimer: ReturnType<typeof setTimeout> | null = null;
 let isRunning = false;
 
 // Configuration

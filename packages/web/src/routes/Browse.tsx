@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   extractErrorMessage,
@@ -625,21 +626,21 @@ function ProjectEditForm({
     onSave({ status: newStatus });
   };
 
-  const handleInterpret = (e: React.FormEvent) => {
+  const handleInterpret = (e: FormEvent) => {
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
     }
   };
 
-  const handleFix = (e: React.FormEvent) => {
+  const handleFix = (e: FormEvent) => {
     e.preventDefault();
     if (correction.trim()) {
       onFix(correction.trim());
     }
   };
 
-  const handleManualSave = (e: React.FormEvent) => {
+  const handleManualSave = (e: FormEvent) => {
     e.preventDefault();
     onSave({
       name,
@@ -874,21 +875,21 @@ function IdeaEditForm({
   const [summary, setSummary] = useState(idea.summary || "");
   const [links, setLinks] = useState(idea.links.join("\n"));
 
-  const handleInterpret = (e: React.FormEvent) => {
+  const handleInterpret = (e: FormEvent) => {
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
     }
   };
 
-  const handleFix = (e: React.FormEvent) => {
+  const handleFix = (e: FormEvent) => {
     e.preventDefault();
     if (correction.trim()) {
       onFix(correction.trim());
     }
   };
 
-  const handleManualSave = (e: React.FormEvent) => {
+  const handleManualSave = (e: FormEvent) => {
     e.preventDefault();
     onSave({
       title,
@@ -1084,21 +1085,21 @@ function PersonEditForm({
   const [relationshipContext, setRelationshipContext] = useState(person.relationshipContext || "");
   const [followUpNextAction, setFollowUpNextAction] = useState(person.followUpNextAction || "");
 
-  const handleInterpret = (e: React.FormEvent) => {
+  const handleInterpret = (e: FormEvent) => {
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
     }
   };
 
-  const handleFix = (e: React.FormEvent) => {
+  const handleFix = (e: FormEvent) => {
     e.preventDefault();
     if (correction.trim()) {
       onFix(correction.trim());
     }
   };
 
-  const handleManualSave = (e: React.FormEvent) => {
+  const handleManualSave = (e: FormEvent) => {
     e.preventDefault();
     onSave({
       name,

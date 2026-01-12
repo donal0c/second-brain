@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import type { Task } from "../lib/api";
 
 // Convert ISO date string to yyyy-MM-dd format for HTML date input
@@ -49,7 +50,7 @@ export function TaskEditForm({
     onSave({ status: newStatus });
   };
 
-  const handleInterpret = (e: React.FormEvent) => {
+  const handleInterpret = (e: FormEvent) => {
     e.preventDefault();
     if (instruction.trim()) {
       onInterpret(instruction.trim());
@@ -57,7 +58,7 @@ export function TaskEditForm({
     }
   };
 
-  const handleFix = (e: React.FormEvent) => {
+  const handleFix = (e: FormEvent) => {
     e.preventDefault();
     if (correction.trim() && onFix) {
       onFix(correction.trim());
@@ -65,7 +66,7 @@ export function TaskEditForm({
     }
   };
 
-  const handleManualSave = (e: React.FormEvent) => {
+  const handleManualSave = (e: FormEvent) => {
     e.preventDefault();
     onSave({
       title,

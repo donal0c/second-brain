@@ -23,6 +23,8 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      "no-undef": "off", // TypeScript handles this
+      "no-redeclare": "off", // TypeScript handles this (supports declaration merging)
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_" },
@@ -50,6 +52,8 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      "no-undef": "off", // TypeScript handles this
+      "no-redeclare": "off", // TypeScript handles this (supports declaration merging)
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_" },
@@ -74,6 +78,8 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      "no-undef": "off", // TypeScript handles this
+      "no-redeclare": "off", // TypeScript handles this (supports declaration merging)
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_" },

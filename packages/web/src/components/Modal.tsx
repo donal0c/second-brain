@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { ReactNode, MouseEvent } from "react";
 
 export function Modal({
   isOpen,
@@ -9,7 +10,7 @@ export function Modal({
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +38,7 @@ export function Modal({
   }, [isOpen, onClose]);
 
   // Handle backdrop click to close modal
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  const handleBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }

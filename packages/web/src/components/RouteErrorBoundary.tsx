@@ -1,5 +1,5 @@
 import { Component } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface Props {
@@ -22,7 +22,7 @@ class RouteErrorBoundaryClass extends Component<Props & { navigate: (path: strin
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("RouteErrorBoundary caught an error:", error, errorInfo);
   }
 

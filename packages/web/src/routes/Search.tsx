@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { search, extractErrorMessage, type SearchResult, type Task, type Project, type Idea } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
@@ -74,7 +75,7 @@ export function Search() {
     };
   }, [query, typeFilter, statusFilter, contextFilter, searchTrigger]);
 
-  const handleQuerySubmit = (e: React.FormEvent) => {
+  const handleQuerySubmit = (e: FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
       setSearchTrigger((t) => t + 1);
