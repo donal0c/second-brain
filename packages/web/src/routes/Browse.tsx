@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -37,6 +37,82 @@ import { TaskEditForm } from "../components/TaskEditForm";
 type TabType = "tasks" | "projects" | "ideas" | "persons";
 type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
 type PersonFilter = "all" | "follow_up_needed" | "no_follow_up" | "recently_touched" | "stale";
+
+// Sort and filter types
+type TaskSortField = "dueDate" | "createdAt" | "title";
+type ProjectSortField = "createdAt" | "name";
+type SortDirection = "asc" | "desc";
+
+interface TaskFilters {
+  sort: TaskSortField;
+  sortDir: SortDirection;
+  status: Task["status"] | "all";
+  search: string;
+}
+
+interface ProjectFilters {
+  sort: ProjectSortField;
+  sortDir: SortDirection;
+  status: Project["status"] | "all";
+  search: string;
+}
+
+// localStorage keys
+const TASK_FILTERS_KEY = "browse_task_filters";
+const PROJECT_FILTERS_KEY = "browse_project_filters";
+
+// Default filters
+const defaultTaskFilters: TaskFilters = {
+  sort: "createdAt",
+  sortDir: "desc",
+  status: "all",
+  search: "",
+};
+
+const defaultProjectFilters: ProjectFilters = {
+  sort: "createdAt",
+  sortDir: "desc",
+  status: "all",
+  search: "",
+};
+
+// Load filters from localStorage
+function loadTaskFilters(): TaskFilters {
+  try {
+    const stored = localStorage.getItem(TASK_FILTERS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...defaultTaskFilters, ...parsed, search: "" }; // Don't persist search
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return defaultTaskFilters;
+}
+
+function loadProjectFilters(): ProjectFilters {
+  try {
+    const stored = localStorage.getItem(PROJECT_FILTERS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...defaultProjectFilters, ...parsed, search: "" }; // Don't persist search
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return defaultProjectFilters;
+}
+
+// Save filters to localStorage
+function saveTaskFilters(filters: TaskFilters) {
+  const { search, ...toSave } = filters; // Don't save search
+  localStorage.setItem(TASK_FILTERS_KEY, JSON.stringify(toSave));
+}
+
+function saveProjectFilters(filters: ProjectFilters) {
+  const { search, ...toSave } = filters; // Don't save search
+  localStorage.setItem(PROJECT_FILTERS_KEY, JSON.stringify(toSave));
+}
 type EditingEntity =
   | { type: "task"; item: Task }
   | { type: "project"; item: Project }
@@ -52,6 +128,27 @@ export function Browse() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [personSort, setPersonSort] = useState<PersonSortOption>("name-asc");
   const [personFilter, setPersonFilter] = useState<PersonFilter>("all");
+
+  // Filter state (loaded from localStorage)
+  const [taskFilters, setTaskFilters] = useState<TaskFilters>(loadTaskFilters);
+  const [projectFilters, setProjectFilters] = useState<ProjectFilters>(loadProjectFilters);
+
+  // Persist filter changes (except search)
+  const updateTaskFilters = useCallback((updates: Partial<TaskFilters>) => {
+    setTaskFilters(prev => {
+      const updated = { ...prev, ...updates };
+      saveTaskFilters(updated);
+      return updated;
+    });
+  }, []);
+
+  const updateProjectFilters = useCallback((updates: Partial<ProjectFilters>) => {
+    setProjectFilters(prev => {
+      const updated = { ...prev, ...updates };
+      saveProjectFilters(updated);
+      return updated;
+    });
+  }, []);
 
   // Fetch data with React Query (includes built-in abort handling)
   const tasksQuery = useTasks();
@@ -76,8 +173,8 @@ export function Browse() {
   const deletePerson = useDeletePerson();
 
   // Derive state from queries
-  const taskList = tasksQuery.data?.items ?? [];
-  const projectList = projectsQuery.data?.items ?? [];
+  const rawTaskList = tasksQuery.data?.items ?? [];
+  const rawProjectList = projectsQuery.data?.items ?? [];
   const ideaList = ideasQuery.data?.items ?? [];
   const personList = personsQuery.data?.items ?? [];
 
@@ -130,6 +227,86 @@ export function Browse() {
 
   const loading = tasksQuery.isLoading || projectsQuery.isLoading || ideasQuery.isLoading || personsQuery.isLoading;
   const error = tasksQuery.error || projectsQuery.error || ideasQuery.error || personsQuery.error;
+
+  // Filter and sort tasks
+  const taskList = useMemo(() => {
+    let filtered = rawTaskList;
+
+    // Status filter
+    if (taskFilters.status !== "all") {
+      filtered = filtered.filter(t => t.status === taskFilters.status);
+    }
+
+    // Search filter
+    if (taskFilters.search.trim()) {
+      const searchLower = taskFilters.search.toLowerCase().trim();
+      filtered = filtered.filter(t =>
+        t.title.toLowerCase().includes(searchLower) ||
+        t.nextAction.toLowerCase().includes(searchLower) ||
+        (t.context && t.context.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (taskFilters.sort) {
+        case "dueDate": {
+          // Null dates go to the end
+          if (!a.dueDate && !b.dueDate) comparison = 0;
+          else if (!a.dueDate) comparison = 1;
+          else if (!b.dueDate) comparison = -1;
+          else comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          break;
+        }
+        case "createdAt":
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case "title":
+          comparison = a.title.localeCompare(b.title);
+          break;
+      }
+      return taskFilters.sortDir === "asc" ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [rawTaskList, taskFilters]);
+
+  // Filter and sort projects
+  const projectList = useMemo(() => {
+    let filtered = rawProjectList;
+
+    // Status filter
+    if (projectFilters.status !== "all") {
+      filtered = filtered.filter(p => p.status === projectFilters.status);
+    }
+
+    // Search filter
+    if (projectFilters.search.trim()) {
+      const searchLower = projectFilters.search.toLowerCase().trim();
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(searchLower) ||
+        (p.desiredOutcome && p.desiredOutcome.toLowerCase().includes(searchLower)) ||
+        (p.nextAction && p.nextAction.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (projectFilters.sort) {
+        case "createdAt":
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+      }
+      return projectFilters.sortDir === "asc" ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [rawProjectList, projectFilters]);
   const saving =
     updateTask.isPending ||
     updateProject.isPending ||
@@ -356,11 +533,19 @@ export function Browse() {
     }
   };
 
+  // Show filtered count vs total for tasks and projects
+  const taskCountLabel = taskList.length !== rawTaskList.length
+    ? `${taskList.length}/${rawTaskList.length}`
+    : `${taskList.length}`;
+  const projectCountLabel = projectList.length !== rawProjectList.length
+    ? `${projectList.length}/${rawProjectList.length}`
+    : `${projectList.length}`;
+
   const tabs = [
-    { id: "tasks" as const, label: "Tasks", count: taskList.length },
-    { id: "projects" as const, label: "Projects", count: projectList.length },
-    { id: "ideas" as const, label: "Ideas", count: ideaList.length },
-    { id: "persons" as const, label: "People", count: personList.length },
+    { id: "tasks" as const, label: "Tasks", count: taskCountLabel },
+    { id: "projects" as const, label: "Projects", count: projectCountLabel },
+    { id: "ideas" as const, label: "Ideas", count: `${ideaList.length}` },
+    { id: "persons" as const, label: "People", count: `${personList.length}` },
   ];
 
   return (
@@ -411,9 +596,81 @@ export function Browse() {
           {/* Tasks Tab */}
           {activeTab === "tasks" && (
             <div className="space-y-3">
+              {/* Task Filter Bar */}
+              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex flex-wrap gap-3 items-center">
+                  {/* Search */}
+                  <div className="flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      value={taskFilters.search}
+                      onChange={(e) => setTaskFilters(prev => ({ ...prev, search: e.target.value }))}
+                      placeholder="Search tasks..."
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Sort:</label>
+                    <select
+                      value={taskFilters.sort}
+                      onChange={(e) => updateTaskFilters({ sort: e.target.value as TaskSortField })}
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    >
+                      <option value="createdAt">Created</option>
+                      <option value="dueDate">Due Date</option>
+                      <option value="title">Title</option>
+                    </select>
+                    <button
+                      onClick={() => updateTaskFilters({ sortDir: taskFilters.sortDir === "asc" ? "desc" : "asc" })}
+                      className="p-1.5 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
+                      title={taskFilters.sortDir === "asc" ? "Ascending" : "Descending"}
+                    >
+                      {taskFilters.sortDir === "asc" ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex items-center gap-1">
+                    {(["all", "active", "waiting", "someday", "completed"] as const).map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => updateTaskFilters({ status })}
+                        className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                          taskFilters.status === status
+                            ? status === "all"
+                              ? "bg-gray-900 text-white"
+                              : status === "active"
+                              ? "bg-green-600 text-white"
+                              : status === "waiting"
+                              ? "bg-yellow-600 text-white"
+                              : status === "someday"
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-600 text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        {status === "all" ? "All" : status.charAt(0).toUpperCase() + status.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {taskList.length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-                  No tasks yet. Capture something to get started!
+                  {rawTaskList.length === 0
+                    ? "No tasks yet. Capture something to get started!"
+                    : "No tasks match your filters."}
                 </div>
               ) : (
                 taskList.map((task) => (
@@ -450,9 +707,80 @@ export function Browse() {
           {/* Projects Tab */}
           {activeTab === "projects" && (
             <div className="space-y-3">
+              {/* Project Filter Bar */}
+              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="flex flex-wrap gap-3 items-center">
+                  {/* Search */}
+                  <div className="flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      value={projectFilters.search}
+                      onChange={(e) => setProjectFilters(prev => ({ ...prev, search: e.target.value }))}
+                      placeholder="Search projects..."
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Sort:</label>
+                    <select
+                      value={projectFilters.sort}
+                      onChange={(e) => updateProjectFilters({ sort: e.target.value as ProjectSortField })}
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    >
+                      <option value="createdAt">Created</option>
+                      <option value="name">Name</option>
+                    </select>
+                    <button
+                      onClick={() => updateProjectFilters({ sortDir: projectFilters.sortDir === "asc" ? "desc" : "asc" })}
+                      className="p-1.5 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
+                      title={projectFilters.sortDir === "asc" ? "Ascending" : "Descending"}
+                    >
+                      {projectFilters.sortDir === "asc" ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="flex items-center gap-1">
+                    {(["all", "active", "on_hold", "someday", "completed"] as const).map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => updateProjectFilters({ status })}
+                        className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                          projectFilters.status === status
+                            ? status === "all"
+                              ? "bg-gray-900 text-white"
+                              : status === "active"
+                              ? "bg-green-600 text-white"
+                              : status === "on_hold"
+                              ? "bg-yellow-600 text-white"
+                              : status === "someday"
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-600 text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        {status === "all" ? "All" : status === "on_hold" ? "On Hold" : status.charAt(0).toUpperCase() + status.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {projectList.length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-                  No projects yet.
+                  {rawProjectList.length === 0
+                    ? "No projects yet."
+                    : "No projects match your filters."}
                 </div>
               ) : (
                 projectList.map((project) => (
