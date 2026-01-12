@@ -51,6 +51,15 @@ const TaskUpdateSchema = z.object({
   needsReview: z.boolean().optional(),
 });
 
+const TaskCreateSchema = z.object({
+  title: z.string().min(1),
+  nextAction: z.string().min(1),
+  dueDate: z.coerce.date().nullable().optional(),
+  context: z.string().nullable().optional(),
+  status: z.enum(["active", "completed", "waiting", "someday"]).optional().default("active"),
+  needsReview: z.boolean().optional().default(false),
+});
+
 // =============================================================================
 // Project Schemas
 // =============================================================================
@@ -68,6 +77,14 @@ const ProjectUpdateSchema = z.object({
   needsReview: z.boolean().optional(),
 });
 
+const ProjectCreateSchema = z.object({
+  name: z.string().min(1),
+  desiredOutcome: z.string().nullable().optional(),
+  nextAction: z.string().nullable().optional(),
+  status: z.enum(["active", "completed", "on_hold", "someday"]).optional().default("active"),
+  needsReview: z.boolean().optional().default(false),
+});
+
 // =============================================================================
 // Idea Schemas
 // =============================================================================
@@ -81,6 +98,13 @@ const IdeaUpdateSchema = z.object({
   summary: z.string().nullable().optional(),
   links: z.array(z.string().url()).optional(),
   needsReview: z.boolean().optional(),
+});
+
+const IdeaCreateSchema = z.object({
+  title: z.string().min(1),
+  summary: z.string().nullable().optional(),
+  links: z.array(z.string().url()).optional().default([]),
+  needsReview: z.boolean().optional().default(false),
 });
 
 // =============================================================================
@@ -97,6 +121,14 @@ const PersonUpdateSchema = z.object({
   lastTouchedAt: z.coerce.date().nullable().optional(),
   followUpNextAction: z.string().nullable().optional(),
   needsReview: z.boolean().optional(),
+});
+
+const PersonCreateSchema = z.object({
+  name: z.string().min(1),
+  relationshipContext: z.string().nullable().optional(),
+  lastTouchedAt: z.coerce.date().nullable().optional(),
+  followUpNextAction: z.string().nullable().optional(),
+  needsReview: z.boolean().optional().default(false),
 });
 
 // =============================================================================
@@ -121,18 +153,19 @@ function getSortOrder(sort: string, table: typeof schema.tasks | typeof schema.p
 // Generic Entity Route Factory
 // =============================================================================
 
-interface EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema> {
+interface EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema, TCreateSchema> {
   entityName: string; // "task", "project", "idea", "person"
   entityNamePlural: string; // "tasks", "projects", "ideas", "persons"
   table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas | typeof schema.persons;
   querySchema: z.ZodType<TQuerySchema, z.ZodTypeDef, unknown>;
   updateSchema: z.ZodType<TUpdateSchema, z.ZodTypeDef, unknown>;
+  createSchema: z.ZodType<TCreateSchema, z.ZodTypeDef, unknown>;
   extractFieldsForLLM: (entity: TEntity) => Record<string, unknown>;
   buildListFilters?: (query: TQuerySchema) => Array<ReturnType<typeof eq | typeof like>>;
 }
 
-function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchema, TUpdateSchema>(
-  config: EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema>
+function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchema, TUpdateSchema, TCreateSchema>(
+  config: EntityRouteConfig<TEntity, TQuerySchema, TUpdateSchema, TCreateSchema>
 ) {
   return async (app: FastifyInstance): Promise<void> => {
     const {
@@ -141,6 +174,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
       table,
       querySchema,
       updateSchema,
+      createSchema,
       extractFieldsForLLM,
       buildListFilters,
     } = config;
@@ -189,6 +223,40 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
           total: countResult[0]?.count ?? 0,
           limit,
           offset,
+        });
+      }
+    );
+
+    // POST /:entity - Create entity
+    app.post(
+      `/${entityNamePlural}`,
+      async (
+        request: FastifyRequest<{ Body: TCreateSchema }>,
+        reply: FastifyReply
+      ) => {
+        const bodyResult = createSchema.safeParse(request.body);
+        if (!bodyResult.success) {
+          return sendValidationError(
+            reply,
+            "Validation failed",
+            bodyResult.error.flatten().fieldErrors
+          );
+        }
+
+        const now = new Date();
+        const newId = randomUUID();
+
+        const newEntity = {
+          id: newId,
+          ...bodyResult.data,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const result = await db.insert(table).values(newEntity).returning();
+
+        return reply.status(201).send({
+          data: result[0],
         });
       }
     );
@@ -424,13 +492,15 @@ const taskRoutes = createEntityRoutes<
     updatedAt: Date;
   },
   z.infer<typeof TaskQuerySchema>,
-  z.infer<typeof TaskUpdateSchema>
+  z.infer<typeof TaskUpdateSchema>,
+  z.infer<typeof TaskCreateSchema>
 >({
   entityName: "Task",
   entityNamePlural: "tasks",
   table: schema.tasks,
   querySchema: TaskQuerySchema,
   updateSchema: TaskUpdateSchema,
+  createSchema: TaskCreateSchema,
   extractFieldsForLLM: (task) => ({
     title: task.title,
     nextAction: task.nextAction,
@@ -470,13 +540,15 @@ const projectRoutes = createEntityRoutes<
     updatedAt: Date;
   },
   z.infer<typeof ProjectQuerySchema>,
-  z.infer<typeof ProjectUpdateSchema>
+  z.infer<typeof ProjectUpdateSchema>,
+  z.infer<typeof ProjectCreateSchema>
 >({
   entityName: "Project",
   entityNamePlural: "projects",
   table: schema.projects,
   querySchema: ProjectQuerySchema,
   updateSchema: ProjectUpdateSchema,
+  createSchema: ProjectCreateSchema,
   extractFieldsForLLM: (project) => ({
     name: project.name,
     desiredOutcome: project.desiredOutcome,
@@ -511,13 +583,15 @@ const ideaRoutes = createEntityRoutes<
     updatedAt: Date;
   },
   z.infer<typeof IdeaQuerySchema>,
-  z.infer<typeof IdeaUpdateSchema>
+  z.infer<typeof IdeaUpdateSchema>,
+  z.infer<typeof IdeaCreateSchema>
 >({
   entityName: "Idea",
   entityNamePlural: "ideas",
   table: schema.ideas,
   querySchema: IdeaQuerySchema,
   updateSchema: IdeaUpdateSchema,
+  createSchema: IdeaCreateSchema,
   extractFieldsForLLM: (idea) => ({
     title: idea.title,
     summary: idea.summary,
@@ -549,13 +623,15 @@ const personRoutes = createEntityRoutes<
     updatedAt: Date;
   },
   z.infer<typeof PersonQuerySchema>,
-  z.infer<typeof PersonUpdateSchema>
+  z.infer<typeof PersonUpdateSchema>,
+  z.infer<typeof PersonCreateSchema>
 >({
   entityName: "Person",
   entityNamePlural: "persons",
   table: schema.persons,
   querySchema: PersonQuerySchema,
   updateSchema: PersonUpdateSchema,
+  createSchema: PersonCreateSchema,
   extractFieldsForLLM: (person) => ({
     name: person.name,
     relationshipContext: person.relationshipContext,

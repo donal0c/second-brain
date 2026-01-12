@@ -242,11 +242,27 @@ export interface InterpretResponse<T> {
   };
 }
 
+export interface TaskCreateInput {
+  title: string;
+  nextAction: string;
+  dueDate?: string | null;
+  context?: string | null;
+  status?: "active" | "completed" | "waiting" | "someday";
+  needsReview?: boolean;
+}
+
 export const tasks = {
   list: (params?: { status?: string; context?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
     requestList<Task>(`/tasks?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Task>(`/tasks/${id}`, { signal }),
+
+  create: (data: TaskCreateInput, signal?: AbortSignal) =>
+    request<Task>("/tasks", {
+      method: "POST",
+      body: JSON.stringify(data),
+      signal,
+    }),
 
   update: (id: string, data: Partial<Task>, signal?: AbortSignal) =>
     request<Task>(`/tasks/${id}`, {
@@ -279,11 +295,26 @@ export interface ProjectListResponse {
   offset: number;
 }
 
+export interface ProjectCreateInput {
+  name: string;
+  desiredOutcome?: string | null;
+  nextAction?: string | null;
+  status?: "active" | "completed" | "on_hold" | "someday";
+  needsReview?: boolean;
+}
+
 export const projects = {
   list: (params?: { status?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
     requestList<Project>(`/projects?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Project>(`/projects/${id}`, { signal }),
+
+  create: (data: ProjectCreateInput, signal?: AbortSignal) =>
+    request<Project>("/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+      signal,
+    }),
 
   update: (id: string, data: Partial<Project>, signal?: AbortSignal) =>
     request<Project>(`/projects/${id}`, {
@@ -316,11 +347,25 @@ export interface IdeaListResponse {
   offset: number;
 }
 
+export interface IdeaCreateInput {
+  title: string;
+  summary?: string | null;
+  links?: string[];
+  needsReview?: boolean;
+}
+
 export const ideas = {
   list: (params?: { limit?: number; offset?: number }, signal?: AbortSignal) =>
     requestList<Idea>(`/ideas?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Idea>(`/ideas/${id}`, { signal }),
+
+  create: (data: IdeaCreateInput, signal?: AbortSignal) =>
+    request<Idea>("/ideas", {
+      method: "POST",
+      body: JSON.stringify(data),
+      signal,
+    }),
 
   update: (id: string, data: Partial<Idea>, signal?: AbortSignal) =>
     request<Idea>(`/ideas/${id}`, {
@@ -353,11 +398,26 @@ export interface PersonListResponse {
   offset: number;
 }
 
+export interface PersonCreateInput {
+  name: string;
+  relationshipContext?: string | null;
+  lastTouchedAt?: string | null;
+  followUpNextAction?: string | null;
+  needsReview?: boolean;
+}
+
 export const persons = {
   list: (params?: { limit?: number; offset?: number }, signal?: AbortSignal) =>
     requestList<Person>(`/persons?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<Person>(`/persons/${id}`, { signal }),
+
+  create: (data: PersonCreateInput, signal?: AbortSignal) =>
+    request<Person>("/persons", {
+      method: "POST",
+      body: JSON.stringify(data),
+      signal,
+    }),
 
   update: (id: string, data: Partial<Person>, signal?: AbortSignal) =>
     request<Person>(`/persons/${id}`, {
