@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { inbox, extractErrorMessage, type InboxItem } from "../lib/api";
+import { useReprocessInboxItem } from "../lib/queries";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
@@ -16,6 +17,8 @@ export function Inbox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [reprocessingId, setReprocessingId] = useState<string | null>(null);
+  const reprocessMutation = useReprocessInboxItem();
 
   const loadItems = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -57,6 +60,29 @@ export function Inbox() {
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const handleReprocess = async (item: InboxItem) => {
+    const preview = item.rawText.length > 50
+      ? item.rawText.substring(0, 50) + "..."
+      : item.rawText;
+
+    if (!window.confirm(`Reprocess "${preview}"? This will delete any existing entity and re-classify the item.`)) {
+      return;
+    }
+
+    setReprocessingId(item.id);
+    setError(null);
+
+    try {
+      await reprocessMutation.mutateAsync(item.id);
+      // Reload items to get updated status
+      await loadItems();
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setReprocessingId(null);
+    }
   };
 
   return (
@@ -121,12 +147,26 @@ export function Inbox() {
                   </span>
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-3 text-[11px] text-gray-400 font-medium uppercase tracking-wider">
-                <span>{formatDate(item.capturedAt)}</span>
-                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                <span className="flex items-center gap-1">
-                  {item.source}
-                </span>
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex items-center gap-3 text-[11px] text-gray-400 font-medium uppercase tracking-wider">
+                  <span>{formatDate(item.capturedAt)}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                  <span className="flex items-center gap-1">
+                    {item.source}
+                  </span>
+                </div>
+                {(item.status === "processed" || item.status === "blocked") && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReprocess(item);
+                    }}
+                    disabled={reprocessingId === item.id}
+                    className="text-xs font-medium text-primary-hover hover:text-primary-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {reprocessingId === item.id ? "Reprocessing..." : "Reprocess"}
+                  </button>
+                )}
               </div>
             </div>
           ))}

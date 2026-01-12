@@ -207,6 +207,12 @@ export interface InboxCaptureResponse {
   error?: string;
 }
 
+export interface InboxReprocessResponse {
+  reprocessed: boolean;
+  result?: ProcessResult;
+  processingError?: string;
+}
+
 export const inbox = {
   capture: (rawText: string, source: string = "web", signal?: AbortSignal) =>
     request<InboxCaptureResponse>("/inbox", {
@@ -219,6 +225,12 @@ export const inbox = {
     requestList<InboxItem>(`/inbox?${new URLSearchParams(params as Record<string, string>)}`, { signal }),
 
   get: (id: string, signal?: AbortSignal) => request<InboxItem>(`/inbox/${id}`, { signal }),
+
+  reprocess: (id: string, signal?: AbortSignal) =>
+    request<InboxReprocessResponse>(`/inbox/${id}/reprocess`, {
+      method: "POST",
+      signal,
+    }),
 };
 
 // =============================================================================
