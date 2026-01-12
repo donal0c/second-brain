@@ -16,6 +16,7 @@ import {
 type DbTask = InferSelectModel<typeof schema.tasks>;
 type DbProject = InferSelectModel<typeof schema.projects>;
 type DbIdea = InferSelectModel<typeof schema.ideas>;
+type DbPerson = InferSelectModel<typeof schema.persons>;
 
 type SearchResultSnippet = { title: string; content: string };
 
@@ -40,7 +41,14 @@ type IdeaSearchResult = {
   snippet: SearchResultSnippet;
 };
 
-type SearchResult = TaskSearchResult | ProjectSearchResult | IdeaSearchResult;
+type PersonSearchResult = {
+  type: "person";
+  id: string;
+  entity: DbPerson;
+  snippet: SearchResultSnippet;
+};
+
+type SearchResult = TaskSearchResult | ProjectSearchResult | IdeaSearchResult | PersonSearchResult;
 
 // =============================================================================
 // Search Schemas
@@ -48,7 +56,7 @@ type SearchResult = TaskSearchResult | ProjectSearchResult | IdeaSearchResult;
 
 const SearchQuerySchema = z.object({
   q: z.string().min(1).max(200),
-  type: z.enum(["task", "project", "idea"]).optional(),
+  type: z.enum(["task", "project", "idea", "person"]).optional(),
   context: z.string().optional(),
   status: z.string().optional(),
   from: z.coerce.date().optional(),
@@ -327,6 +335,57 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
               query: q,
             });
           }
+
+          if (type === "person") {
+            const personConditions = [
+              or(
+                ilike(schema.persons.name, searchPattern),
+                ilike(schema.persons.relationshipContext, searchPattern),
+                ilike(schema.persons.followUpNextAction, searchPattern)
+              ),
+            ];
+
+            if (from) {
+              personConditions.push(sql`${schema.persons.createdAt} >= ${from}`);
+            }
+            if (to) {
+              personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
+            }
+
+            const [persons, countResult] = await Promise.all([
+              db
+                .select()
+                .from(schema.persons)
+                .where(and(...personConditions))
+                .limit(limit)
+                .offset(offset),
+              db
+                .select({ count: sql<number>`count(*)` })
+                .from(schema.persons)
+                .where(and(...personConditions)),
+            ]);
+
+            const results: PersonSearchResult[] = persons.map((person) => ({
+              type: "person" as const,
+              id: person.id,
+              entity: person,
+              snippet: {
+                title: generateSnippet(person.name, q, 100),
+                content: generateSnippet(
+                  person.relationshipContext || person.followUpNextAction || "",
+                  q,
+                  200
+                ),
+              },
+            }));
+
+            return sendData(reply, results, {
+              total: countResult[0]?.count ?? 0,
+              limit,
+              offset,
+              query: q,
+            });
+          }
         }
 
         // Cross-type search: fetch all results, combine, sort by relevance, then paginate
@@ -386,11 +445,27 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to}`);
         }
 
+        // Build person conditions
+        const personConditions = [
+          or(
+            ilike(schema.persons.name, searchPattern),
+            ilike(schema.persons.relationshipContext, searchPattern),
+            ilike(schema.persons.followUpNextAction, searchPattern)
+          ),
+        ];
+        if (from) {
+          personConditions.push(sql`${schema.persons.createdAt} >= ${from}`);
+        }
+        if (to) {
+          personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
+        }
+
         // Fetch all matching results in parallel
-        const [tasks, projects, ideas] = await Promise.all([
+        const [tasks, projects, ideas, persons] = await Promise.all([
           db.select().from(schema.tasks).where(and(...taskConditions)),
           db.select().from(schema.projects).where(and(...projectConditions)),
           db.select().from(schema.ideas).where(and(...ideaConditions)),
+          db.select().from(schema.persons).where(and(...personConditions)),
         ]);
 
         // Convert to search results with relevance scores
@@ -434,6 +509,22 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           });
         }
 
+        for (const person of persons) {
+          results.push({
+            type: "person",
+            id: person.id,
+            entity: person,
+            snippet: {
+              title: generateSnippet(person.name, q, 100),
+              content: generateSnippet(
+                person.relationshipContext || person.followUpNextAction || "",
+                q,
+                200
+              ),
+            },
+          });
+        }
+
         // Sort results by relevance (scoring based on title matches)
         const getEntityTitle = (result: SearchResult): string => {
           switch (result.type) {
@@ -443,6 +534,8 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
               return result.entity.name;
             case "idea":
               return result.entity.title;
+            case "person":
+              return result.entity.name;
           }
         };
 
