@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -35,6 +35,8 @@ import { Modal } from "../components/Modal";
 import { TaskEditForm } from "../components/TaskEditForm";
 
 type TabType = "tasks" | "projects" | "ideas" | "persons";
+type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
+type PersonFilter = "all" | "follow_up_needed" | "no_follow_up" | "recently_touched" | "stale";
 type EditingEntity =
   | { type: "task"; item: Task }
   | { type: "project"; item: Project }
@@ -48,6 +50,8 @@ export function Browse() {
   const [editing, setEditing] = useState<EditingEntity>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [personSort, setPersonSort] = useState<PersonSortOption>("name-asc");
+  const [personFilter, setPersonFilter] = useState<PersonFilter>("all");
 
   // Fetch data with React Query (includes built-in abort handling)
   const tasksQuery = useTasks();
@@ -76,6 +80,54 @@ export function Browse() {
   const projectList = projectsQuery.data?.items ?? [];
   const ideaList = ideasQuery.data?.items ?? [];
   const personList = personsQuery.data?.items ?? [];
+
+  // Filter person list based on selected filter
+  const filteredPersonList = useMemo(() => {
+    return personList.filter((person) => {
+      if (personFilter === "all") return true;
+      if (personFilter === "follow_up_needed") return !!person.followUpNextAction;
+      if (personFilter === "no_follow_up") return !person.followUpNextAction;
+      if (personFilter === "recently_touched") {
+        if (!person.lastTouchedAt) return false;
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return new Date(person.lastTouchedAt) >= weekAgo;
+      }
+      if (personFilter === "stale") {
+        if (!person.lastTouchedAt) return true; // Never touched = stale
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        return new Date(person.lastTouchedAt) < monthAgo;
+      }
+      return true;
+    });
+  }, [personList, personFilter]);
+
+  // Sort filtered persons list based on selected sort option
+  const sortedPersonList = useMemo(() => {
+    const sorted = [...filteredPersonList];
+    switch (personSort) {
+      case "name-asc":
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case "name-desc":
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      case "lastTouched-desc":
+        return sorted.sort((a, b) => {
+          const dateA = a.lastTouchedAt ? new Date(a.lastTouchedAt).getTime() : 0;
+          const dateB = b.lastTouchedAt ? new Date(b.lastTouchedAt).getTime() : 0;
+          return dateB - dateA;
+        });
+      case "lastTouched-asc":
+        return sorted.sort((a, b) => {
+          const dateA = a.lastTouchedAt ? new Date(a.lastTouchedAt).getTime() : 0;
+          const dateB = b.lastTouchedAt ? new Date(b.lastTouchedAt).getTime() : 0;
+          return dateA - dateB;
+        });
+      default:
+        return sorted;
+    }
+  }, [filteredPersonList, personSort]);
+
   const loading = tasksQuery.isLoading || projectsQuery.isLoading || ideasQuery.isLoading || personsQuery.isLoading;
   const error = tasksQuery.error || projectsQuery.error || ideasQuery.error || personsQuery.error;
   const saving =
@@ -477,35 +529,154 @@ export function Browse() {
           {/* People Tab */}
           {activeTab === "persons" && (
             <div className="space-y-3">
+              {/* Sort Controls */}
+              {personList.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Sort by:</span>
+                  <select
+                    value={personSort}
+                    onChange={(e) => setPersonSort(e.target.value as PersonSortOption)}
+                    className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  >
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="lastTouched-desc">Last Touched (Newest)</option>
+                    <option value="lastTouched-asc">Last Touched (Oldest)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Filter Controls */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "all" as const, label: "All" },
+                  { id: "follow_up_needed" as const, label: "Follow-up Needed" },
+                  { id: "no_follow_up" as const, label: "No Follow-up" },
+                  { id: "recently_touched" as const, label: "Recently Touched" },
+                  { id: "stale" as const, label: "Stale Contacts" },
+                ].map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setPersonFilter(filter.id)}
+                    className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+                      personFilter === filter.id
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {filter.label}
+                    {filter.id !== "all" && (
+                      <span className="ml-1.5 text-xs opacity-75">
+                        ({personList.filter((p) => {
+                          if (filter.id === "follow_up_needed") return !!p.followUpNextAction;
+                          if (filter.id === "no_follow_up") return !p.followUpNextAction;
+                          if (filter.id === "recently_touched") {
+                            if (!p.lastTouchedAt) return false;
+                            const weekAgo = new Date();
+                            weekAgo.setDate(weekAgo.getDate() - 7);
+                            return new Date(p.lastTouchedAt) >= weekAgo;
+                          }
+                          if (filter.id === "stale") {
+                            if (!p.lastTouchedAt) return true;
+                            const monthAgo = new Date();
+                            monthAgo.setDate(monthAgo.getDate() - 30);
+                            return new Date(p.lastTouchedAt) < monthAgo;
+                          }
+                          return true;
+                        }).length})
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
               {personList.length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
                   No people yet.
                 </div>
+              ) : filteredPersonList.length === 0 ? (
+                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+                  No people match this filter.
+                </div>
               ) : (
-                personList.map((person) => (
-                  <div
-                    key={person.id}
-                    onClick={() => setEditing({ type: "person", item: person })}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{person.name}</h4>
-                        {person.relationshipContext && (
-                          <p className="text-sm text-gray-600 mt-1">{person.relationshipContext}</p>
-                        )}
-                        {person.followUpNextAction && (
-                          <p className="text-sm text-gray-500 mt-1">Next: {person.followUpNextAction}</p>
-                        )}
+                sortedPersonList.map((person) => {
+                  const hasFollowUp = !!person.followUpNextAction;
+                  const daysSinceLastTouch = person.lastTouchedAt
+                    ? Math.floor((Date.now() - new Date(person.lastTouchedAt).getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+                  const isOverdue = hasFollowUp && daysSinceLastTouch !== null && daysSinceLastTouch > 14;
+                  const isStale = hasFollowUp && daysSinceLastTouch !== null && daysSinceLastTouch > 7 && !isOverdue;
+
+                  return (
+                    <div
+                      key={person.id}
+                      onClick={() => setEditing({ type: "person", item: person })}
+                      className={`bg-white rounded-lg border p-4 cursor-pointer hover:shadow-sm transition-all ${
+                        isOverdue
+                          ? "border-red-300 bg-red-50 hover:border-red-400"
+                          : isStale
+                          ? "border-yellow-300 bg-yellow-50 hover:border-yellow-400"
+                          : hasFollowUp
+                          ? "border-blue-300 bg-blue-50 hover:border-blue-400"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-gray-900">{person.name}</h4>
+                            {hasFollowUp && (
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                isOverdue
+                                  ? "bg-red-100 text-red-700"
+                                  : isStale
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}>
+                                {isOverdue ? "Overdue" : isStale ? "Due soon" : "Follow-up"}
+                              </span>
+                            )}
+                          </div>
+                          {person.relationshipContext && (
+                            <p className="text-sm text-gray-600 mt-1">{person.relationshipContext}</p>
+                          )}
+                          {person.followUpNextAction && (
+                            <p className="text-sm text-gray-700 mt-1 flex items-center gap-1">
+                              <span className="font-medium">Next:</span> {person.followUpNextAction}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-2 ml-4">
+                          {daysSinceLastTouch !== null && (
+                            <span className={`text-xs ${
+                              isOverdue ? "text-red-600 font-medium" : isStale ? "text-yellow-600" : "text-gray-400"
+                            }`}>
+                              {daysSinceLastTouch === 0 ? "Today" : daysSinceLastTouch === 1 ? "1 day ago" : `${daysSinceLastTouch} days ago`}
+                            </span>
+                          )}
+                          {hasFollowUp && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updatePerson.mutate({
+                                  id: person.id,
+                                  data: {
+                                    followUpNextAction: null,
+                                    lastTouchedAt: new Date().toISOString(),
+                                  },
+                                });
+                              }}
+                              disabled={updatePerson.isPending}
+                              className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors font-medium"
+                            >
+                              Mark Complete
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {person.lastTouchedAt && (
-                        <span className="text-xs text-gray-400">
-                          Last: {new Date(person.lastTouchedAt).toLocaleDateString()}
-                        </span>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -1084,6 +1255,9 @@ function PersonEditForm({
   const [name, setName] = useState(person.name);
   const [relationshipContext, setRelationshipContext] = useState(person.relationshipContext || "");
   const [followUpNextAction, setFollowUpNextAction] = useState(person.followUpNextAction || "");
+  const [lastTouchedAt, setLastTouchedAt] = useState(
+    person.lastTouchedAt ? new Date(person.lastTouchedAt).toISOString().split("T")[0] : ""
+  );
 
   const handleInterpret = (e: FormEvent) => {
     e.preventDefault();
@@ -1105,11 +1279,39 @@ function PersonEditForm({
       name,
       relationshipContext: relationshipContext || null,
       followUpNextAction: followUpNextAction || null,
+      lastTouchedAt: lastTouchedAt ? new Date(lastTouchedAt).toISOString() : null,
+    });
+  };
+
+  const handleMarkComplete = () => {
+    onSave({
+      followUpNextAction: null,
+      lastTouchedAt: new Date().toISOString(),
     });
   };
 
   return (
     <div className="space-y-4">
+      {/* Mark Follow-up Complete Button */}
+      {person.followUpNextAction && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">Follow-up pending</p>
+              <p className="text-sm text-blue-700 mt-1">{person.followUpNextAction}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleMarkComplete}
+              disabled={saving}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
+            >
+              {saving ? "..." : "Mark Complete"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Natural Language Edit */}
       <form onSubmit={handleInterpret}>
         <label className="block text-xs font-medium text-gray-500 mb-2">Quick Edit</label>
@@ -1242,6 +1444,17 @@ function PersonEditForm({
                 placeholder="e.g., Schedule lunch meeting"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Touched</label>
+              <input
+                type="date"
+                value={lastTouchedAt}
+                onChange={(e) => setLastTouchedAt(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">When you last interacted with this person</p>
             </div>
 
             <button
