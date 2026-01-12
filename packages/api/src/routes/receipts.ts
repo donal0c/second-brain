@@ -270,10 +270,13 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
         })
         .where(eq(schema.clarifications.id, paramsResult.data.id));
 
-      // Reset the inbox item status to allow reprocessing
+      // Reset the inbox item status and increment clarification attempts counter
       await db
         .update(schema.inboxItems)
-        .set({ status: "new" })
+        .set({
+          status: "new",
+          clarificationAttempts: sql`${schema.inboxItems.clarificationAttempts} + 1`,
+        })
         .where(eq(schema.inboxItems.id, clarification.inboxItemId));
 
       // Reprocess the inbox item with the clarification context

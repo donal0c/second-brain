@@ -46,6 +46,7 @@ export const InboxItemSchema = z.object({
   source: z.string().default("web"),
   status: z.enum(["new", "processing", "processed", "blocked", "error"]).default("new"),
   errorMessage: z.string().nullable().optional(),
+  clarificationAttempts: z.number().int().min(0).default(0),
 });
 
 export type InboxItem = z.infer<typeof InboxItemSchema>;

@@ -16,6 +16,7 @@ export const inboxItems = pgTable("inbox_items", {
     .default("new"),
   processingStartedAt: timestamp("processing_started_at"),
   errorMessage: text("error_message"),
+  clarificationAttempts: integer("clarification_attempts").notNull().default(0),
 }, (table) => ({
   statusIdx: index("inbox_items_status_idx").on(table.status),
   capturedAtIdx: index("inbox_items_captured_at_idx").on(table.capturedAt),

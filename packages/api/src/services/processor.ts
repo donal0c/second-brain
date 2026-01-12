@@ -12,6 +12,13 @@ import { validateExtractionResult } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+/** Maximum clarification attempts before circuit breaker triggers force-filing */
+const MAX_CLARIFICATION_ATTEMPTS = 3;
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -43,6 +50,69 @@ function buildValidationClarificationQuestion(
     question: `I couldn't determine the ${fieldList} for this ${entityType}. From your capture "${truncatedText}", what should the ${fieldList} be?`,
     options: null, // Free-form answer needed
   };
+}
+
+/**
+ * Build best-effort extraction data when circuit breaker triggers.
+ * Uses raw text to fill in required fields that couldn't be extracted.
+ */
+function buildBestEffortExtraction(
+  rawText: string,
+  classification: string,
+  partialData?: Record<string, unknown>
+): ExtractionResult {
+  const truncatedTitle = rawText.length > 100 ? rawText.substring(0, 100) + "..." : rawText;
+  const fallbackAction = "Review and clarify this item";
+
+  switch (classification) {
+    case "task":
+      return {
+        type: "task",
+        data: {
+          title: (partialData?.title as string) || truncatedTitle,
+          nextAction: (partialData?.nextAction as string) || fallbackAction,
+          dueDate: (partialData?.dueDate as string) || null,
+          context: (partialData?.context as string) || "needs-review",
+        },
+      };
+    case "project":
+      return {
+        type: "project",
+        data: {
+          name: (partialData?.name as string) || truncatedTitle,
+          desiredOutcome: (partialData?.desiredOutcome as string) || null,
+          nextAction: (partialData?.nextAction as string) || fallbackAction,
+        },
+      };
+    case "idea":
+      return {
+        type: "idea",
+        data: {
+          title: (partialData?.title as string) || truncatedTitle,
+          summary: (partialData?.summary as string) || rawText,
+          links: (partialData?.links as string[]) || [],
+        },
+      };
+    case "person":
+      return {
+        type: "person",
+        data: {
+          name: (partialData?.name as string) || truncatedTitle,
+          relationshipContext: (partialData?.relationshipContext as string) || null,
+          followUpNextAction: (partialData?.followUpNextAction as string) || fallbackAction,
+        },
+      };
+    default:
+      // Default to idea for unknown classifications
+      return {
+        type: "idea",
+        data: {
+          title: truncatedTitle,
+          summary: rawText,
+          links: [],
+        },
+      };
+  }
 }
 
 export interface ProcessResult {
@@ -169,20 +239,36 @@ export async function processInboxItem(
     // Step 3: Handle based on action
     let result: ProcessResult;
 
-    if (action === "clarify" || classification.classification === "unknown") {
-      // Low confidence or unknown - create clarification
+    // Circuit breaker: check if we've exceeded max clarification attempts
+    const attemptsExceeded = inboxItem.clarificationAttempts >= MAX_CLARIFICATION_ATTEMPTS;
+
+    if ((action === "clarify" || classification.classification === "unknown") && !attemptsExceeded) {
+      // Low confidence or unknown - create clarification (if attempts not exceeded)
       result = await handleClarification(
         inboxItem,
         classification,
         provider,
         relevantContextIds
       );
+    } else if (attemptsExceeded && (action === "clarify" || classification.classification === "unknown")) {
+      // Circuit breaker triggered: force-file with best-effort data
+      console.log(`[CIRCUIT_BREAKER] Force-filing inbox item ${inboxItem.id} after ${inboxItem.clarificationAttempts} clarification attempts`);
+      result = await handleForceFile(
+        inboxItem,
+        classification,
+        provider,
+        personalContexts,
+        relevantContextIds,
+        clarification
+      );
     } else {
       // High/medium confidence - extract and file
+      // At this point, action can only be 'filed' or 'flagged' (clarify is handled above)
+      const extractionAction = action === "clarify" ? "flagged" : action;
       result = await handleExtraction(
         inboxItem,
         classification,
-        action,
+        extractionAction,
         provider,
         personalContexts,
         relevantContextIds,
@@ -265,6 +351,161 @@ async function handleClarification(
       id: clarificationId,
       question: clarificationQuestion.question,
       options: clarificationQuestion.options,
+    },
+  };
+}
+
+/**
+ * Force-file an item when circuit breaker triggers.
+ * Uses best-effort extraction to fill in missing required fields.
+ */
+async function handleForceFile(
+  inboxItem: typeof schema.inboxItems.$inferSelect,
+  classification: ClassificationResult,
+  provider: ReturnType<typeof getLLMProvider>,
+  personalContexts: PersonalContext[],
+  relevantContextIds: string[],
+  clarification?: ClarificationContext
+): Promise<ProcessResult> {
+  // Try to extract structured data
+  let extraction: ExtractionResult;
+  let wasForced = false;
+
+  try {
+    extraction = await provider.extract(
+      inboxItem.rawText,
+      classification.classification,
+      personalContexts,
+      clarification
+    );
+
+    // Validate extraction - if invalid, use best-effort
+    const validation = validateExtraction(extraction);
+    if (!validation.valid) {
+      console.log(`[CIRCUIT_BREAKER] Validation failed for ${inboxItem.id}, using best-effort extraction`);
+      extraction = buildBestEffortExtraction(
+        inboxItem.rawText,
+        classification.classification,
+        extraction.data as unknown as Record<string, unknown>
+      );
+      wasForced = true;
+    }
+  } catch (error) {
+    // LLM extraction failed - use best-effort
+    console.log(`[CIRCUIT_BREAKER] LLM extraction failed for ${inboxItem.id}, using best-effort extraction:`, error);
+    extraction = buildBestEffortExtraction(inboxItem.rawText, classification.classification);
+    wasForced = true;
+  }
+
+  // Create the entity and receipt
+  const entityId = randomUUID();
+  const receiptId = randomUUID();
+  const now = new Date();
+  let entityData: Record<string, unknown>;
+
+  const writes: EntityWrite[] = [
+    {
+      entityType: extraction.type,
+      entityId,
+      action: "create",
+    },
+  ];
+
+  const receiptData = {
+    id: receiptId,
+    inboxItemId: inboxItem.id,
+    classification: classification.classification,
+    extractedFields: {
+      ...extraction.data as unknown as Record<string, unknown>,
+      _circuitBreakerTriggered: wasForced,
+      _clarificationAttempts: inboxItem.clarificationAttempts,
+    },
+    confidenceScore: classification.confidence,
+    modelUsed: provider.model,
+    timestamp: now,
+    writes,
+    personalContextUsed: relevantContextIds,
+  };
+
+  // Execute entity creation in transaction
+  await db.transaction(async (tx) => {
+    switch (extraction.type) {
+      case "task": {
+        const taskData = {
+          id: entityId,
+          title: extraction.data.title,
+          nextAction: extraction.data.nextAction,
+          dueDate: extraction.data.dueDate ? new Date(extraction.data.dueDate) : null,
+          context: extraction.data.context,
+          status: "active" as const,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await tx.insert(schema.tasks).values(taskData);
+        entityData = taskData;
+        break;
+      }
+      case "project": {
+        const projectData = {
+          id: entityId,
+          name: extraction.data.name,
+          desiredOutcome: extraction.data.desiredOutcome,
+          nextAction: extraction.data.nextAction,
+          status: "active" as const,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await tx.insert(schema.projects).values(projectData);
+        entityData = projectData;
+        break;
+      }
+      case "idea": {
+        const ideaData = {
+          id: entityId,
+          title: extraction.data.title,
+          summary: extraction.data.summary,
+          links: extraction.data.links,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await tx.insert(schema.ideas).values(ideaData);
+        entityData = ideaData;
+        break;
+      }
+      case "person": {
+        const personData = {
+          id: entityId,
+          name: extraction.data.name,
+          relationshipContext: extraction.data.relationshipContext,
+          followUpNextAction: extraction.data.followUpNextAction,
+          lastTouchedAt: now,
+          sourceInboxItemId: inboxItem.id,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await tx.insert(schema.persons).values(personData);
+        entityData = personData;
+        break;
+      }
+    }
+
+    await tx.insert(schema.receipts).values(receiptData);
+  });
+
+  console.log(`[CIRCUIT_BREAKER] Successfully force-filed ${inboxItem.id} as ${extraction.type} (entity: ${entityId})`);
+
+  return {
+    inboxItemId: inboxItem.id,
+    classification,
+    action: "flagged", // Mark as flagged since it was force-filed
+    receipt: receiptData,
+    entity: {
+      type: extraction.type,
+      id: entityId,
+      data: entityData!,
     },
   };
 }
