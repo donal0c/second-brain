@@ -46,7 +46,7 @@ type SearchResult = TaskSearchResult | ProjectSearchResult | IdeaSearchResult;
 // Search Schemas
 // =============================================================================
 
-const SearchQuerySchema = z.object({
+export const SearchQuerySchema = z.object({
   q: z.string().min(1).max(200),
   type: z.enum(["task", "project", "idea"]).optional(),
   context: z.string().optional(),
@@ -58,13 +58,13 @@ const SearchQuerySchema = z.object({
 });
 
 // =============================================================================
-// Helper Functions
+// Helper Functions (exported for testing)
 // =============================================================================
 
 /**
  * Escape HTML entities to prevent XSS when rendering user content
  */
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -76,7 +76,7 @@ function escapeHtml(text: string): string {
 /**
  * Escape special regex characters in a string
  */
-function escapeRegex(text: string): string {
+export function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -87,7 +87,7 @@ function escapeRegex(text: string): string {
  * @param maxLength Maximum length of snippet
  * @returns Snippet with <mark> tags around matching terms (HTML-escaped)
  */
-function generateSnippet(text: string, query: string, maxLength: number = 200): string {
+export function generateSnippet(text: string, query: string, maxLength: number = 200): string {
   if (!text) return "";
 
   // Split query into terms
@@ -136,6 +136,22 @@ function generateSnippet(text: string, query: string, maxLength: number = 200): 
   return snippet;
 }
 
+/**
+ * Calculate relevance score for a title based on query match type
+ * @param title The title to score
+ * @param query The search query
+ * @returns Score: 3 for exact match, 2 for prefix match, 1 for contains, 0 for no match
+ */
+export function getTitleRelevanceScore(title: string, query: string): number {
+  const lowerTitle = title.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  // Higher score for exact matches, then prefix, then contains
+  if (lowerTitle === lowerQuery) return 3;
+  if (lowerTitle.startsWith(lowerQuery)) return 2;
+  if (lowerTitle.includes(lowerQuery)) return 1;
+  return 0;
+}
+
 
 // =============================================================================
 // Search Route
@@ -161,17 +177,6 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const searchPattern = `%${q}%`;
-
-        // Helper to calculate relevance score for a title
-        const getTitleRelevanceScore = (title: string): number => {
-          const lowerTitle = title.toLowerCase();
-          const lowerQuery = q.toLowerCase();
-          // Higher score for exact matches, then prefix, then contains
-          if (lowerTitle === lowerQuery) return 3;
-          if (lowerTitle.startsWith(lowerQuery)) return 2;
-          if (lowerTitle.includes(lowerQuery)) return 1;
-          return 0;
-        };
 
         // Single-type search: use SQL-level pagination for efficiency
         if (type) {
@@ -447,8 +452,8 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
         };
 
         results.sort((a, b) => {
-          const aScore = getTitleRelevanceScore(getEntityTitle(a));
-          const bScore = getTitleRelevanceScore(getEntityTitle(b));
+          const aScore = getTitleRelevanceScore(getEntityTitle(a), q);
+          const bScore = getTitleRelevanceScore(getEntityTitle(b), q);
           return bScore - aScore;
         });
 
