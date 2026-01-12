@@ -891,6 +891,161 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
 }
 
 // =============================================================================
+// Review Queue Routes
+// =============================================================================
+
+const ReviewQuerySchema = z.object({
+  limit: z.coerce.number().min(1).max(100).optional().default(50),
+});
+
+async function reviewRoutes(app: FastifyInstance): Promise<void> {
+  // GET /review - List all entities needing review across all types
+  app.get(
+    "/review",
+    async (
+      request: FastifyRequest<{ Querystring: z.infer<typeof ReviewQuerySchema> }>,
+      reply: FastifyReply
+    ) => {
+      const parseResult = ReviewQuerySchema.safeParse(request.query);
+      if (!parseResult.success) {
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          parseResult.error.flatten().fieldErrors
+        );
+      }
+
+      const { limit } = parseResult.data;
+
+      // Fetch entities needing review from all tables in parallel
+      const [tasks, projects, ideas, persons] = await Promise.all([
+        db
+          .select()
+          .from(schema.tasks)
+          .where(eq(schema.tasks.needsReview, true))
+          .orderBy(desc(schema.tasks.updatedAt))
+          .limit(limit),
+        db
+          .select()
+          .from(schema.projects)
+          .where(eq(schema.projects.needsReview, true))
+          .orderBy(desc(schema.projects.updatedAt))
+          .limit(limit),
+        db
+          .select()
+          .from(schema.ideas)
+          .where(eq(schema.ideas.needsReview, true))
+          .orderBy(desc(schema.ideas.updatedAt))
+          .limit(limit),
+        db
+          .select()
+          .from(schema.persons)
+          .where(eq(schema.persons.needsReview, true))
+          .orderBy(desc(schema.persons.updatedAt))
+          .limit(limit),
+      ]);
+
+      // Count totals for each type
+      const [taskCount, projectCount, ideaCount, personCount] = await Promise.all([
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.needsReview, true)),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.projects)
+          .where(eq(schema.projects.needsReview, true)),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.ideas)
+          .where(eq(schema.ideas.needsReview, true)),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(schema.persons)
+          .where(eq(schema.persons.needsReview, true)),
+      ]);
+
+      // Transform to unified format with entity type
+      const reviewItems = [
+        ...tasks.map((t) => ({ entityType: "task" as const, ...t })),
+        ...projects.map((p) => ({ entityType: "project" as const, ...p })),
+        ...ideas.map((i) => ({ entityType: "idea" as const, ...i })),
+        ...persons.map((p) => ({ entityType: "person" as const, ...p })),
+      ];
+
+      // Sort by updatedAt descending and apply limit
+      reviewItems.sort((a, b) => {
+        const aTime = a.updatedAt?.getTime() ?? 0;
+        const bTime = b.updatedAt?.getTime() ?? 0;
+        return bTime - aTime;
+      });
+
+      const totalCount =
+        (taskCount[0]?.count ?? 0) +
+        (projectCount[0]?.count ?? 0) +
+        (ideaCount[0]?.count ?? 0) +
+        (personCount[0]?.count ?? 0);
+
+      return reply.send({
+        data: reviewItems.slice(0, limit),
+        meta: {
+          total: totalCount,
+          byType: {
+            tasks: taskCount[0]?.count ?? 0,
+            projects: projectCount[0]?.count ?? 0,
+            ideas: ideaCount[0]?.count ?? 0,
+            persons: personCount[0]?.count ?? 0,
+          },
+          limit,
+        },
+      });
+    }
+  );
+
+  // POST /review/:entityType/:id/approve - Mark an entity as reviewed
+  app.post(
+    "/review/:entityType/:id/approve",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof FixParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      const paramsResult = FixParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return sendValidationError(
+          reply,
+          "Validation failed",
+          paramsResult.error.flatten().fieldErrors
+        );
+      }
+
+      const { entityType, id } = paramsResult.data;
+
+      // Map plural entity type to table
+      const entityTypeMap = {
+        tasks: schema.tasks,
+        projects: schema.projects,
+        ideas: schema.ideas,
+        persons: schema.persons,
+      };
+
+      const table = entityTypeMap[entityType];
+
+      const result = await db
+        .update(table)
+        .set({ needsReview: false, updatedAt: new Date() })
+        .where(eq(table.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        return sendNotFound(reply, entityType.slice(0, -1)); // Remove 's' for singular
+      }
+
+      return sendData(reply, result[0]);
+    }
+  );
+}
+
+// =============================================================================
 // Main Export
 // =============================================================================
 
@@ -900,4 +1055,5 @@ export async function entityRoutes(app: FastifyInstance): Promise<void> {
   await ideaRoutes(app);
   await personRoutes(app);
   await fixRoutes(app);
+  await reviewRoutes(app);
 }
