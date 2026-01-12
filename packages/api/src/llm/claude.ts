@@ -406,13 +406,14 @@ Guidelines:
 - "the office" is NOT an entity. "Acme Corp headquarters" IS.
 - "a meeting" is NOT an entity. "Q4 Planning" might be a concept.
 - Infer the domain (work, family, health, finance, etc.) when context clues exist
+- Provide a brief description (1 sentence) of who/what the entity is based on context
 - Return an empty array if no specific named entities are found
 - Be conservative - only extract entities you're confident about
 
 Respond with JSON only:
 {
   "entities": [
-    { "name": "...", "type": "person|place|organization|concept", "domain": "work|family|health|..." or null }
+    { "name": "...", "type": "person|place|organization|concept", "description": "Brief description based on context" or null, "domain": "work|family|health|..." or null }
   ]
 }`;
 

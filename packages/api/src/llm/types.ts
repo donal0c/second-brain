@@ -189,6 +189,7 @@ export interface PersonalContext {
 export interface ExtractedContextEntity {
   name: string;
   type: "person" | "place" | "organization" | "concept";
+  description: string | null; // Brief description of this entity
   domain: string | null; // e.g., "work", "family", "health"
 }
 

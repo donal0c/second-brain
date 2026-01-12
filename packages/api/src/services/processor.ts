@@ -858,6 +858,8 @@ async function upsertPersonalContext(
         learnedFrom,
         // Update domain if we learned a new one and didn't have one before
         domain: current.domain || entity.domain,
+        // Update description if we learned a new one and didn't have one before
+        description: current.description || entity.description,
         updatedAt: now,
       })
       .where(eq(schema.personalContexts.id, current.id));
@@ -870,6 +872,7 @@ async function upsertPersonalContext(
       id,
       name: entity.name,
       type: entity.type,
+      description: entity.description,
       domain: entity.domain,
       mentionCount: 1,
       learnedFrom: [receiptId],
