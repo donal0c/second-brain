@@ -50,6 +50,13 @@
       "when": 1768205809144,
       "tag": "0006_flowery_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1768205797875,
+      "tag": "0007_lowly_siren",
+      "breakpoints": true
     }
   ]
 }

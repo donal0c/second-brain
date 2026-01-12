@@ -115,6 +115,9 @@ export const receipts = pgTable("receipts", {
   personalContextUsed: jsonb("personal_context_used")
     .$type<string[]>()
     .default([]),
+  contextExtractionStatus: text("context_extraction_status", {
+    enum: ["pending", "success", "failed", "skipped"],
+  }).default("pending"),
 }, (table) => ({
   inboxItemIdIdx: index("receipts_inbox_item_id_idx").on(table.inboxItemId),
   timestampIdx: index("receipts_timestamp_idx").on(table.timestamp),

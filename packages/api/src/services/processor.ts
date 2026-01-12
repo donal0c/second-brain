@@ -695,9 +695,8 @@ async function handleExtraction(
 
   // Extract personal context entities (async, non-blocking for main flow)
   // This is where the system "learns" about the user's world
-  extractAndStoreContext(inboxItem.rawText, receiptId).catch((err) =>
-    console.error("Context extraction failed:", err)
-  );
+  // Status is tracked in receipt.contextExtractionStatus
+  void extractAndStoreContext(inboxItem.rawText, receiptId);
 
   return {
     inboxItemId: inboxItem.id,
@@ -781,13 +780,27 @@ export async function recoverStaleProcessingItems(
 // =============================================================================
 
 /**
- * Extract and store personal context entities from processed text
+ * Extract and store personal context entities from processed text.
+ * Updates the receipt with the extraction status (success/failed/skipped).
  */
 export async function extractAndStoreContext(
   text: string,
   receiptId: string
 ): Promise<string[]> {
+  // Helper to update receipt status
+  const updateReceiptStatus = async (status: "success" | "failed" | "skipped") => {
+    try {
+      await db
+        .update(schema.receipts)
+        .set({ contextExtractionStatus: status })
+        .where(eq(schema.receipts.id, receiptId));
+    } catch (err) {
+      console.error(`Failed to update receipt ${receiptId} context extraction status:`, err);
+    }
+  };
+
   if (!hasLLMProvider()) {
+    await updateReceiptStatus("skipped");
     return [];
   }
 
@@ -797,6 +810,7 @@ export async function extractAndStoreContext(
     const { entities } = await provider.extractContextEntities(text);
 
     if (entities.length === 0) {
+      await updateReceiptStatus("success");
       return [];
     }
 
@@ -807,10 +821,11 @@ export async function extractAndStoreContext(
       storedIds.push(contextId);
     }
 
+    await updateReceiptStatus("success");
     return storedIds;
   } catch (error) {
-    // Log but don't fail the main processing
     console.error("Failed to extract context entities:", error);
+    await updateReceiptStatus("failed");
     return [];
   }
 }
