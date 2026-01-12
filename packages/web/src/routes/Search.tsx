@@ -15,6 +15,7 @@ export function Search() {
 
   // Filter states
   const [query, setQuery] = useState(searchParams.get("q") || "");
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [typeFilter, setTypeFilter] = useState<"task" | "project" | "idea" | "">("");
   const [statusFilter, setStatusFilter] = useState("");
   const [contextFilter, setContextFilter] = useState("");
@@ -28,9 +29,18 @@ export function Search() {
     }
   }, [searchParams]);
 
-  // Perform search when query or filters change
+  // Debounce query changes (300ms delay)
   useEffect(() => {
-    if (!query.trim()) {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Perform search when debounced query or filters change
+  useEffect(() => {
+    if (!debouncedQuery.trim()) {
       setResults([]);
       setTotal(0);
       return;
@@ -45,7 +55,7 @@ export function Search() {
       try {
         const response = await search.query(
           {
-            q: query,
+            q: debouncedQuery,
             type: typeFilter || undefined,
             status: statusFilter || undefined,
             context: contextFilter || undefined,
@@ -73,11 +83,13 @@ export function Search() {
     return () => {
       controller.abort();
     };
-  }, [query, typeFilter, statusFilter, contextFilter, searchTrigger]);
+  }, [debouncedQuery, typeFilter, statusFilter, contextFilter, searchTrigger]);
 
   const handleQuerySubmit = (e: FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      // Immediately trigger search on form submit (bypass debounce)
+      setDebouncedQuery(query);
       setSearchTrigger((t) => t + 1);
     }
   };
