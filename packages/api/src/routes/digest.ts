@@ -77,13 +77,31 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       const topTasks = sortedTasks.slice(0, maxItems);
 
       // Get flagged receipts (confidence between 0.5 and 0.8)
+      // Exclude items that are blocked awaiting clarification - those appear in pendingClarifications
       const flaggedReceipts = await db
-        .select()
+        .select({
+          id: schema.receipts.id,
+          inboxItemId: schema.receipts.inboxItemId,
+          classification: schema.receipts.classification,
+          extractedFields: schema.receipts.extractedFields,
+          confidenceScore: schema.receipts.confidenceScore,
+          modelUsed: schema.receipts.modelUsed,
+          timestamp: schema.receipts.timestamp,
+          writes: schema.receipts.writes,
+          previousReceiptId: schema.receipts.previousReceiptId,
+          personalContextUsed: schema.receipts.personalContextUsed,
+        })
         .from(schema.receipts)
+        .leftJoin(schema.inboxItems, eq(schema.receipts.inboxItemId, schema.inboxItems.id))
         .where(
           and(
             sql`${schema.receipts.confidenceScore} >= 0.5`,
-            sql`${schema.receipts.confidenceScore} < 0.8`
+            sql`${schema.receipts.confidenceScore} < 0.8`,
+            // Exclude items awaiting clarification (status='blocked')
+            or(
+              isNull(schema.inboxItems.status),
+              sql`${schema.inboxItems.status} != 'blocked'`
+            )
           )
         )
         .orderBy(desc(schema.receipts.timestamp))
