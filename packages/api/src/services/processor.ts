@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import { eq, desc, sql, and, lt } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
-import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext } from "../llm/types.js";
+import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext, ExtractionResult } from "../llm/types.js";
 import { validateExtractionResult } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 
@@ -380,8 +380,8 @@ async function handleForceFile(
     );
 
     // Validate extraction - if invalid, use best-effort
-    const validation = validateExtraction(extraction);
-    if (!validation.valid) {
+    const validation = validateExtractionResult(extraction);
+    if (!validation.success) {
       console.log(`[CIRCUIT_BREAKER] Validation failed for ${inboxItem.id}, using best-effort extraction`);
       extraction = buildBestEffortExtraction(
         inboxItem.rawText,
