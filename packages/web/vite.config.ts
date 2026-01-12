@@ -6,42 +6,51 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       includeAssets: ["icon-192.png", "icon-512.png"],
       manifest: {
         name: "Second Brain",
         short_name: "SecondBrain",
         description: "Your personal knowledge management system",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#ffffff",
         theme_color: "#111827",
+        orientation: "portrait-primary",
+        categories: ["productivity", "utilities"],
         icons: [
           {
             src: "icon-192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any maskable",
           },
           {
             src: "icon-512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any maskable",
+          },
+        ],
+        shortcuts: [
+          {
+            name: "Capture",
+            short_name: "Capture",
+            description: "Quickly capture a thought",
+            url: "/capture",
+            icons: [{ src: "icon-192.png", sizes: "192x192" }],
           },
         ],
       },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^\/api\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
-              },
-              networkTimeoutSeconds: 10,
-            },
-          },
-        ],
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+      },
+      devOptions: {
+        enabled: true,
+        type: "module",
       },
     }),
   ],
