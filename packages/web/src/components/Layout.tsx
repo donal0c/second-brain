@@ -25,7 +25,9 @@ function Icon({ name, className }: { name: string; className?: string }) {
     "folder": "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
     "help": "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
     "receipt": "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01",
-    "search": "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+    "search": "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+    "menu": "M4 6h16M4 12h16M4 18h16",
+    "close": "M6 18L18 6M6 6l12 12"
   };
 
   return (
@@ -39,6 +41,7 @@ export function Layout() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingClarifications, setPendingClarifications] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -59,18 +62,56 @@ export function Layout() {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSidebarOpen(false);
     }
   };
 
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div data-design-version="v4-polish" className="flex h-screen bg-white font-sans antialiased text-gray-900 overflow-hidden">
+      {/* Mobile Header */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:hidden z-40">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center text-xs font-black shadow-glow">S</div>
+          <span className="font-bold text-base tracking-tight text-gray-900">Second Brain</span>
+        </div>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          aria-label="Open menu"
+        >
+          <Icon name="menu" className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-gray-50/50 border-r border-gray-100 flex flex-col flex-shrink-0">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-gray-50/50 border-r border-gray-100 flex flex-col flex-shrink-0
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0
+      `}>
         <div className="p-6 h-20 flex items-center justify-between">
            <div className="flex items-center gap-3">
              <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center text-xs font-black shadow-glow">S</div>
              <span className="font-bold text-base tracking-tight text-gray-900">Second Brain</span>
            </div>
+           <button
+             onClick={closeSidebar}
+             className="p-2 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors md:hidden"
+             aria-label="Close menu"
+           >
+             <Icon name="close" className="w-5 h-5" />
+           </button>
         </div>
 
         <div className="px-6 mb-8">
@@ -102,6 +143,7 @@ export function Layout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  onClick={closeSidebar}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
                       isActive
@@ -128,6 +170,7 @@ export function Layout() {
                   <NavLink
                     key={item.to}
                     to={item.to}
+                    onClick={closeSidebar}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
                         isActive
@@ -165,8 +208,8 @@ export function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto bg-white">
-        <div className="max-w-4xl mx-auto px-12 py-16 animate-fade-in">
+      <main className="flex-1 overflow-auto bg-white pt-16 md:pt-0">
+        <div className="max-w-4xl mx-auto px-4 py-6 md:px-12 md:py-16 animate-fade-in">
           <Outlet />
         </div>
       </main>
