@@ -80,31 +80,31 @@ export function Capture() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-12 animate-fade-in">
-      <header className="mb-12">
-        <h2 className="text-4xl font-bold text-gray-900 tracking-tight mb-3">Capture</h2>
+    <div className="max-w-3xl mx-auto py-6 md:py-12 animate-fade-in">
+      <header className="mb-8 md:mb-12">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight mb-2 md:mb-3">Capture</h2>
         <p className="text-gray-500 text-lg">
           Quickly dump thoughts, tasks, and ideas into your second brain.
         </p>
       </header>
 
       <form onSubmit={handleSubmit} className="relative">
-        <div className="bg-white rounded-3xl shadow-card border border-gray-100 overflow-hidden transition-all duration-500 focus-within:shadow-card-hover focus-within:ring-1 focus-within:ring-gray-200">
-          <div className="p-8">
+        <div className="bg-white rounded-2xl md:rounded-3xl shadow-card border border-gray-100 overflow-hidden transition-all duration-500 focus-within:shadow-card-hover focus-within:ring-1 focus-within:ring-gray-200">
+          <div className="p-4 md:p-8">
             <textarea
               value={text + (interimTranscript ? ` ${interimTranscript}` : "")}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full h-56 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-xl leading-relaxed placeholder:text-gray-200 text-gray-900 font-medium"
+              className="w-full h-40 md:h-56 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-lg md:text-xl leading-relaxed placeholder:text-gray-200 text-gray-900 font-medium"
               placeholder="What's on your mind?"
               disabled={isSubmitting || isListening}
               autoFocus
             />
           </div>
 
-          <div className="px-8 py-6 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">
+          <div className="px-4 md:px-8 py-4 md:py-6 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 md:gap-6 flex-wrap">
+              <div className="hidden md:flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">
                 <div className="flex gap-1">
                   <kbd className="px-2 py-1 bg-white border border-gray-200 rounded-md text-gray-400 shadow-sm font-sans">CMD</kbd>
                   <kbd className="px-2 py-1 bg-white border border-gray-200 rounded-md text-gray-400 shadow-sm font-sans">ENTER</kbd>
@@ -125,7 +125,7 @@ export function Capture() {
                 <button
                   type="button"
                   onClick={() => isListening ? stopListening() : startListening()}
-                  className={`p-3 rounded-full transition-all duration-300 ${
+                  className={`p-2.5 md:p-3 rounded-full transition-all duration-300 ${
                     isListening
                       ? "bg-rose-500 text-white shadow-glow animate-pulse"
                       : "bg-white text-gray-400 hover:text-gray-600 border border-gray-200 shadow-sm"
@@ -141,7 +141,7 @@ export function Capture() {
             <button
               type="submit"
               disabled={!text.trim() || isSubmitting}
-              className="px-8 py-3 bg-primary text-white rounded-full font-bold text-sm shadow-premium hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 disabled:opacity-10 disabled:grayscale disabled:pointer-events-none tracking-wide"
+              className="px-5 md:px-8 py-2.5 md:py-3 bg-primary text-white rounded-full font-bold text-sm shadow-premium hover:bg-primary-hover hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 disabled:opacity-10 disabled:grayscale disabled:pointer-events-none tracking-wide flex-shrink-0"
             >
               {isSubmitting ? "Capturing..." : "Capture"}
             </button>
@@ -177,8 +177,8 @@ export function Capture() {
         </div>
       </form>
 
-      <section className="mt-32 pt-12 border-t border-gray-100">
-        <h3 className="text-xs font-bold text-gray-300 uppercase tracking-[0.3em] mb-8">Best Practices</h3>
+      <section className="mt-20 md:mt-32 pt-8 md:pt-12 border-t border-gray-100">
+        <h3 className="text-xs font-bold text-gray-300 uppercase tracking-[0.3em] mb-6 md:mb-8">Best Practices</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { title: "Stream of Consciousness", desc: "Don't edit yourself. Just get the words out. We'll handle the formatting later.", icon: "✍️" },

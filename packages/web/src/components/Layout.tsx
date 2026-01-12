@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { digest } from "../lib/api";
@@ -25,7 +25,9 @@ function Icon({ name, className }: { name: string; className?: string }) {
     "folder": "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
     "help": "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
     "receipt": "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01",
-    "search": "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+    "search": "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+    "menu": "M4 6h16M4 12h16M4 18h16",
+    "close": "M6 18L18 6M6 6l12 12"
   };
 
   return (
@@ -37,8 +39,15 @@ function Icon({ name, className }: { name: string; className?: string }) {
 
 export function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [pendingClarifications, setPendingClarifications] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -59,46 +68,64 @@ export function Layout() {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setMobileMenuOpen(false);
     }
   };
 
-  return (
-    <div data-design-version="v4-polish" className="flex h-screen bg-white font-sans antialiased text-gray-900 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-72 bg-gray-50/50 border-r border-gray-100 flex flex-col flex-shrink-0">
-        <div className="p-6 h-20 flex items-center justify-between">
-           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center text-xs font-black shadow-glow">S</div>
-             <span className="font-bold text-base tracking-tight text-gray-900">Second Brain</span>
-           </div>
-        </div>
+  const sidebarContent = (
+    <>
+      <div className="px-6 mb-8">
+        <form onSubmit={handleSearch} className="relative group">
+          <Icon name="search" className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-focus-within:text-gray-900 transition-colors" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search anything..."
+            className="w-full bg-white border border-gray-200/80 rounded-xl py-2 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 transition-all shadow-subtle"
+          />
+          <button
+            type="submit"
+            className="absolute right-2 top-1.5 p-1 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            aria-label="Search"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </form>
+      </div>
 
-        <div className="px-6 mb-8">
-           <form onSubmit={handleSearch} className="relative group">
-              <Icon name="search" className="absolute left-3 top-2.5 w-4 h-4 text-gray-400 group-focus-within:text-gray-900 transition-colors" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search anything..."
-                className="w-full bg-white border border-gray-200/80 rounded-xl py-2 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 transition-all shadow-subtle"
-              />
-              <button
-                type="submit"
-                className="absolute right-2 top-1.5 p-1 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                aria-label="Search"
+      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-10">
+        <div>
+          <nav className="space-y-1">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                    isActive
+                      ? "bg-white text-gray-900 shadow-premium border border-gray-100"
+                      : "text-gray-400 hover:text-gray-900 hover:bg-white/50"
+                  }`
+                }
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-           </form>
+                <Icon name={item.icon} className="w-4 h-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-10">
-          <div>
-            <nav className="space-y-1">
-              {navItems.map((item) => (
+        <div>
+          <div className="px-4 mb-4 text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">
+            System
+          </div>
+          <nav className="space-y-1">
+            {secondaryItems.map((item) => {
+              const showBadge = item.to === "/clarifications" && pendingClarifications > 0;
+              return (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -111,62 +138,95 @@ export function Layout() {
                   }
                 >
                   <Icon name={item.icon} className="w-4 h-4" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {showBadge && (
+                    <span className="bg-amber-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1.5">
+                      {pendingClarifications}
+                    </span>
+                  )}
                 </NavLink>
-              ))}
-            </nav>
-          </div>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
 
-          <div>
-            <div className="px-4 mb-4 text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">
-              System
+      <div className="p-6 border-t border-gray-100">
+        <div className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-2xl shadow-subtle hover:shadow-premium transition-all cursor-pointer group">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-gray-900 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white">DO</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-900 truncate">Donal O'C.</p>
+              <p className="text-[10px] text-gray-400 truncate font-medium uppercase tracking-wider">Pro Plan</p>
             </div>
-            <nav className="space-y-1">
-              {secondaryItems.map((item) => {
-                const showBadge = item.to === "/clarifications" && pendingClarifications > 0;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                        isActive
-                          ? "bg-white text-gray-900 shadow-premium border border-gray-100"
-                          : "text-gray-400 hover:text-gray-900 hover:bg-white/50"
-                      }`
-                    }
-                  >
-                    <Icon name={item.icon} className="w-4 h-4" />
-                    <span className="flex-1">{item.label}</span>
-                    {showBadge && (
-                      <span className="bg-amber-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1.5">
-                        {pendingClarifications}
-                      </span>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </nav>
+          </div>
+          <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div data-design-version="v4-polish" className="flex flex-col md:flex-row h-screen bg-white font-sans antialiased text-gray-900 overflow-hidden">
+      {/* Mobile Header */}
+      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-gray-50/50 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center text-xs font-black shadow-glow">S</div>
+          <span className="font-bold text-base tracking-tight text-gray-900">Second Brain</span>
+        </div>
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+        >
+          <Icon name={mobileMenuOpen ? "close" : "menu"} className="w-6 h-6" />
+        </button>
+      </header>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Sidebar (Slide-in) */}
+      <aside
+        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-gray-50/95 backdrop-blur-xl border-r border-gray-100 flex flex-col transform transition-transform duration-300 ease-out ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="p-6 h-20 flex items-center justify-between border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center text-xs font-black shadow-glow">S</div>
+            <span className="font-bold text-base tracking-tight text-gray-900">Second Brain</span>
+          </div>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            aria-label="Close menu"
+          >
+            <Icon name="close" className="w-5 h-5" />
+          </button>
+        </div>
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-72 bg-gray-50/50 border-r border-gray-100 flex-col flex-shrink-0">
+        <div className="p-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center text-xs font-black shadow-glow">S</div>
+            <span className="font-bold text-base tracking-tight text-gray-900">Second Brain</span>
           </div>
         </div>
-
-        <div className="p-6 border-t border-gray-100">
-          <div className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-2xl shadow-subtle hover:shadow-premium transition-all cursor-pointer group">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-gray-900 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white">DO</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-gray-900 truncate">Donal O'C.</p>
-                <p className="text-[10px] text-gray-400 truncate font-medium uppercase tracking-wider">Pro Plan</p>
-              </div>
-            </div>
-            <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
-          </div>
-        </div>
+        {sidebarContent}
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto bg-white">
-        <div className="max-w-4xl mx-auto px-12 py-16 animate-fade-in">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 md:px-12 py-8 md:py-16 animate-fade-in">
           <Outlet />
         </div>
       </main>
