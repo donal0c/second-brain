@@ -42,39 +42,28 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       today.setHours(0, 0, 0, 0);
 
       // Get active tasks, prioritized by due date and creation date
-      // For "work" or "personal" context, filter by context field
-      let tasksQuery = db
+      // Push filtering, sorting, and limiting to SQL to avoid O(n) memory usage
+      const contextFilter = context === "all"
+        ? eq(schema.tasks.status, "active")
+        : and(
+            eq(schema.tasks.status, "active"),
+            or(
+              isNull(schema.tasks.context),
+              sql`LOWER(${schema.tasks.context}) LIKE ${'%' + context + '%'}`
+            )
+          );
+
+      const topTasks = await db
         .select()
         .from(schema.tasks)
-        .where(eq(schema.tasks.status, "active"));
-
-      const allActiveTasks = await tasksQuery;
-
-      // Filter by context if specified
-      let filteredTasks = allActiveTasks;
-      if (context !== "all") {
-        filteredTasks = allActiveTasks.filter((task) => {
-          if (!task.context) return true; // Include tasks without context
-          const taskContext = task.context.toLowerCase();
-          return taskContext.includes(context);
-        });
-      }
-
-      // Sort tasks: due date (ascending, nulls last), then by creation date
-      const sortedTasks = filteredTasks.sort((a, b) => {
-        // Tasks with due dates come first
-        if (a.dueDate && !b.dueDate) return -1;
-        if (!a.dueDate && b.dueDate) return 1;
-        if (a.dueDate && b.dueDate) {
-          const diff = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-          if (diff !== 0) return diff;
-        }
-        // Then by creation date (older first)
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      });
-
-      // Take top tasks based on maxItems
-      const topTasks = sortedTasks.slice(0, maxItems);
+        .where(contextFilter)
+        .orderBy(
+          // Tasks with due dates first (nulls last), then by due date ascending, then created date
+          sql`CASE WHEN ${schema.tasks.dueDate} IS NULL THEN 1 ELSE 0 END`,
+          schema.tasks.dueDate,
+          schema.tasks.createdAt
+        )
+        .limit(maxItems);
 
       // Get flagged receipts (confidence between 0.5 and 0.8)
       // Exclude items that are blocked awaiting clarification - those appear in pendingClarifications
@@ -156,17 +145,19 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       const ideaCount = await db.select({ count: sql<number>`count(*)` }).from(schema.ideas);
 
       // Get new undescribed contexts (learned in last 24 hours)
+      // Push date filter to SQL to avoid loading all undescribed contexts
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const newContexts = await db
+      const recentNewContexts = await db
         .select()
         .from(schema.personalContexts)
-        .where(isNull(schema.personalContexts.description))
-        .orderBy(desc(schema.personalContexts.createdAt));
-
-      // Filter to recent ones
-      const recentNewContexts = newContexts.filter(
-        (ctx) => ctx.createdAt >= yesterday
-      );
+        .where(
+          and(
+            isNull(schema.personalContexts.description),
+            gte(schema.personalContexts.createdAt, yesterday)
+          )
+        )
+        .orderBy(desc(schema.personalContexts.createdAt))
+        .limit(20);
 
       return sendData(
         reply,
@@ -203,6 +194,7 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     // Get open loops (active tasks without due dates or overdue)
+    // Limit results to prevent memory issues with large datasets
     const now = new Date();
     const openLoops = await db
       .select()
@@ -213,7 +205,8 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
           or(isNull(schema.tasks.dueDate), lt(schema.tasks.dueDate, now))
         )
       )
-      .orderBy(schema.tasks.createdAt);
+      .orderBy(schema.tasks.createdAt)
+      .limit(100);
 
     // Get stale projects (not updated in 14+ days)
     const staleProjects = await db
@@ -279,30 +272,31 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       .limit(20);
 
     // Analyze task distribution for suggested areas of focus
-    const allActiveTasks = await db
-      .select()
+    // Use SQL GROUP BY to avoid loading all tasks into memory
+    const contextDistribution = await db
+      .select({
+        context: sql<string>`COALESCE(${schema.tasks.context}, 'uncategorized')`.as('context'),
+        count: sql<number>`count(*)`.as('count'),
+      })
       .from(schema.tasks)
-      .where(eq(schema.tasks.status, "active"));
+      .where(eq(schema.tasks.status, "active"))
+      .groupBy(sql`COALESCE(${schema.tasks.context}, 'uncategorized')`)
+      .orderBy(desc(sql`count(*)`))
+      .limit(5);
 
-    // Group tasks by context
-    const contextDistribution: Record<string, number> = {};
-    allActiveTasks.forEach((task) => {
-      const context = task.context || "uncategorized";
-      contextDistribution[context] = (contextDistribution[context] || 0) + 1;
-    });
-
-    // Sort contexts by task count
-    const sortedContexts = Object.entries(contextDistribution)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5);
-
-    // Identify long-standing tasks (created over 30 days ago, still active)
+    // Count long-standing tasks with SQL instead of loading all tasks
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const longStandingTasks = allActiveTasks.filter(
-      (task) => task.createdAt < thirtyDaysAgo
-    );
+    const longStandingCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.tasks)
+      .where(
+        and(
+          eq(schema.tasks.status, "active"),
+          lt(schema.tasks.createdAt, thirtyDaysAgo)
+        )
+      );
 
-    const suggestedFocus = sortedContexts.map(([context, count]) => ({
+    const suggestedFocus = contextDistribution.map(({ context, count }) => ({
       context,
       taskCount: count,
       suggestion: count > 10
@@ -311,11 +305,12 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
     }));
 
     // Add suggestion for long-standing tasks
-    if (longStandingTasks.length > 5) {
+    const longStandingTaskCount = longStandingCount[0]?.count ?? 0;
+    if (longStandingTaskCount > 5) {
       suggestedFocus.push({
         context: "long-standing",
-        taskCount: longStandingTasks.length,
-        suggestion: `${longStandingTasks.length} tasks have been active for 30+ days - review for relevance`,
+        taskCount: longStandingTaskCount,
+        suggestion: `${longStandingTaskCount} tasks have been active for 30+ days - review for relevance`,
       });
     }
 
