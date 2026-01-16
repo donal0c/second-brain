@@ -887,7 +887,16 @@ async function upsertPersonalContext(
     )
     ON CONFLICT ((LOWER(name))) DO UPDATE SET
       mention_count = personal_contexts.mention_count + 1,
-      learned_from = personal_contexts.learned_from || ${JSON.stringify([receiptId])}::jsonb,
+      learned_from = CASE
+        -- Skip if receiptId already in array (prevent duplicates)
+        WHEN personal_contexts.learned_from @> ${JSON.stringify([receiptId])}::jsonb
+        THEN personal_contexts.learned_from
+        -- Cap at 100 entries: remove oldest if at capacity
+        WHEN jsonb_array_length(personal_contexts.learned_from) >= 100
+        THEN (personal_contexts.learned_from - 0) || ${JSON.stringify([receiptId])}::jsonb
+        -- Normal append
+        ELSE personal_contexts.learned_from || ${JSON.stringify([receiptId])}::jsonb
+      END,
       domain = COALESCE(personal_contexts.domain, EXCLUDED.domain),
       description = COALESCE(personal_contexts.description, EXCLUDED.description),
       updated_at = EXCLUDED.updated_at
