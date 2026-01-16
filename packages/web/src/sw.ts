@@ -7,6 +7,21 @@ import { BackgroundSyncPlugin } from "workbox-background-sync";
 
 declare let self: ServiceWorkerGlobalScope;
 
+// API base URL from environment - injected at build time by Vite
+// This enables SW caching for cross-origin API requests when API is hosted elsewhere
+const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_ORIGIN = API_BASE ? new URL(API_BASE).origin : self.location.origin;
+
+// Helper to check if a request URL matches the API origin
+function isApiRequest(url: URL): boolean {
+  // Match same-origin /api/* or /inbox paths
+  if (url.origin === self.location.origin) {
+    return url.pathname.startsWith("/api/") || url.pathname.startsWith("/inbox");
+  }
+  // Match cross-origin API requests to configured API_ORIGIN
+  return url.origin === API_ORIGIN;
+}
+
 // Clean up old caches
 cleanupOutdatedCaches();
 
@@ -34,8 +49,9 @@ const bgSyncPlugin = new BackgroundSyncPlugin("capture-queue", {
 
 // Cache API responses with NetworkFirst strategy
 // Falls back to cache when offline
+// Supports both same-origin and cross-origin API requests (via VITE_API_URL)
 registerRoute(
-  ({ url }) => url.pathname.startsWith("/api/") || url.pathname.startsWith("/inbox"),
+  ({ url }) => isApiRequest(url),
   new NetworkFirst({
     cacheName: "api-cache",
     plugins: [
@@ -50,10 +66,17 @@ registerRoute(
 );
 
 // Handle POST requests to /inbox with background sync
+// Supports both same-origin and cross-origin API requests
 registerRoute(
-  ({ url, request }) =>
-    (url.pathname === "/inbox" || url.pathname.endsWith("/inbox")) &&
-    request.method === "POST",
+  ({ url, request }) => {
+    if (request.method !== "POST") return false;
+    // Same-origin: match /inbox path
+    if (url.origin === self.location.origin) {
+      return url.pathname === "/inbox" || url.pathname.endsWith("/inbox");
+    }
+    // Cross-origin: match configured API origin + /inbox path
+    return url.origin === API_ORIGIN && url.pathname === "/inbox";
+  },
   new NetworkFirst({
     cacheName: "inbox-posts",
     plugins: [bgSyncPlugin],
@@ -143,3 +166,4 @@ self.addEventListener("fetch", (event) => {
 });
 
 console.log("[SW] Service worker initialized with background sync support");
+console.log(`[SW] API origin configured: ${API_ORIGIN}`);
