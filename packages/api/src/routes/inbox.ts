@@ -41,7 +41,7 @@ const CaptureBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  status: z.enum(["new", "processing", "processed", "blocked"]).optional(),
+  status: z.enum(["new", "processing", "processed", "blocked", "error"]).optional(),
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
 });
