@@ -18,6 +18,30 @@ import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 /** Maximum clarification attempts before circuit breaker triggers force-filing */
 const MAX_CLARIFICATION_ATTEMPTS = 3;
 
+/** Known safe error code prefixes that don't contain user data */
+const SAFE_ERROR_PREFIXES = [
+  "LLM_JSON_PARSE_ERROR",
+  "ANTHROPIC_API_ERROR",
+  "VALIDATION_ERROR",
+  "PROCESSING_TIMEOUT",
+  "CONTEXT_FETCH_ERROR",
+];
+
+/**
+ * Sanitize error messages to avoid persisting/exposing sensitive user data.
+ * Only allows known safe error codes; replaces unknown errors with opaque message.
+ */
+function sanitizeErrorMessage(message: string): string {
+  // Check if error starts with a known safe prefix
+  for (const prefix of SAFE_ERROR_PREFIXES) {
+    if (message.startsWith(prefix)) {
+      return message.substring(0, 200); // Safe prefix, but truncate
+    }
+  }
+  // Unknown error - return opaque message to avoid leaking user data
+  return "PROCESSING_ERROR: An error occurred during processing";
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -285,14 +309,15 @@ export async function processInboxItem(
 
     return result;
   } catch (error) {
-    // Set error status with message for debugging
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Sanitize error message to avoid exposing sensitive data (e.g., user prompts in LLM responses)
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    const sanitizedMessage = sanitizeErrorMessage(rawMessage);
     await db
       .update(schema.inboxItems)
       .set({
         status: "error",
         processingStartedAt: null,
-        errorMessage: errorMessage.substring(0, 1000), // Truncate to reasonable length
+        errorMessage: sanitizedMessage,
       })
       .where(eq(schema.inboxItems.id, inboxItemId));
     throw error;

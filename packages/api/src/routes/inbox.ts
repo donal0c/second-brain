@@ -21,6 +21,20 @@ import {
 // Request/Response Types
 // =============================================================================
 
+/**
+ * Sanitize inbox item for API response.
+ * Removes errorMessage to prevent exposing potentially sensitive data
+ * that may have been persisted before the fix was applied.
+ */
+function sanitizeInboxItem<T extends { errorMessage?: string | null }>(item: T): Omit<T, 'errorMessage'> & { hasError: boolean } {
+  const { errorMessage, ...rest } = item;
+  return { ...rest, hasError: errorMessage !== null && errorMessage !== undefined };
+}
+
+function sanitizeInboxItems<T extends { errorMessage?: string | null }>(items: T[]): (Omit<T, 'errorMessage'> & { hasError: boolean })[] {
+  return items.map(sanitizeInboxItem);
+}
+
 const CaptureBodySchema = z.object({
   rawText: z.string().min(1, "rawText is required"),
   source: z.enum(["web", "api", "reprocess"]).optional().default("web"),
@@ -161,7 +175,7 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
 
       const total = countResult[0]?.count ?? 0;
 
-      return sendList(reply, items, { total, limit, offset });
+      return sendList(reply, sanitizeInboxItems(items), { total, limit, offset });
     }
   );
 
@@ -193,7 +207,7 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
         return sendNotFound(reply, "Inbox item");
       }
 
-      return sendData(reply, items[0]);
+      return sendData(reply, sanitizeInboxItem(items[0]));
     }
   );
 
@@ -316,9 +330,10 @@ export async function inboxRoutes(app: FastifyInstance): Promise<void> {
         });
       } catch (err) {
         request.log.error({ id, error: err }, "Failed to reprocess inbox item");
+        // Don't expose error message in response - may contain sensitive user data
         return sendData(reply, {
           reprocessed: false,
-          processingError: err instanceof Error ? err.message : "Processing failed",
+          processingError: "Processing failed - check server logs for details",
         });
       }
     }

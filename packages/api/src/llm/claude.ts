@@ -614,7 +614,8 @@ ${context.map(formatContext).join("\n")}`;
     try {
       return JSON.parse(jsonStr.trim()) as T;
     } catch {
-      throw new Error(`Failed to parse JSON response: ${content}`);
+      // Don't include content in error - may contain sensitive user data
+      throw new Error("LLM_JSON_PARSE_ERROR: Failed to parse JSON response");
     }
   }
 }
