@@ -393,8 +393,9 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           }
         }
 
-        // Cross-type search: fetch all results, combine, sort by relevance, then paginate
-        // This approach is necessary for accurate cross-type relevance sorting
+        // Cross-type search: fetch capped results per type, combine, sort by relevance, then paginate
+        // Cap per-type results to prevent memory bloat while maintaining reasonable ranking accuracy
+        const perTypeLimit = Math.max(limit * 2, 100); // Fetch enough candidates for accurate cross-type sorting
         const results: SearchResult[] = [];
 
         // Build task conditions
@@ -465,12 +466,12 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
         }
 
-        // Fetch all matching results in parallel
+        // Fetch capped results per type in parallel to prevent memory bloat
         const [tasks, projects, ideas, persons] = await Promise.all([
-          db.select().from(schema.tasks).where(and(...taskConditions)),
-          db.select().from(schema.projects).where(and(...projectConditions)),
-          db.select().from(schema.ideas).where(and(...ideaConditions)),
-          db.select().from(schema.persons).where(and(...personConditions)),
+          db.select().from(schema.tasks).where(and(...taskConditions)).limit(perTypeLimit),
+          db.select().from(schema.projects).where(and(...projectConditions)).limit(perTypeLimit),
+          db.select().from(schema.ideas).where(and(...ideaConditions)).limit(perTypeLimit),
+          db.select().from(schema.persons).where(and(...personConditions)).limit(perTypeLimit),
         ]);
 
         // Convert to search results with relevance scores
@@ -550,7 +551,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           return bScore - aScore;
         });
 
-        // Store total before slicing for accurate pagination metadata
+        // Store total before slicing (note: may be capped per type for memory efficiency)
         const total = results.length;
 
         return sendData(
