@@ -31,8 +31,9 @@ const SAFE_ERROR_PREFIXES = [
 /**
  * Sanitize error messages to avoid persisting/exposing sensitive user data.
  * Only allows known safe error codes; replaces unknown errors with opaque message.
+ * Exported for testing.
  */
-function sanitizeErrorMessage(message: string): string {
+export function sanitizeErrorMessage(message: string): string {
   // Check if error starts with a known safe prefix
   for (const prefix of SAFE_ERROR_PREFIXES) {
     if (message.startsWith(prefix)) {
@@ -56,8 +57,9 @@ type EntityWrite = {
 /**
  * Generate a clarification question for validation errors.
  * Handles Zod validation errors and formats them into a user-friendly question.
+ * Exported for testing.
  */
-function buildValidationClarificationQuestion(
+export function buildValidationClarificationQuestion(
   errors: { path: string; message: string }[],
   entityType: string,
   rawText: string
@@ -80,8 +82,9 @@ function buildValidationClarificationQuestion(
 /**
  * Build best-effort extraction data when circuit breaker triggers.
  * Uses raw text to fill in required fields that couldn't be extracted.
+ * Exported for testing.
  */
-function buildBestEffortExtraction(
+export function buildBestEffortExtraction(
   rawText: string,
   classification: string,
   partialData?: Record<string, unknown>
@@ -165,8 +168,8 @@ export interface ProcessResult {
   };
 }
 
-// Map config action to our action names
-function mapAction(configAction: "file" | "flag" | "clarify"): "filed" | "flagged" | "clarify" {
+// Map config action to our action names (exported for testing)
+export function mapAction(configAction: "file" | "flag" | "clarify"): "filed" | "flagged" | "clarify" {
   if (configAction === "file") return "filed";
   if (configAction === "flag") return "flagged";
   return "clarify";
