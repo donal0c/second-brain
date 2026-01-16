@@ -457,6 +457,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
           ],
           previousReceiptId,
           personalContextUsed: [],
+          contextExtractionStatus: "skipped" as const, // User-directed, no context extraction needed
         };
 
         await db.insert(schema.receipts).values(receipt);
@@ -841,6 +842,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
           ],
           previousReceiptId,
           personalContextUsed: [],
+          contextExtractionStatus: "skipped" as const, // User-directed fix, no context extraction needed
         };
 
         await db.insert(schema.receipts).values(receipt);
@@ -897,6 +899,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
           ],
           previousReceiptId,
           personalContextUsed: [],
+          contextExtractionStatus: "skipped" as const, // User-directed fix, no context extraction needed
         };
 
         await db.insert(schema.receipts).values(receipt);
