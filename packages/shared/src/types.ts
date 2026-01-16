@@ -150,7 +150,7 @@ export type CreatePerson = z.infer<typeof CreatePersonSchema>;
 // --- Receipt (Audit Trail) ---
 export const ReceiptSchema = z.object({
   id: z.string().uuid(),
-  inboxItemId: z.string().uuid(),
+  inboxItemId: z.string().uuid().nullable(),
   classification: z.enum(["task", "project", "idea", "person", "unknown"]),
   extractedFields: z.record(z.unknown()),
   confidenceScore: z.number().min(0).max(1),

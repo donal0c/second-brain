@@ -46,10 +46,14 @@ export function Receipts() {
       setTotal(response.total);
       setOffset(newOffset);
 
-      // Load the original inbox text for each receipt
+      // Load the original inbox text for each receipt (skip if inboxItemId is null)
       const texts: Record<string, string> = {};
       await Promise.all(
         response.items.map(async (r) => {
+          if (!r.inboxItemId) {
+            // Manual entity creation - no source inbox item
+            return;
+          }
           if (!inboxTexts[r.inboxItemId]) {
             try {
               const inboxItem = await inbox.get(r.inboxItemId, signal);
@@ -268,7 +272,9 @@ export function Receipts() {
                     <div className="flex-1 min-w-0">
                       {/* Original text preview */}
                       <p className="text-gray-900 truncate">
-                        {inboxTexts[receipt.inboxItemId] || "Loading..."}
+                        {receipt.inboxItemId
+                          ? (inboxTexts[receipt.inboxItemId] || "Loading...")
+                          : <span className="text-gray-400 italic">No source inbox item</span>}
                       </p>
 
                       {/* Meta info */}
@@ -352,7 +358,9 @@ export function Receipts() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Original Capture</label>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-gray-900 whitespace-pre-wrap">
-                      {inboxTexts[selectedReceipt.inboxItemId] || "Loading..."}
+                      {selectedReceipt.inboxItemId
+                        ? (inboxTexts[selectedReceipt.inboxItemId] || "Loading...")
+                        : <span className="text-gray-400 italic">No source inbox item (manual entity creation)</span>}
                     </p>
                   </div>
                 </div>

@@ -438,7 +438,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
 
         const receipt = {
           id: receiptId,
-          inboxItemId: entity.sourceInboxItemId || randomUUID(),
+          inboxItemId: entity.sourceInboxItemId || null,
           classification: entityName.toLowerCase() as "task" | "project" | "idea",
           extractedFields: {
             instruction: bodyResult.data.instruction,
@@ -821,7 +821,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
         // Create receipt
         const receipt = {
           id: newReceiptId,
-          inboxItemId: oldEntity.sourceInboxItemId || randomUUID(),
+          inboxItemId: oldEntity.sourceInboxItemId || null,
           classification: fixResult.newType,
           extractedFields: fixResult.fields,
           confidenceScore: 1.0,
@@ -860,7 +860,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
         // Create receipt
         const receipt = {
           id: newReceiptId,
-          inboxItemId: oldEntity.sourceInboxItemId || randomUUID(),
+          inboxItemId: oldEntity.sourceInboxItemId || null,
           classification: singularType,
           extractedFields: fixResult.fields,
           confidenceScore: 1.0,
