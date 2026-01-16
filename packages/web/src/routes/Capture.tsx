@@ -152,14 +152,14 @@ export function Capture() {
         {/* Status Messages */}
         <div className="absolute -bottom-14 sm:-bottom-16 left-0 right-0">
           {(error || voiceError) && (
-            <div className="p-3 sm:p-4 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 text-sm font-semibold animate-slide-up flex items-center gap-2 sm:gap-3">
+            <div role="alert" className="p-3 sm:p-4 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 text-sm font-semibold animate-slide-up flex items-center gap-2 sm:gap-3">
                <span className="w-2 h-2 bg-rose-500 rounded-full flex-shrink-0" />
                <span className="truncate">{error || voiceError}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 sm:p-4 bg-gray-900 border border-gray-800 rounded-xl sm:rounded-2xl text-white text-sm font-semibold animate-scale-in flex items-center gap-2 sm:gap-3 shadow-card">
+            <div role="status" className="p-3 sm:p-4 bg-gray-900 border border-gray-800 rounded-xl sm:rounded-2xl text-white text-sm font-semibold animate-scale-in flex items-center gap-2 sm:gap-3 shadow-card">
                <span className={`w-2 h-2 rounded-full animate-pulse flex-shrink-0 ${wasQueued ? "bg-amber-400" : clarificationCreated ? "bg-blue-400" : "bg-emerald-400"}`} />
                {wasQueued ? (
                  "Queued for sync — will upload when online"
