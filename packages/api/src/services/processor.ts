@@ -10,6 +10,7 @@ import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
 import type { ClassificationResult, ExtractedContextEntity, PersonalContext, ClarificationContext, ExtractionResult } from "../llm/types.js";
 import { validateExtractionResult } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
+import { escapeRegex } from "../routes/search.js";
 
 // =============================================================================
 // Constants
@@ -198,11 +199,14 @@ async function loadPersonalContexts(limit: number = 20): Promise<PersonalContext
 /**
  * Find which personal contexts appear in the given text.
  * Returns IDs of contexts that were potentially relevant.
+ * Uses word boundary matching to avoid false positives (e.g., "Ann" matching "announcement").
  */
 function findRelevantContexts(text: string, contexts: PersonalContext[]): string[] {
-  const lowerText = text.toLowerCase();
   return contexts
-    .filter((ctx) => lowerText.includes(ctx.name.toLowerCase()))
+    .filter((ctx) => {
+      const pattern = new RegExp(`\\b${escapeRegex(ctx.name)}\\b`, "i");
+      return pattern.test(text);
+    })
     .map((ctx) => ctx.id);
 }
 
