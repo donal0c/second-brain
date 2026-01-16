@@ -832,54 +832,40 @@ export async function extractAndStoreContext(
 
 /**
  * Create or update a personal context entity
+ * Uses INSERT ... ON CONFLICT for atomic upsert to prevent race conditions
  */
 async function upsertPersonalContext(
   entity: ExtractedContextEntity,
   receiptId: string
 ): Promise<string> {
   const now = new Date();
+  const id = randomUUID();
 
-  // Check if entity already exists (case-insensitive name match)
-  const existing = await db
-    .select()
-    .from(schema.personalContexts)
-    .where(sql`LOWER(${schema.personalContexts.name}) = LOWER(${entity.name})`)
-    .limit(1);
+  // Atomic upsert using ON CONFLICT with expression index on lower(name)
+  // This prevents duplicate entries from concurrent extractions
+  const result = await db.execute(sql`
+    INSERT INTO personal_contexts (id, name, type, description, domain, mention_count, learned_from, created_at, updated_at)
+    VALUES (
+      ${id},
+      ${entity.name},
+      ${entity.type},
+      ${entity.description},
+      ${entity.domain},
+      1,
+      ${JSON.stringify([receiptId])}::jsonb,
+      ${now},
+      ${now}
+    )
+    ON CONFLICT ((LOWER(name))) DO UPDATE SET
+      mention_count = personal_contexts.mention_count + 1,
+      learned_from = personal_contexts.learned_from || ${JSON.stringify([receiptId])}::jsonb,
+      domain = COALESCE(personal_contexts.domain, EXCLUDED.domain),
+      description = COALESCE(personal_contexts.description, EXCLUDED.description),
+      updated_at = EXCLUDED.updated_at
+    RETURNING id
+  `);
 
-  if (existing.length > 0) {
-    // Update existing: increment mention count, add receipt to learnedFrom
-    const current = existing[0];
-    const learnedFrom = [...(current.learnedFrom || []), receiptId];
-
-    await db
-      .update(schema.personalContexts)
-      .set({
-        mentionCount: current.mentionCount + 1,
-        learnedFrom,
-        // Update domain if we learned a new one and didn't have one before
-        domain: current.domain || entity.domain,
-        // Update description if we learned a new one and didn't have one before
-        description: current.description || entity.description,
-        updatedAt: now,
-      })
-      .where(eq(schema.personalContexts.id, current.id));
-
-    return current.id;
-  } else {
-    // Create new
-    const id = randomUUID();
-    await db.insert(schema.personalContexts).values({
-      id,
-      name: entity.name,
-      type: entity.type,
-      description: entity.description,
-      domain: entity.domain,
-      mentionCount: 1,
-      learnedFrom: [receiptId],
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    return id;
-  }
+  // Return the id (either new or existing)
+  // db.execute returns RowList which is array-like, access first element directly
+  return (result[0] as { id: string }).id;
 }
