@@ -97,6 +97,7 @@ export function Capture() {
               onKeyDown={handleKeyDown}
               className="w-full h-40 sm:h-56 p-0 border-0 focus:ring-0 focus:outline-none resize-none text-lg sm:text-xl leading-relaxed placeholder:text-gray-200 text-gray-900 font-medium"
               placeholder="What's on your mind?"
+              aria-label="Capture your thought"
               disabled={isSubmitting || isListening}
               autoFocus
             />
