@@ -853,7 +853,29 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
         });
       } else {
         // No transformation - just update fields
-        const updates = { ...fixResult.fields, updatedAt: now };
+        // Map entity type to update schema for validation
+        const updateSchemaMap = {
+          task: TaskUpdateSchema,
+          project: ProjectUpdateSchema,
+          idea: IdeaUpdateSchema,
+          person: PersonUpdateSchema,
+        };
+
+        const updateSchema = updateSchemaMap[singularType];
+        const validationResult = updateSchema.safeParse(fixResult.fields);
+
+        if (!validationResult.success) {
+          return sendBadRequest(
+            reply,
+            "AI fix suggested invalid field updates",
+            {
+              validationErrors: validationResult.error.flatten().fieldErrors,
+              suggestedFields: fixResult.fields,
+            }
+          );
+        }
+
+        const updates = { ...validationResult.data, updatedAt: now };
 
         const result = await db.update(table).set(updates).where(eq(table.id, id)).returning();
 
