@@ -499,16 +499,20 @@ export function Receipts() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">IDs</label>
                   <div className="text-xs text-gray-500 font-mono space-y-1">
                     <p>Receipt: {selectedReceipt.id}</p>
-                    <p>
-                      Inbox Item:{" "}
-                      <Link
-                        to={`/inbox?id=${selectedReceipt.inboxItemId}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-primary-hover hover:underline"
-                      >
-                        {selectedReceipt.inboxItemId}
-                      </Link>
-                    </p>
+                    {selectedReceipt.inboxItemId ? (
+                      <p>
+                        Inbox Item:{" "}
+                        <Link
+                          to={`/inbox?id=${selectedReceipt.inboxItemId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-primary-hover hover:underline"
+                        >
+                          {selectedReceipt.inboxItemId}
+                        </Link>
+                      </p>
+                    ) : (
+                      <p>Inbox Item: <span className="italic text-gray-400">none</span></p>
+                    )}
                     {selectedReceipt.previousReceiptId && (
                       <p>Previous Receipt: {selectedReceipt.previousReceiptId}</p>
                     )}
