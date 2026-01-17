@@ -130,3 +130,10 @@ export function setLLMProvider(provider: LLMProvider): void {
 export function hasLLMProvider(): boolean {
   return _provider !== null;
 }
+
+/**
+ * Clear the LLM provider (used in testing)
+ */
+export function clearLLMProvider(): void {
+  _provider = null;
+}
