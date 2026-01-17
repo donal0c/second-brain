@@ -41,3 +41,8 @@ tests/verification/reports/
 tmp/
 temp/
 state.json
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
