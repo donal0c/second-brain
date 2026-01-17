@@ -58,6 +58,7 @@ export function Today() {
         // If task is no longer active, remove it from lists and update stats
         const isNowInactive = updated.status !== "active";
         const wasInNextActions = data.nextActions.some((t) => t.id === updated.id);
+        const wasInStaleTasks = data.staleTasks.some((t) => t.id === updated.id);
 
         setData({
           ...data,
@@ -70,7 +71,7 @@ export function Today() {
           stats: {
             ...data.stats,
             activeTasks:
-              isNowInactive && wasInNextActions
+              isNowInactive && (wasInNextActions || wasInStaleTasks)
                 ? data.stats.activeTasks - 1
                 : data.stats.activeTasks,
           },
@@ -99,6 +100,7 @@ export function Today() {
         // If task is no longer active, remove it from lists and update stats
         const isNowInactive = result.entity.status !== "active";
         const wasInNextActions = data.nextActions.some((t) => t.id === result.entity.id);
+        const wasInStaleTasks = data.staleTasks.some((t) => t.id === result.entity.id);
 
         setData({
           ...data,
@@ -111,7 +113,7 @@ export function Today() {
           stats: {
             ...data.stats,
             activeTasks:
-              isNowInactive && wasInNextActions
+              isNowInactive && (wasInNextActions || wasInStaleTasks)
                 ? data.stats.activeTasks - 1
                 : data.stats.activeTasks,
           },
