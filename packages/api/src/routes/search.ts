@@ -204,10 +204,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
               taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
             }
             if (from) {
-              taskConditions.push(sql`${schema.tasks.createdAt} >= ${from}`);
+              taskConditions.push(sql`${schema.tasks.createdAt} >= ${from.toISOString()}`);
             }
             if (to) {
-              taskConditions.push(sql`${schema.tasks.createdAt} <= ${to}`);
+              taskConditions.push(sql`${schema.tasks.createdAt} <= ${to.toISOString()}`);
             }
 
             const [tasks, countResult] = await Promise.all([
@@ -254,10 +254,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
               projectConditions.push(eq(schema.projects.status, status as any));
             }
             if (from) {
-              projectConditions.push(sql`${schema.projects.createdAt} >= ${from}`);
+              projectConditions.push(sql`${schema.projects.createdAt} >= ${from.toISOString()}`);
             }
             if (to) {
-              projectConditions.push(sql`${schema.projects.createdAt} <= ${to}`);
+              projectConditions.push(sql`${schema.projects.createdAt} <= ${to.toISOString()}`);
             }
 
             const [projects, countResult] = await Promise.all([
@@ -304,10 +304,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
             ];
 
             if (from) {
-              ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from}`);
+              ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from.toISOString()}`);
             }
             if (to) {
-              ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to}`);
+              ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to.toISOString()}`);
             }
 
             const [ideas, countResult] = await Promise.all([
@@ -351,10 +351,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
             ];
 
             if (from) {
-              personConditions.push(sql`${schema.persons.createdAt} >= ${from}`);
+              personConditions.push(sql`${schema.persons.createdAt} >= ${from.toISOString()}`);
             }
             if (to) {
-              personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
+              personConditions.push(sql`${schema.persons.createdAt} <= ${to.toISOString()}`);
             }
 
             const [persons, countResult] = await Promise.all([
@@ -413,10 +413,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
         }
         if (from) {
-          taskConditions.push(sql`${schema.tasks.createdAt} >= ${from}`);
+          taskConditions.push(sql`${schema.tasks.createdAt} >= ${from.toISOString()}`);
         }
         if (to) {
-          taskConditions.push(sql`${schema.tasks.createdAt} <= ${to}`);
+          taskConditions.push(sql`${schema.tasks.createdAt} <= ${to.toISOString()}`);
         }
 
         // Build project conditions
@@ -431,10 +431,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           projectConditions.push(eq(schema.projects.status, status as any));
         }
         if (from) {
-          projectConditions.push(sql`${schema.projects.createdAt} >= ${from}`);
+          projectConditions.push(sql`${schema.projects.createdAt} >= ${from.toISOString()}`);
         }
         if (to) {
-          projectConditions.push(sql`${schema.projects.createdAt} <= ${to}`);
+          projectConditions.push(sql`${schema.projects.createdAt} <= ${to.toISOString()}`);
         }
 
         // Build idea conditions
@@ -445,10 +445,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           ),
         ];
         if (from) {
-          ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from}`);
+          ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from.toISOString()}`);
         }
         if (to) {
-          ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to}`);
+          ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to.toISOString()}`);
         }
 
         // Build person conditions
@@ -460,10 +460,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           ),
         ];
         if (from) {
-          personConditions.push(sql`${schema.persons.createdAt} >= ${from}`);
+          personConditions.push(sql`${schema.persons.createdAt} >= ${from.toISOString()}`);
         }
         if (to) {
-          personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
+          personConditions.push(sql`${schema.persons.createdAt} <= ${to.toISOString()}`);
         }
 
         // Fetch capped results per type in parallel to prevent memory bloat
