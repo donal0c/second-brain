@@ -55,15 +55,28 @@ export function Digest() {
     try {
       const updated = await tasks.update(editingTask.id, taskData);
       // Update the task in our local state (could be in nextActions or staleTasks)
+      // If task is no longer active, remove it from the lists
       if (data) {
+        const isActive = updated.status === "active";
+        const wasInNextActions = data.nextActions.some((t) => t.id === updated.id);
+        const wasInStaleTasks = data.staleTasks.some((t) => t.id === updated.id);
+        const wasInLists = wasInNextActions || wasInStaleTasks;
+
         setData({
           ...data,
-          nextActions: data.nextActions.map((t) =>
-            t.id === updated.id ? updated : t
-          ),
-          staleTasks: data.staleTasks.map((t) =>
-            t.id === updated.id ? updated : t
-          ),
+          nextActions: isActive
+            ? data.nextActions.map((t) => (t.id === updated.id ? updated : t))
+            : data.nextActions.filter((t) => t.id !== updated.id),
+          staleTasks: isActive
+            ? data.staleTasks.map((t) => (t.id === updated.id ? updated : t))
+            : data.staleTasks.filter((t) => t.id !== updated.id),
+          stats: {
+            ...data.stats,
+            activeTasks:
+              !isActive && wasInLists
+                ? data.stats.activeTasks - 1
+                : data.stats.activeTasks,
+          },
         });
       }
       setEditingTask(updated);
@@ -85,15 +98,29 @@ export function Digest() {
 
     try {
       const result = await tasks.interpret(editingTask.id, instruction);
+      // If task is no longer active, remove it from the lists
       if (data) {
+        const updated = result.entity;
+        const isActive = updated.status === "active";
+        const wasInNextActions = data.nextActions.some((t) => t.id === updated.id);
+        const wasInStaleTasks = data.staleTasks.some((t) => t.id === updated.id);
+        const wasInLists = wasInNextActions || wasInStaleTasks;
+
         setData({
           ...data,
-          nextActions: data.nextActions.map((t) =>
-            t.id === result.entity.id ? result.entity : t
-          ),
-          staleTasks: data.staleTasks.map((t) =>
-            t.id === result.entity.id ? result.entity : t
-          ),
+          nextActions: isActive
+            ? data.nextActions.map((t) => (t.id === updated.id ? updated : t))
+            : data.nextActions.filter((t) => t.id !== updated.id),
+          staleTasks: isActive
+            ? data.staleTasks.map((t) => (t.id === updated.id ? updated : t))
+            : data.staleTasks.filter((t) => t.id !== updated.id),
+          stats: {
+            ...data.stats,
+            activeTasks:
+              !isActive && wasInLists
+                ? data.stats.activeTasks - 1
+                : data.stats.activeTasks,
+          },
         });
       }
       setEditingTask(result.entity);
