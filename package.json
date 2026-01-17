@@ -12,7 +12,14 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "pnpm --filter @second-brain/web test",
+    "test:e2e": "pnpm --filter @second-brain/web test",
+    "test:e2e:ui": "pnpm --filter @second-brain/web test:ui",
+    "test:e2e:headed": "pnpm --filter @second-brain/web test:headed",
+    "test:verify": "npx tsx tests/verification/run-verification.ts",
+    "test:seed": "npx tsx tests/fixtures/seed-database.ts",
+    "test:seed:busy": "npx tsx tests/fixtures/seed-database.ts busy"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

@@ -28,6 +28,15 @@ pnpm-debug.log*
 # Test coverage
 coverage/
 
+# Playwright
+tests/e2e/reports/
+tests/e2e/results/
+playwright-report/
+test-results/
+
+# Verification reports
+tests/verification/reports/
+
 # Temporary files
 tmp/
 temp/
