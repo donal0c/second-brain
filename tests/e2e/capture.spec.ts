@@ -14,14 +14,16 @@ test.describe("Capture Flow", () => {
   });
 
   test("capture input is focused on page load", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     // Input should be focused (or at least visible and ready)
     await expect(input).toBeVisible();
   });
 
   test("can type in capture input", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     await input.fill("Test capture input");
 
@@ -29,7 +31,8 @@ test.describe("Capture Flow", () => {
   });
 
   test("submitting capture sends to API", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     // Type a capture
     await input.fill("Buy groceries for dinner");
@@ -41,10 +44,8 @@ test.describe("Capture Flow", () => {
     );
 
     // Find and click submit button
-    const submitButton = page
-      .getByRole("button", { name: /capture|submit|save/i })
-      .or(page.locator('button[type="submit"]'));
-
+    // Target the Capture button specifically (not the navbar search button)
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
     await submitButton.click();
 
     // Wait for API response
@@ -56,15 +57,14 @@ test.describe("Capture Flow", () => {
   });
 
   test("capture input clears after successful submission", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     // Type and submit
     await input.fill("Clear after submit test");
 
-    const submitButton = page
-      .getByRole("button", { name: /capture|submit|save/i })
-      .or(page.locator('button[type="submit"]'));
-
+    // Target the Capture button specifically (not the navbar search button)
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
     await submitButton.click();
 
     // Wait for the input to clear or show success
@@ -76,27 +76,22 @@ test.describe("Capture Flow", () => {
   });
 
   test("shows error for empty submission", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     // Ensure input is empty
     await input.clear();
 
-    const submitButton = page
-      .getByRole("button", { name: /capture|submit|save/i })
-      .or(page.locator('button[type="submit"]'));
+    // Target the Capture button specifically
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
 
-    // Try to submit empty
-    await submitButton.click();
-
-    // Should show validation error or button should be disabled
-    const isDisabled = await submitButton.isDisabled();
-    const hasError = await page.getByText(/required|empty|enter/i).isVisible().catch(() => false);
-
-    expect(isDisabled || hasError || true).toBeTruthy(); // At least one validation method
+    // The button should be disabled when input is empty
+    await expect(submitButton).toBeDisabled();
   });
 
   test("handles long text input", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     const longText = "A".repeat(1000);
     await input.fill(longText);
@@ -107,7 +102,8 @@ test.describe("Capture Flow", () => {
   });
 
   test("handles special characters", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     const specialText = "Test with special chars: @#$%^&*()_+-=[]{}|;':\",./<>?";
     await input.fill(specialText);
@@ -116,7 +112,8 @@ test.describe("Capture Flow", () => {
   });
 
   test("handles unicode and emoji", async ({ page }) => {
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
 
     const unicodeText = "Meeting with Sarah about Q4 roadmap 🚀 日本語テスト";
     await input.fill(unicodeText);
@@ -129,7 +126,8 @@ test.describe("Capture Keyboard Shortcuts", () => {
   test("Ctrl/Cmd+Enter submits capture", async ({ page }) => {
     await navigateTo(page, "capture");
 
-    const input = page.getByRole("textbox").or(page.locator("textarea")).first();
+    // Target the capture textarea specifically by its placeholder
+    const input = page.getByPlaceholder("What's on your mind?");
     await input.fill("Submit with keyboard shortcut");
 
     // Set up response listener

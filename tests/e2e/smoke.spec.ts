@@ -54,12 +54,9 @@ test.describe("Smoke Tests", () => {
   test("search page loads", async ({ page }) => {
     await page.goto("/search");
 
-    // Should have a search input
+    // Should have the search page input (not the global header search)
     await expect(
-      page
-        .getByRole("searchbox")
-        .or(page.getByPlaceholder(/search/i))
-        .or(page.locator('input[type="search"]'))
+      page.getByRole("textbox", { name: "Search tasks, projects, ideas" })
     ).toBeVisible();
   });
 

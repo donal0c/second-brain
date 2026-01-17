@@ -29,11 +29,12 @@ test.describe("Search Page", () => {
     });
 
     await searchInput.fill("test");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("main").getByRole("button", { name: "Search" }).click();
 
     // Wait for results or empty state
+    // Wait for either results count or empty state - use first() to handle multiple matches
     await expect(
-      page.getByText(/Found \d+ results?|No results found/)
+      page.getByText(/Found \d+ results?|No results found/).first()
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -43,7 +44,7 @@ test.describe("Search Page", () => {
     });
 
     await searchInput.fill("test");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("main").getByRole("button", { name: "Search" }).click();
 
     // If there are results, clicking one should navigate to browse
     const results = page.locator("[data-testid='search-result']");
@@ -62,9 +63,10 @@ test.describe("Search Page", () => {
 
     // Search for something unlikely to exist
     await searchInput.fill("xyznonexistent12345");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("main").getByRole("button", { name: "Search" }).click();
 
-    await expect(page.getByText("No results found")).toBeVisible({
+    // Use first() since multiple elements may contain "No results found"
+    await expect(page.getByText("No results found").first()).toBeVisible({
       timeout: 10000,
     });
   });
@@ -76,7 +78,7 @@ test.describe("Search Page", () => {
 
     // Test various special characters
     await searchInput.fill("test <script>alert('xss')</script>");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("main").getByRole("button", { name: "Search" }).click();
 
     // Page should still be functional (not crashed)
     await expect(searchInput).toBeVisible();
@@ -128,8 +130,9 @@ test.describe("Search Page", () => {
     await searchInput.fill("test");
 
     // Wait for debounced search to trigger (300ms + API time)
+    // Use first() since multiple elements may match
     await expect(
-      page.getByText(/Found \d+ results?|No results found/)
+      page.getByText(/Found \d+ results?|No results found/).first()
     ).toBeVisible({ timeout: 5000 });
   });
 });
