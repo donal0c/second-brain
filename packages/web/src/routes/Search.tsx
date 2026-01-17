@@ -142,6 +142,7 @@ export function Search() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search tasks, projects, ideas..."
+              data-testid="search-page-input"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
             <button
@@ -231,6 +232,7 @@ export function Search() {
               <div
                 key={`${result.type}-${result.id}`}
                 onClick={() => handleResultClick(result)}
+                data-testid="search-result"
                 className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start gap-3">
