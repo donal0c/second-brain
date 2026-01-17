@@ -355,10 +355,10 @@ export function Browse() {
     let entity: EditingEntity = null;
 
     if (type === "task") {
-      const task = taskList.find((t) => t.id === id);
+      const task = rawTaskList.find((t) => t.id === id);
       if (task) entity = { type: "task", item: task };
     } else if (type === "project") {
-      const project = projectList.find((p) => p.id === id);
+      const project = rawProjectList.find((p) => p.id === id);
       if (project) entity = { type: "project", item: project };
     } else if (type === "idea") {
       const idea = ideaList.find((i) => i.id === id);
@@ -373,7 +373,7 @@ export function Browse() {
       // Clear URL params after processing
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, loading, taskList, projectList, ideaList, personList, setSearchParams]);
+  }, [searchParams, loading, rawTaskList, rawProjectList, ideaList, personList, setSearchParams]);
 
   const handleSave = async (data: Record<string, unknown>) => {
     if (!editing) return;
