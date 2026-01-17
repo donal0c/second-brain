@@ -337,7 +337,7 @@ export function Today() {
               {data.projectsWithoutNextAction.map((project) => (
                 <a
                   key={project.id}
-                  href={`/projects/${project.id}`}
+                  href={`/browse?type=project&id=${project.id}`}
                   className="block bg-white rounded-lg border border-indigo-100 p-3 hover:border-indigo-300 transition-all"
                 >
                   <h4 className="font-medium text-gray-900 text-sm">{project.name}</h4>

@@ -340,7 +340,7 @@ export function Digest() {
               {data.projectsWithoutNextAction.map((project) => (
                 <a
                   key={project.id}
-                  href={`/projects/${project.id}`}
+                  href={`/browse?type=project&id=${project.id}`}
                   className="block bg-white rounded-lg border border-indigo-100 p-4 hover:border-indigo-300 hover:shadow-sm transition-all duration-150"
                 >
                   <h4 className="font-medium text-gray-900">{project.name}</h4>
