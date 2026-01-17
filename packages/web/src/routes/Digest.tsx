@@ -162,6 +162,7 @@ export function Digest() {
         <button
           onClick={() => loadDigest()}
           className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-150"
+          data-testid="refresh-button"
         >
           Refresh
         </button>
@@ -171,18 +172,18 @@ export function Digest() {
       <Nudges />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150">
-          <div className="text-3xl font-bold text-primary-hover mb-1">{data?.stats.activeTasks}</div>
-          <div className="text-sm text-gray-600 font-medium">Active Tasks</div>
+      <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150" data-testid="stat-active-tasks">
+          <div className="text-3xl font-bold text-primary-hover mb-1" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
+          <div className="text-sm text-gray-600 font-medium" data-testid="stat-active-tasks-label">Active Tasks</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150">
-          <div className="text-3xl font-bold text-indigo-600 mb-1">{data?.stats.activeProjects}</div>
-          <div className="text-sm text-gray-600 font-medium">Active Projects</div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150" data-testid="stat-active-projects">
+          <div className="text-3xl font-bold text-indigo-600 mb-1" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
+          <div className="text-sm text-gray-600 font-medium" data-testid="stat-active-projects-label">Active Projects</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150">
-          <div className="text-3xl font-bold text-purple-600 mb-1">{data?.stats.ideas}</div>
-          <div className="text-sm text-gray-600 font-medium">Ideas</div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150" data-testid="stat-ideas">
+          <div className="text-3xl font-bold text-purple-600 mb-1" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
+          <div className="text-sm text-gray-600 font-medium" data-testid="stat-ideas-label">Ideas</div>
         </div>
       </div>
 
@@ -190,7 +191,7 @@ export function Digest() {
       <div>
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Next Actions</h3>
         {data?.nextActions.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm" data-testid="empty-next-actions">
             <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>

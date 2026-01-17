@@ -72,6 +72,7 @@ export function WeeklyReview() {
         <button
           onClick={() => loadWeeklyReview()}
           className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          data-testid="refresh-button"
         >
           Refresh
         </button>

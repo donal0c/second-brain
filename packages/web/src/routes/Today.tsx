@@ -182,24 +182,25 @@ export function Today() {
         <button
           onClick={() => loadDigest()}
           className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          data-testid="refresh-button"
         >
           Refresh
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{data?.stats.activeTasks}</div>
-          <div className="text-sm text-gray-500">Active Tasks</div>
+      <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center" data-testid="stat-active-tasks">
+          <div className="text-2xl font-bold text-gray-900" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
+          <div className="text-sm text-gray-500" data-testid="stat-active-tasks-label">Active Tasks</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{data?.stats.activeProjects}</div>
-          <div className="text-sm text-gray-500">Active Projects</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center" data-testid="stat-active-projects">
+          <div className="text-2xl font-bold text-gray-900" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
+          <div className="text-sm text-gray-500" data-testid="stat-active-projects-label">Active Projects</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{data?.stats.ideas}</div>
-          <div className="text-sm text-gray-500">Ideas</div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center" data-testid="stat-ideas">
+          <div className="text-2xl font-bold text-gray-900" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
+          <div className="text-sm text-gray-500" data-testid="stat-ideas-label">Ideas</div>
         </div>
       </div>
 
@@ -207,7 +208,7 @@ export function Today() {
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-3">Next Actions</h3>
         {data?.nextActions.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500">
+          <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500" data-testid="empty-next-actions">
             No active tasks. Time to capture some thoughts!
           </div>
         ) : (
