@@ -9,8 +9,9 @@ declare let self: ServiceWorkerGlobalScope;
 
 // API base URL from environment - injected at build time by Vite
 // This enables SW caching for cross-origin API requests when API is hosted elsewhere
-const API_BASE = import.meta.env.VITE_API_URL || "";
-const API_ORIGIN = API_BASE ? new URL(API_BASE).origin : self.location.origin;
+// Default must match the client default in lib/api.ts
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_ORIGIN = new URL(API_BASE).origin;
 
 // Helper to check if a request URL matches the API origin
 function isApiRequest(url: URL): boolean {
