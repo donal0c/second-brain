@@ -122,6 +122,7 @@ export function Layout() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search anything..."
+                data-testid="global-search-input"
                 className="w-full bg-white border border-gray-200/80 rounded-xl py-2 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/5 focus:border-gray-900 transition-all shadow-subtle"
               />
               <button
