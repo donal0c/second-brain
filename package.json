@@ -12,7 +12,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test:e2e": "pnpm --filter @second-brain/e2e test",
+    "test:e2e:ui": "pnpm --filter @second-brain/e2e test:ui"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
