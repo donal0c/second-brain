@@ -43,6 +43,7 @@ export function Search() {
     if (!debouncedQuery.trim()) {
       setResults([]);
       setTotal(0);
+      setError(null);
       return;
     }
 
