@@ -142,10 +142,17 @@ export function Today() {
     try {
       await tasks.delete(editingTask.id);
       if (data) {
+        const wasInNextActions = data.nextActions.some((t) => t.id === editingTask.id);
         setData({
           ...data,
           nextActions: data.nextActions.filter((t) => t.id !== editingTask.id),
           staleTasks: data.staleTasks.filter((t) => t.id !== editingTask.id),
+          stats: {
+            ...data.stats,
+            activeTasks: wasInNextActions
+              ? data.stats.activeTasks - 1
+              : data.stats.activeTasks,
+          },
         });
       }
       setEditingTask(null);
