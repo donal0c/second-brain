@@ -43,7 +43,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Register CORS
   await app.register(cors, {
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: process.env.CORS_ORIGIN || ["http://localhost:5173", "http://localhost:5174"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   });
 

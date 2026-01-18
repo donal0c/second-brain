@@ -163,8 +163,8 @@ export function Digest() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <h2 className="text-3xl font-bold text-gray-900">Digest</h2>
+      <div className="p-6 md:p-8 min-h-full space-y-6 animate-fade-in">
+        <h2 className="text-3xl font-bold text-white font-display">Digest</h2>
         <LoadingSkeletonLarge />
       </div>
     );
@@ -172,23 +172,23 @@ export function Digest() {
 
   if (error) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <h2 className="text-3xl font-bold text-gray-900">Digest</h2>
+      <div className="p-6 md:p-8 min-h-full space-y-6 animate-fade-in">
+        <h2 className="text-3xl font-bold text-white font-display">Digest</h2>
         <ErrorBanner error={error} onRetry={() => loadDigest()} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="p-6 md:p-8 min-h-full space-y-8 animate-fade-in">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Digest</h2>
-          <p className="text-gray-600 text-lg">{data?.date}</p>
+          <h2 className="text-3xl font-bold text-white font-display mb-2">Digest</h2>
+          <p className="text-slate-400 text-lg">{data?.date}</p>
         </div>
         <button
           onClick={() => loadDigest()}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-150"
+          className="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all duration-150"
           data-testid="refresh-button"
         >
           Refresh
@@ -200,30 +200,30 @@ export function Digest() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150" data-testid="stat-active-tasks">
-          <div className="text-3xl font-bold text-primary-hover mb-1" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
-          <div className="text-sm text-gray-600 font-medium" data-testid="stat-active-tasks-label">Active Tasks</div>
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-600 transition-all duration-150" data-testid="stat-active-tasks">
+          <div className="text-3xl font-bold text-indigo-400 mb-1" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
+          <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-tasks-label">Active Tasks</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150" data-testid="stat-active-projects">
-          <div className="text-3xl font-bold text-indigo-600 mb-1" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
-          <div className="text-sm text-gray-600 font-medium" data-testid="stat-active-projects-label">Active Projects</div>
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-600 transition-all duration-150" data-testid="stat-active-projects">
+          <div className="text-3xl font-bold text-purple-400 mb-1" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
+          <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-projects-label">Active Projects</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-all duration-150" data-testid="stat-ideas">
-          <div className="text-3xl font-bold text-purple-600 mb-1" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
-          <div className="text-sm text-gray-600 font-medium" data-testid="stat-ideas-label">Ideas</div>
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-600 transition-all duration-150" data-testid="stat-ideas">
+          <div className="text-3xl font-bold text-purple-400 mb-1" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
+          <div className="text-sm text-slate-400 font-medium" data-testid="stat-ideas-label">Ideas</div>
         </div>
       </div>
 
       {/* Next Actions */}
       <div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Next Actions</h3>
+        <h3 className="text-xl font-semibold text-white mb-4">Next Actions</h3>
         {data?.nextActions.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm" data-testid="empty-next-actions">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-8 text-center shadow-sm" data-testid="empty-next-actions">
+            <svg className="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-gray-600 text-lg">No active tasks</p>
-            <p className="text-gray-500 text-sm mt-1">Time to capture some thoughts!</p>
+            <p className="text-slate-400 text-lg">No active tasks</p>
+            <p className="text-slate-400 text-sm mt-1">Time to capture some thoughts!</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -233,12 +233,12 @@ export function Digest() {
                 <div
                   key={task.id}
                   onClick={() => setEditingTask(task)}
-                  className="bg-white rounded-xl border border-gray-200 p-5 cursor-pointer hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 shadow-sm"
+                  className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 cursor-pointer hover:border-slate-600 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 leading-tight">{task.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">{task.nextAction}</p>
+                      <h4 className="font-semibold text-white leading-tight">{task.title}</h4>
+                      <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">{task.nextAction}</p>
                     </div>
                     {due && (
                       <span className={`text-sm font-medium whitespace-nowrap ${due.color}`}>
@@ -248,7 +248,7 @@ export function Digest() {
                   </div>
                   {task.context && (
                     <div className="mt-3">
-                      <span className="text-xs px-2.5 py-1 bg-gray-100 rounded-full text-gray-700 font-medium">
+                      <span className="text-xs px-2.5 py-1 bg-slate-700/50 rounded-full text-slate-400 font-medium">
                         {task.context}
                       </span>
                     </div>
@@ -263,9 +263,9 @@ export function Digest() {
       {/* Flagged Items */}
       {data?.flaggedItems && data.flaggedItems.length > 0 && (
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          <h3 className="text-xl font-semibold text-white mb-4">
             Flagged for Review
-            <span className="ml-2 text-sm font-normal text-gray-500">
+            <span className="ml-2 text-sm font-normal text-slate-400">
               ({data.flaggedItems.length})
             </span>
           </h3>
@@ -273,25 +273,25 @@ export function Digest() {
             {data.flaggedItems.map((receipt) => (
               <div
                 key={receipt.id}
-                className="bg-rose-50 border border-rose-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-150"
+                className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-150"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs px-2.5 py-1 bg-rose-100 rounded-full text-rose-700 font-medium capitalize">
+                      <span className="text-xs px-2.5 py-1 bg-rose-500/20 rounded-full text-rose-400 font-medium capitalize">
                         {receipt.classification}
                       </span>
                       {receipt.confidenceScore < 0.7 && (
-                        <span className="text-xs px-2.5 py-1 bg-orange-100 rounded-full text-orange-700 font-medium">
+                        <span className="text-xs px-2.5 py-1 bg-orange-500/20 rounded-full text-orange-400 font-medium">
                           Low confidence ({Math.round(receipt.confidenceScore * 100)}%)
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-slate-400">
                       {receipt.extractedFields?.title as string || receipt.extractedFields?.content as string || 'Review required'}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                  <span className="text-xs text-slate-400 whitespace-nowrap">
                     {new Date(receipt.timestamp).toLocaleDateString()}
                   </span>
                 </div>
@@ -304,14 +304,14 @@ export function Digest() {
       {/* Stale Tasks */}
       {data?.staleTasks && data.staleTasks.length > 0 && (
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          <h3 className="text-xl font-semibold text-white mb-4">
             Stale Tasks
-            <span className="ml-2 text-sm font-normal text-gray-500">
+            <span className="ml-2 text-sm font-normal text-slate-400">
               ({data.staleTasks.length})
             </span>
           </h3>
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 shadow-sm">
-            <p className="text-gray-700 mb-4 text-sm">
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-5 shadow-sm">
+            <p className="text-slate-400 mb-4 text-sm">
               These tasks haven't been updated recently. Consider reviewing or completing them.
             </p>
             <div className="space-y-3">
@@ -321,13 +321,13 @@ export function Digest() {
                   <div
                     key={task.id}
                     onClick={() => setEditingTask(task)}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all duration-150"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-sm transition-all duration-150"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 leading-tight">{task.title}</h4>
+                        <h4 className="font-medium text-white leading-tight">{task.title}</h4>
                         {task.nextAction && (
-                          <p className="text-sm text-gray-600 mt-1">{task.nextAction}</p>
+                          <p className="text-sm text-slate-400 mt-1">{task.nextAction}</p>
                         )}
                       </div>
                       {due && (
@@ -338,7 +338,7 @@ export function Digest() {
                     </div>
                     {task.context && (
                       <div className="mt-2">
-                        <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600 font-medium">
+                        <span className="text-xs px-2 py-1 bg-slate-700/50 rounded-full text-slate-400 font-medium">
                           {task.context}
                         </span>
                       </div>
@@ -354,14 +354,14 @@ export function Digest() {
       {/* Projects Without Next Action */}
       {data?.projectsWithoutNextAction && data.projectsWithoutNextAction.length > 0 && (
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          <h3 className="text-xl font-semibold text-white mb-4">
             Projects Needing Next Action
-            <span className="ml-2 text-sm font-normal text-gray-500">
+            <span className="ml-2 text-sm font-normal text-slate-400">
               ({data.projectsWithoutNextAction.length})
             </span>
           </h3>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 shadow-sm">
-            <p className="text-indigo-700 mb-4 text-sm">
+          <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-5 shadow-sm">
+            <p className="text-indigo-400 mb-4 text-sm">
               These active projects don't have a next action defined.
             </p>
             <div className="space-y-3">
@@ -369,11 +369,11 @@ export function Digest() {
                 <a
                   key={project.id}
                   href={`/browse?type=project&id=${project.id}`}
-                  className="block bg-white rounded-lg border border-indigo-100 p-4 hover:border-indigo-300 hover:shadow-sm transition-all duration-150"
+                  className="block bg-slate-800/50 rounded-lg border border-indigo-500/20 p-4 hover:border-indigo-500/40 hover:shadow-sm transition-all duration-150"
                 >
-                  <h4 className="font-medium text-gray-900">{project.name}</h4>
+                  <h4 className="font-medium text-white">{project.name}</h4>
                   {project.desiredOutcome && (
-                    <p className="text-sm text-gray-600 mt-1">{project.desiredOutcome}</p>
+                    <p className="text-sm text-slate-400 mt-1">{project.desiredOutcome}</p>
                   )}
                 </a>
               ))}
@@ -385,28 +385,28 @@ export function Digest() {
       {/* New Contexts */}
       {data?.newContexts && data.newContexts.length > 0 && (
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          <h3 className="text-xl font-semibold text-white mb-4">
             New Contexts Discovered
-            <span className="ml-2 text-sm font-normal text-gray-500">
+            <span className="ml-2 text-sm font-normal text-slate-400">
               ({data.newContexts.length})
             </span>
           </h3>
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 shadow-sm">
-            <p className="text-purple-700 mb-4 text-sm">
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-5 shadow-sm">
+            <p className="text-purple-400 mb-4 text-sm">
               These contexts were recently learned and may need descriptions.
             </p>
             <div className="flex flex-wrap gap-2">
               {data.newContexts.map((ctx) => (
                 <div
                   key={ctx.id}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-purple-100"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-purple-500/20"
                 >
-                  <span className="font-medium text-gray-900">{ctx.name}</span>
-                  <span className="text-xs px-2 py-0.5 bg-purple-100 rounded text-purple-700 capitalize">
+                  <span className="font-medium text-white">{ctx.name}</span>
+                  <span className="text-xs px-2 py-0.5 bg-purple-500/20 rounded text-purple-400 capitalize">
                     {ctx.type}
                   </span>
                   {ctx.domain && (
-                    <span className="text-xs text-gray-500">({ctx.domain})</span>
+                    <span className="text-xs text-slate-400">({ctx.domain})</span>
                   )}
                 </div>
               ))}
@@ -418,19 +418,19 @@ export function Digest() {
       {/* Pending Clarifications */}
       {data?.pendingClarifications && data.pendingClarifications.length > 0 && (
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          <h3 className="text-xl font-semibold text-white mb-4">
             Needs Your Input
           </h3>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
-            <p className="text-amber-900 font-medium">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 shadow-sm">
+            <p className="text-amber-400 font-medium">
               {data.pendingClarifications.length} item{data.pendingClarifications.length > 1 ? 's' : ''} waiting for clarification
             </p>
             <a
               href="/clarifications"
-              className="text-amber-700 hover:text-amber-900 text-sm font-semibold mt-3 inline-flex items-center gap-1 group"
+              className="text-amber-400 hover:text-amber-300 text-sm font-semibold mt-3 inline-flex items-center gap-1 group"
             >
               Review now
-              <svg className="w-4 h-4 group-hover:trangray-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </a>
@@ -448,13 +448,13 @@ export function Digest() {
         title="Edit Task"
       >
         {saveError && (
-          <div className="mb-4 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm animate-slide-up">
+          <div className="mb-4 p-4 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-400 text-sm animate-slide-up">
             {saveError}
           </div>
         )}
 
         {saveSuccess && (
-          <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-center gap-2 animate-scale-in">
+          <div className="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm flex items-center gap-2 animate-scale-in">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>

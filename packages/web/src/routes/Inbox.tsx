@@ -86,11 +86,11 @@ export function Inbox() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 md:p-8 min-h-full space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Inbox</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-xl font-semibold text-white tracking-tight font-display">Inbox</h2>
+          <p className="text-sm text-slate-400 mt-1">
             {total} {total === 1 ? "item" : "items"} pending review
           </p>
         </div>
@@ -99,7 +99,7 @@ export function Inbox() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-subtle focus:border-primary-hover hover:bg-gray-50 transition-colors cursor-pointer"
+            className="appearance-none pl-3 pr-8 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <option value="">All items</option>
             <option value="new">New</option>
@@ -107,7 +107,7 @@ export function Inbox() {
             <option value="processed">Processed</option>
             <option value="blocked">Needs Clarification</option>
           </select>
-          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
           </div>
         </div>
@@ -118,12 +118,12 @@ export function Inbox() {
       {loading ? (
         <LoadingSkeleton />
       ) : items.length === 0 ? (
-        <div className="bg-white/50 rounded-xl border border-dashed border-gray-300 p-12 text-center">
-          <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+        <div className="bg-slate-800/50 rounded-xl border border-dashed border-slate-700/50 p-12 text-center">
+          <div className="w-12 h-12 bg-slate-800/30 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
             📥
           </div>
-          <p className="text-gray-900 font-medium">Inbox Zero</p>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-white font-medium">Inbox Zero</p>
+          <p className="text-slate-400 text-sm mt-1">
             {statusFilter
               ? "No items found with this status"
               : "You're all caught up! Capture something new to get started."}
@@ -134,23 +134,23 @@ export function Inbox() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="group relative bg-white rounded-xl p-4 shadow-sm ring-1 ring-gray-900/5 hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 ease-out cursor-pointer"
+              className="group relative bg-slate-800/50 rounded-xl p-4 shadow-sm ring-1 ring-slate-700/50 hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 ease-out cursor-pointer"
             >
               <div className="flex items-start justify-between gap-4">
-                <p className="text-gray-900 text-sm leading-relaxed flex-1 whitespace-pre-wrap font-medium">
+                <p className="text-white text-sm leading-relaxed flex-1 whitespace-pre-wrap font-medium">
                   {item.rawText}
                 </p>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[item.status]?.dotColor || "bg-gray-300"}`} />
-                  <span className="text-xs font-medium text-gray-500">
+                  <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[item.status]?.dotColor || "bg-slate-500"}`} />
+                  <span className="text-xs font-medium text-slate-400">
                     {STATUS_CONFIG[item.status]?.label || item.status}
                   </span>
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <div className="flex items-center gap-3 text-[11px] text-gray-400 font-medium uppercase tracking-wider">
+                <div className="flex items-center gap-3 text-[11px] text-slate-400 font-medium uppercase tracking-wider">
                   <span>{formatDate(item.capturedAt)}</span>
-                  <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                  <span className="w-1 h-1 rounded-full bg-slate-500"></span>
                   <span className="flex items-center gap-1">
                     {item.source}
                   </span>

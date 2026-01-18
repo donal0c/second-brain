@@ -111,16 +111,16 @@ export function Search() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-700";
+        return "bg-green-500/20 text-green-400";
       case "completed":
-        return "bg-gray-100 text-gray-600";
+        return "bg-slate-700/50 text-slate-400";
       case "waiting":
       case "on_hold":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-yellow-500/20 text-yellow-400";
       case "someday":
-        return "bg-primary-subtle text-primary-active";
+        return "bg-indigo-500/20 text-indigo-400";
       default:
-        return "bg-gray-100 text-gray-600";
+        return "bg-slate-700/50 text-slate-400";
     }
   };
 
@@ -130,9 +130,9 @@ export function Search() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 md:p-8 min-h-full space-y-4">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Search</h2>
+        <h2 className="text-2xl font-bold text-white font-display mb-4">Search</h2>
 
         {/* Search Form */}
         <form onSubmit={handleQuerySubmit} className="mb-4">
@@ -143,12 +143,12 @@ export function Search() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search tasks, projects, ideas..."
               data-testid="search-page-input"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
             />
             <button
               type="submit"
               disabled={loading || !query.trim()}
-              className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50"
             >
               {loading ? "Searching..." : "Search"}
             </button>
@@ -161,7 +161,7 @@ export function Search() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
             >
               <option value="">All Types</option>
               <option value="task">Tasks</option>
@@ -174,7 +174,7 @@ export function Search() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
             >
               <option value="">All Statuses</option>
               <option value="active">Active</option>
@@ -191,7 +191,7 @@ export function Search() {
               value={contextFilter}
               onChange={(e) => setContextFilter(e.target.value)}
               placeholder="Filter by context"
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+              className="px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
             />
           </div>
 
@@ -202,7 +202,7 @@ export function Search() {
                 setStatusFilter("");
                 setContextFilter("");
               }}
-              className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
+              className="px-3 py-2 text-sm text-slate-400 hover:text-white"
             >
               Clear filters
             </button>
@@ -212,7 +212,7 @@ export function Search() {
 
       {/* Results Count */}
       {!loading && query && (
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-slate-400">
           {total === 0 ? "No results found" : `Found ${total} result${total !== 1 ? "s" : ""}`}
         </div>
       )}
@@ -233,7 +233,7 @@ export function Search() {
                 key={`${result.type}-${result.id}`}
                 onClick={() => handleResultClick(result)}
                 data-testid="search-result"
-                className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">{getEntityIcon(result.type)}</span>
@@ -241,16 +241,16 @@ export function Search() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <div
-                          className="text-base font-medium text-gray-900 mb-1"
+                          className="text-base font-medium text-white mb-1"
                           dangerouslySetInnerHTML={{ __html: result.snippet.title }}
                         />
                         <div
-                          className="text-sm text-gray-600"
+                          className="text-sm text-slate-400"
                           dangerouslySetInnerHTML={{ __html: result.snippet.content }}
                         />
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-400">
                           {result.type}
                         </span>
                         {"status" in entity && (
@@ -262,9 +262,9 @@ export function Search() {
                     </div>
 
                     {/* Additional metadata */}
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 text-xs text-slate-400">
                       {result.type === "task" && (entity as Task).context && (
-                        <span className="px-2 py-0.5 bg-gray-100 rounded">
+                        <span className="px-2 py-0.5 bg-slate-700/50 rounded">
                           {(entity as Task).context}
                         </span>
                       )}
@@ -282,7 +282,7 @@ export function Search() {
 
       {/* Empty State */}
       {!loading && !error && query && results.length === 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
           <p className="mb-2">No results found for "{query}"</p>
           <p className="text-sm">Try adjusting your search query or filters</p>
         </div>
@@ -290,7 +290,7 @@ export function Search() {
 
       {/* Initial State */}
       {!query && !loading && (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
           <p>Enter a search query to find tasks, projects, and ideas</p>
         </div>
       )}

@@ -70,7 +70,7 @@ export function Nudges({ refreshInterval = 5 * 60 * 1000 }: NudgesProps) {
 
   if (error) {
     return (
-      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+      <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
         {error}
       </div>
     );
@@ -127,17 +127,17 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
   const getColorClasses = (type: Nudge["type"]) => {
     switch (type) {
       case "task_due_soon":
-        return "bg-orange-50 border-orange-200 text-orange-800";
+        return "bg-orange-500/10 border-orange-500/30 text-orange-400";
       case "task_stale":
-        return "bg-yellow-50 border-yellow-200 text-yellow-800";
+        return "bg-yellow-500/10 border-yellow-500/30 text-yellow-400";
       case "project_missing_next_action":
-        return "bg-primary-subtle border-primary-200 text-primary-800";
+        return "bg-indigo-500/10 border-indigo-500/30 text-indigo-400";
       case "person_follow_up":
-        return "bg-purple-50 border-purple-200 text-purple-800";
+        return "bg-purple-500/10 border-purple-500/30 text-purple-400";
       case "follow_up_overdue":
-        return "bg-red-50 border-red-200 text-red-800";
+        return "bg-red-500/10 border-red-500/30 text-red-400";
       default:
-        return "bg-gray-50 border-gray-200 text-gray-800";
+        return "bg-slate-800/50 border-slate-700/50 text-slate-400";
     }
   };
 
@@ -156,20 +156,20 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
           <div className="relative">
             <button
               onClick={() => setShowSnoozeOptions(!showSnoozeOptions)}
-              className="text-xs px-2 py-1 rounded hover:bg-black/5 transition-colors"
+              className="text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors"
               title="Snooze"
             >
               💤
             </button>
 
             {showSnoozeOptions && (
-              <div className="absolute right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-32">
+              <div className="absolute right-0 mt-1 bg-slate-800 rounded-lg shadow-lg border border-slate-700 py-1 z-10 min-w-32">
                 <button
                   onClick={() => {
                     onSnooze(nudge.id, 1);
                     setShowSnoozeOptions(false);
                   }}
-                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700"
+                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-700 text-slate-300"
                 >
                   1 hour
                 </button>
@@ -178,7 +178,7 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
                     onSnooze(nudge.id, 4);
                     setShowSnoozeOptions(false);
                   }}
-                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700"
+                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-700 text-slate-300"
                 >
                   4 hours
                 </button>
@@ -187,7 +187,7 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
                     onSnooze(nudge.id, 24);
                     setShowSnoozeOptions(false);
                   }}
-                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700"
+                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-700 text-slate-300"
                 >
                   1 day
                 </button>
@@ -196,7 +196,7 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
                     onSnooze(nudge.id, 72);
                     setShowSnoozeOptions(false);
                   }}
-                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-700"
+                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-700 text-slate-300"
                 >
                   3 days
                 </button>
@@ -207,7 +207,7 @@ function NudgeCard({ nudge, onDismiss, onSnooze }: NudgeCardProps) {
           {/* Dismiss Button */}
           <button
             onClick={() => onDismiss(nudge.id)}
-            className="text-xs px-2 py-1 rounded hover:bg-black/5 transition-colors"
+            className="text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors"
             title="Dismiss"
           >
             ✕

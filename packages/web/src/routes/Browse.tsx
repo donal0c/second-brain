@@ -549,19 +549,19 @@ export function Browse() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 md:p-8 min-h-full space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Browse</h2>
+        <h2 className="text-2xl font-bold text-white font-display">Browse</h2>
         <button
           onClick={loadData}
-          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          className="px-3 py-1 text-sm text-slate-400 hover:text-white"
         >
           Refresh
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-slate-700/50">
         <nav className="flex gap-4">
           {tabs.map((tab) => (
             <button
@@ -569,12 +569,12 @@ export function Browse() {
               onClick={() => setActiveTab(tab.id)}
               className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "border-indigo-500 text-white"
+                  : "border-transparent text-slate-400 hover:text-white"
               }`}
             >
               {tab.label}
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100">
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-700/50">
                 {tab.count}
               </span>
             </button>
@@ -597,7 +597,7 @@ export function Browse() {
           {activeTab === "tasks" && (
             <div className="space-y-3">
               {/* Task Filter Bar */}
-              <div className="bg-white rounded-lg border border-gray-200 p-3">
+              <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3">
                 <div className="flex flex-wrap gap-3 items-center">
                   {/* Search */}
                   <div className="flex-1 min-w-[200px]">
@@ -606,17 +606,17 @@ export function Browse() {
                       value={taskFilters.search}
                       onChange={(e) => setTaskFilters(prev => ({ ...prev, search: e.target.value }))}
                       placeholder="Search tasks..."
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="w-full px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                     />
                   </div>
 
                   {/* Sort */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500">Sort:</label>
+                    <label className="text-xs text-slate-400">Sort:</label>
                     <select
                       value={taskFilters.sort}
                       onChange={(e) => updateTaskFilters({ sort: e.target.value as TaskSortField })}
-                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                     >
                       <option value="createdAt">Created</option>
                       <option value="dueDate">Due Date</option>
@@ -624,7 +624,7 @@ export function Browse() {
                     </select>
                     <button
                       onClick={() => updateTaskFilters({ sortDir: taskFilters.sortDir === "asc" ? "desc" : "asc" })}
-                      className="p-1.5 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
+                      className="p-1.5 text-slate-400 hover:text-white border border-slate-700 rounded-lg hover:bg-slate-800"
                       title={taskFilters.sortDir === "asc" ? "Ascending" : "Descending"}
                     >
                       {taskFilters.sortDir === "asc" ? (
@@ -648,15 +648,15 @@ export function Browse() {
                         className={`px-2 py-1 text-xs rounded-full transition-colors ${
                           taskFilters.status === status
                             ? status === "all"
-                              ? "bg-gray-900 text-white"
+                              ? "bg-indigo-600 text-white"
                               : status === "active"
                               ? "bg-green-600 text-white"
                               : status === "waiting"
                               ? "bg-yellow-600 text-white"
                               : status === "someday"
                               ? "bg-blue-600 text-white"
-                              : "bg-gray-600 text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              : "bg-slate-600 text-white"
+                            : "bg-slate-700/50 text-slate-400 hover:bg-slate-800"
                         }`}
                       >
                         {status === "all" ? "All" : status.charAt(0).toUpperCase() + status.slice(1)}
@@ -667,7 +667,7 @@ export function Browse() {
               </div>
 
               {taskList.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
                   {rawTaskList.length === 0
                     ? "No tasks yet. Capture something to get started!"
                     : "No tasks match your filters."}
@@ -677,24 +677,24 @@ export function Browse() {
                   <div
                     key={task.id}
                     onClick={() => setEditing({ type: "task", item: task })}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all"
                   >
                     <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-medium text-gray-900 truncate">{task.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{task.nextAction}</p>
+                        <h4 className="font-medium text-white truncate">{task.title}</h4>
+                        <p className="text-sm text-slate-400 mt-1 line-clamp-2">{task.nextAction}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
-                        task.status === "active" ? "bg-green-100 text-green-700" :
-                        task.status === "completed" ? "bg-gray-100 text-gray-600" :
-                        task.status === "waiting" ? "bg-yellow-100 text-yellow-700" :
+                        task.status === "active" ? "bg-green-500/20 text-green-400" :
+                        task.status === "completed" ? "bg-slate-500/20 text-slate-400" :
+                        task.status === "waiting" ? "bg-yellow-500/20 text-yellow-400" :
                         "bg-primary-subtle text-primary-active"
                       }`}>
                         {task.status}
                       </span>
                     </div>
                     {task.context && (
-                      <span className="mt-2 inline-block text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                      <span className="mt-2 inline-block text-xs px-2 py-1 bg-slate-700/50 rounded text-slate-400">
                         {task.context}
                       </span>
                     )}
@@ -708,7 +708,7 @@ export function Browse() {
           {activeTab === "projects" && (
             <div className="space-y-3">
               {/* Project Filter Bar */}
-              <div className="bg-white rounded-lg border border-gray-200 p-3">
+              <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3">
                 <div className="flex flex-wrap gap-3 items-center">
                   {/* Search */}
                   <div className="flex-1 min-w-[200px]">
@@ -717,24 +717,24 @@ export function Browse() {
                       value={projectFilters.search}
                       onChange={(e) => setProjectFilters(prev => ({ ...prev, search: e.target.value }))}
                       placeholder="Search projects..."
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="w-full px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                     />
                   </div>
 
                   {/* Sort */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500">Sort:</label>
+                    <label className="text-xs text-slate-400">Sort:</label>
                     <select
                       value={projectFilters.sort}
                       onChange={(e) => updateProjectFilters({ sort: e.target.value as ProjectSortField })}
-                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                     >
                       <option value="createdAt">Created</option>
                       <option value="name">Name</option>
                     </select>
                     <button
                       onClick={() => updateProjectFilters({ sortDir: projectFilters.sortDir === "asc" ? "desc" : "asc" })}
-                      className="p-1.5 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
+                      className="p-1.5 text-slate-400 hover:text-white border border-slate-700 rounded-lg hover:bg-slate-800"
                       title={projectFilters.sortDir === "asc" ? "Ascending" : "Descending"}
                     >
                       {projectFilters.sortDir === "asc" ? (
@@ -758,15 +758,15 @@ export function Browse() {
                         className={`px-2 py-1 text-xs rounded-full transition-colors ${
                           projectFilters.status === status
                             ? status === "all"
-                              ? "bg-gray-900 text-white"
+                              ? "bg-indigo-600 text-white"
                               : status === "active"
                               ? "bg-green-600 text-white"
                               : status === "on_hold"
                               ? "bg-yellow-600 text-white"
                               : status === "someday"
                               ? "bg-blue-600 text-white"
-                              : "bg-gray-600 text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              : "bg-slate-600 text-white"
+                            : "bg-slate-700/50 text-slate-400 hover:bg-slate-800"
                         }`}
                       >
                         {status === "all" ? "All" : status === "on_hold" ? "On Hold" : status.charAt(0).toUpperCase() + status.slice(1)}
@@ -777,7 +777,7 @@ export function Browse() {
               </div>
 
               {projectList.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
                   {rawProjectList.length === 0
                     ? "No projects yet."
                     : "No projects match your filters."}
@@ -787,22 +787,22 @@ export function Browse() {
                   <div
                     key={project.id}
                     onClick={() => setEditing({ type: "project", item: project })}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all"
                   >
                     <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-medium text-gray-900 truncate">{project.name}</h4>
+                        <h4 className="font-medium text-white truncate">{project.name}</h4>
                         {project.desiredOutcome && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{project.desiredOutcome}</p>
+                          <p className="text-sm text-slate-400 mt-1 line-clamp-2">{project.desiredOutcome}</p>
                         )}
                         {project.nextAction && (
-                          <p className="text-sm text-gray-500 mt-1 truncate">Next: {project.nextAction}</p>
+                          <p className="text-sm text-slate-400 mt-1 truncate">Next: {project.nextAction}</p>
                         )}
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
-                        project.status === "active" ? "bg-green-100 text-green-700" :
-                        project.status === "completed" ? "bg-gray-100 text-gray-600" :
-                        project.status === "on_hold" ? "bg-yellow-100 text-yellow-700" :
+                        project.status === "active" ? "bg-green-500/20 text-green-400" :
+                        project.status === "completed" ? "bg-slate-500/20 text-slate-400" :
+                        project.status === "on_hold" ? "bg-yellow-500/20 text-yellow-400" :
                         "bg-primary-subtle text-primary-active"
                       }`}>
                         {project.status.replace("_", " ")}
@@ -818,7 +818,7 @@ export function Browse() {
           {activeTab === "ideas" && (
             <div className="space-y-3">
               {ideaList.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
                   No ideas yet.
                 </div>
               ) : (
@@ -826,11 +826,11 @@ export function Browse() {
                   <div
                     key={idea.id}
                     onClick={() => setEditing({ type: "idea", item: idea })}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all min-w-0"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all min-w-0"
                   >
-                    <h4 className="font-medium text-gray-900 truncate">{idea.title}</h4>
+                    <h4 className="font-medium text-white truncate">{idea.title}</h4>
                     {idea.summary && (
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{idea.summary}</p>
+                      <p className="text-sm text-slate-400 mt-1 line-clamp-2">{idea.summary}</p>
                     )}
                     {idea.links.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -860,11 +860,11 @@ export function Browse() {
               {/* Sort Controls */}
               {personList.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Sort by:</span>
+                  <span className="text-sm text-slate-400">Sort by:</span>
                   <select
                     value={personSort}
                     onChange={(e) => setPersonSort(e.target.value as PersonSortOption)}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    className="px-2 py-1 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                   >
                     <option value="name-asc">Name (A-Z)</option>
                     <option value="name-desc">Name (Z-A)</option>
@@ -888,8 +888,8 @@ export function Browse() {
                     onClick={() => setPersonFilter(filter.id)}
                     className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-colors ${
                       personFilter === filter.id
-                        ? "bg-gray-900 text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-700/50 text-slate-400 hover:bg-slate-800"
                     }`}
                   >
                     {filter.label}
@@ -919,11 +919,11 @@ export function Browse() {
               </div>
 
               {personList.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
                   No people yet.
                 </div>
               ) : filteredPersonList.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
                   No people match this filter.
                 </div>
               ) : (
@@ -939,37 +939,37 @@ sortedPersonList.map((person) => {
                     <div
                       key={person.id}
                       onClick={() => setEditing({ type: "person", item: person })}
-                      className={`bg-white rounded-lg border p-4 cursor-pointer hover:shadow-sm transition-all ${
+                      className={`rounded-lg border p-4 cursor-pointer hover:shadow-sm transition-all ${
                         isOverdue
-                          ? "border-red-300 bg-red-50 hover:border-red-400"
+                          ? "border-red-500/50 bg-rose-500/10 hover:border-red-500"
                           : isStale
-                          ? "border-yellow-300 bg-yellow-50 hover:border-yellow-400"
+                          ? "border-yellow-500/50 bg-yellow-500/10 hover:border-yellow-500"
                           : hasFollowUp
-                          ? "border-blue-300 bg-blue-50 hover:border-blue-400"
-                          : "border-gray-200 hover:border-gray-300"
+                          ? "border-blue-500/50 bg-blue-500/10 hover:border-blue-500"
+                          : "bg-slate-800/50 border-slate-700/50 hover:border-slate-600"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 min-w-0">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
-                            <h4 className="font-medium text-gray-900 truncate">{person.name}</h4>
+                            <h4 className="font-medium text-white truncate">{person.name}</h4>
                             {hasFollowUp && (
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${
                                 isOverdue
-                                  ? "bg-red-100 text-red-700"
+                                  ? "bg-red-500/20 text-red-400"
                                   : isStale
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-blue-100 text-blue-700"
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-blue-500/20 text-blue-400"
                               }`}>
                                 {isOverdue ? "Overdue" : isStale ? "Due soon" : "Follow-up"}
                               </span>
                             )}
                           </div>
                           {person.relationshipContext && (
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{person.relationshipContext}</p>
+                            <p className="text-sm text-slate-400 mt-1 line-clamp-2">{person.relationshipContext}</p>
                           )}
                           {person.followUpNextAction && (
-                            <p className="text-sm text-gray-700 mt-1 truncate">
+                            <p className="text-sm text-slate-400 mt-1 truncate">
                               <span className="font-medium">Next:</span> {person.followUpNextAction}
                             </p>
                           )}
@@ -977,7 +977,7 @@ sortedPersonList.map((person) => {
                         <div className="flex flex-col items-end gap-2 ml-4 shrink-0">
                           {daysSinceLastTouch !== null && (
                             <span className={`text-xs whitespace-nowrap ${
-                              isOverdue ? "text-red-600 font-medium" : isStale ? "text-yellow-600" : "text-gray-400"
+                              isOverdue ? "text-red-400 font-medium" : isStale ? "text-yellow-400" : "text-slate-400"
                             }`}>
                               {daysSinceLastTouch === 0 ? "Today" : daysSinceLastTouch === 1 ? "1 day ago" : `${daysSinceLastTouch} days ago`}
                             </span>
@@ -995,7 +995,7 @@ sortedPersonList.map((person) => {
                                 });
                               }}
                               disabled={updatePerson.isPending}
-                              className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors font-medium"
+                              className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-colors font-medium"
                             >
                               Mark Complete
                             </button>
@@ -1021,13 +1021,13 @@ sortedPersonList.map((person) => {
         title={editing ? `Edit ${editing.type.charAt(0).toUpperCase() + editing.type.slice(1)}` : ""}
       >
         {saveError && (
-          <div className="mb-4 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm animate-slide-up">
+          <div className="mb-4 p-4 bg-rose-500/10 border border-rose-500/50 rounded-lg text-rose-400 text-sm animate-slide-up">
             {saveError}
           </div>
         )}
 
         {saveSuccess && (
-          <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm flex items-center gap-2 animate-scale-in">
+          <div className="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/50 rounded-lg text-emerald-400 text-sm flex items-center gap-2 animate-scale-in">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -1153,7 +1153,7 @@ function ProjectEditForm({
     <div className="space-y-4">
       {/* Quick Status Buttons */}
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Quick Status</label>
+        <label className="block text-xs font-medium text-slate-400 mb-2">Quick Status</label>
         <div className="flex gap-2">
           {(["completed", "on_hold", "someday"] as const).map((s) => (
             <button
@@ -1162,11 +1162,11 @@ function ProjectEditForm({
               disabled={saving || project.status === s}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 project.status === s
-                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
                   : s === "completed"
-                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                  ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
                   : s === "on_hold"
-                  ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                  ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
                   : "bg-primary-subtle text-primary-active hover:bg-primary-200"
               }`}
             >
@@ -1178,20 +1178,20 @@ function ProjectEditForm({
 
       {/* Natural Language Edit */}
       <form onSubmit={handleInterpret}>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Quick Edit</label>
+        <label className="block text-xs font-medium text-slate-400 mb-2">Quick Edit</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="e.g., Change next action to review proposal"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !instruction.trim()}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 text-sm"
           >
             {saving ? "..." : "Update"}
           </button>
@@ -1199,8 +1199,8 @@ function ProjectEditForm({
       </form>
 
       {/* Fix/Correction (may change entity type) */}
-      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
-        <label className="block text-xs font-medium text-orange-600 mb-2">
+      <form onSubmit={handleFix} className="border-t border-slate-700/50 pt-4">
+        <label className="block text-xs font-medium text-orange-400 mb-2">
           Fix (can change entity type)
         </label>
         <div className="flex gap-2">
@@ -1209,48 +1209,48 @@ function ProjectEditForm({
             value={correction}
             onChange={(e) => setCorrection(e.target.value)}
             placeholder="e.g., This is actually a task, not a project"
-            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-orange-500/50 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-sm"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !correction.trim()}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-500 disabled:opacity-50 text-sm font-medium"
           >
             {saving ? "..." : "Fix"}
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-slate-400">
           Use this to make corrections that might change the entity type
         </p>
       </form>
 
       {/* Reprocess with AI */}
       {project.sourceInboxItemId && (
-        <div className="border-t border-gray-200 pt-4">
-          <label className="block text-xs font-medium text-purple-600 mb-2">
+        <div className="border-t border-slate-700/50 pt-4">
+          <label className="block text-xs font-medium text-purple-400 mb-2">
             Reprocess with AI
           </label>
           <button
             type="button"
             onClick={onReprocess}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm font-medium"
             disabled={saving}
           >
             {saving ? "..." : "Reprocess"}
           </button>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-slate-400">
             Send the original text through AI classification again. May change entity type.
           </p>
         </div>
       )}
 
       {/* Delete - Moved above "Show all fields" for better visibility */}
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-slate-700/50 pt-4">
         <button
           type="button"
           onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 text-sm font-medium"
           disabled={saving}
         >
           Delete Project
@@ -1258,11 +1258,11 @@ function ProjectEditForm({
       </div>
 
       {/* Collapsible Manual Fields */}
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-slate-700/50 pt-4">
         <button
           type="button"
           onClick={() => setShowAllFields(!showAllFields)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="flex items-center gap-1 text-sm text-slate-400 hover:text-white"
         >
           <svg
             className={`w-4 h-4 transition-transform ${showAllFields ? "rotate-90" : ""}`}
@@ -1278,42 +1278,42 @@ function ProjectEditForm({
         {showAllFields && (
           <form onSubmit={handleManualSave} className="mt-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Desired Outcome</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Desired Outcome</label>
               <textarea
                 value={desiredOutcome}
                 onChange={(e) => setDesiredOutcome(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Next Action</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Next Action</label>
               <input
                 type="text"
                 value={nextAction}
                 onChange={(e) => setNextAction(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as Project["status"])}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               >
                 <option value="active">Active</option>
                 <option value="on_hold">On Hold</option>
@@ -1325,7 +1325,7 @@ function ProjectEditForm({
             <button
               type="submit"
               disabled={saving}
-              className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
+              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 text-sm"
             >
               {saving ? "Saving..." : "Save All Changes"}
             </button>
@@ -1338,7 +1338,7 @@ function ProjectEditForm({
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
+          className="w-full px-4 py-2 border border-slate-700 rounded-lg text-slate-400 hover:bg-slate-800 text-sm"
           disabled={saving}
         >
           Close
@@ -1401,20 +1401,20 @@ function IdeaEditForm({
     <div className="space-y-4">
       {/* Natural Language Edit */}
       <form onSubmit={handleInterpret}>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Quick Edit</label>
+        <label className="block text-xs font-medium text-slate-400 mb-2">Quick Edit</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="e.g., Add more detail to the summary"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !instruction.trim()}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 text-sm"
           >
             {saving ? "..." : "Update"}
           </button>
@@ -1422,8 +1422,8 @@ function IdeaEditForm({
       </form>
 
       {/* Fix/Correction (may change entity type) */}
-      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
-        <label className="block text-xs font-medium text-orange-600 mb-2">
+      <form onSubmit={handleFix} className="border-t border-slate-700/50 pt-4">
+        <label className="block text-xs font-medium text-orange-400 mb-2">
           Fix (can change entity type)
         </label>
         <div className="flex gap-2">
@@ -1432,48 +1432,48 @@ function IdeaEditForm({
             value={correction}
             onChange={(e) => setCorrection(e.target.value)}
             placeholder="e.g., This should be a project, not an idea"
-            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-orange-500/50 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-sm"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !correction.trim()}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-500 disabled:opacity-50 text-sm font-medium"
           >
             {saving ? "..." : "Fix"}
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-slate-400">
           Use this to make corrections that might change the entity type
         </p>
       </form>
 
       {/* Reprocess with AI */}
       {idea.sourceInboxItemId && (
-        <div className="border-t border-gray-200 pt-4">
-          <label className="block text-xs font-medium text-purple-600 mb-2">
+        <div className="border-t border-slate-700/50 pt-4">
+          <label className="block text-xs font-medium text-purple-400 mb-2">
             Reprocess with AI
           </label>
           <button
             type="button"
             onClick={onReprocess}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm font-medium"
             disabled={saving}
           >
             {saving ? "..." : "Reprocess"}
           </button>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-slate-400">
             Send the original text through AI classification again. May change entity type.
           </p>
         </div>
       )}
 
       {/* Delete - Moved above "Show all fields" for better visibility */}
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-slate-700/50 pt-4">
         <button
           type="button"
           onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 text-sm font-medium"
           disabled={saving}
         >
           Delete Idea
@@ -1481,11 +1481,11 @@ function IdeaEditForm({
       </div>
 
       {/* Collapsible Manual Fields */}
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-slate-700/50 pt-4">
         <button
           type="button"
           onClick={() => setShowAllFields(!showAllFields)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="flex items-center gap-1 text-sm text-slate-400 hover:text-white"
         >
           <svg
             className={`w-4 h-4 transition-transform ${showAllFields ? "rotate-90" : ""}`}
@@ -1501,41 +1501,41 @@ function IdeaEditForm({
         {showAllFields && (
           <form onSubmit={handleManualSave} className="mt-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Title</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Summary</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Summary</label>
               <textarea
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Links (one per line)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Links (one per line)</label>
               <textarea
                 value={links}
                 onChange={(e) => setLinks(e.target.value)}
                 rows={3}
                 placeholder="https://example.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent font-mono text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 font-mono text-sm"
               />
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
+              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 text-sm"
             >
               {saving ? "Saving..." : "Save All Changes"}
             </button>
@@ -1548,7 +1548,7 @@ function IdeaEditForm({
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
+          className="w-full px-4 py-2 border border-slate-700 rounded-lg text-slate-400 hover:bg-slate-800 text-sm"
           disabled={saving}
         >
           Close
@@ -1622,17 +1622,17 @@ function PersonEditForm({
     <div className="space-y-4">
       {/* Mark Follow-up Complete Button */}
       {person.followUpNextAction && (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">Follow-up pending</p>
-              <p className="text-sm text-blue-700 mt-1">{person.followUpNextAction}</p>
+              <p className="text-sm font-medium text-blue-400">Follow-up pending</p>
+              <p className="text-sm text-blue-300 mt-1">{person.followUpNextAction}</p>
             </div>
             <button
               type="button"
               onClick={handleMarkComplete}
               disabled={saving}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
             >
               {saving ? "..." : "Mark Complete"}
             </button>
@@ -1642,20 +1642,20 @@ function PersonEditForm({
 
       {/* Natural Language Edit */}
       <form onSubmit={handleInterpret}>
-        <label className="block text-xs font-medium text-gray-500 mb-2">Quick Edit</label>
+        <label className="block text-xs font-medium text-slate-400 mb-2">Quick Edit</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="e.g., Add follow-up to schedule a call"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !instruction.trim()}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 text-sm"
           >
             {saving ? "..." : "Update"}
           </button>
@@ -1663,8 +1663,8 @@ function PersonEditForm({
       </form>
 
       {/* Fix/Correction (may change entity type) */}
-      <form onSubmit={handleFix} className="border-t border-gray-200 pt-4">
-        <label className="block text-xs font-medium text-orange-600 mb-2">
+      <form onSubmit={handleFix} className="border-t border-slate-700/50 pt-4">
+        <label className="block text-xs font-medium text-orange-400 mb-2">
           Fix (can change entity type)
         </label>
         <div className="flex gap-2">
@@ -1673,48 +1673,48 @@ function PersonEditForm({
             value={correction}
             onChange={(e) => setCorrection(e.target.value)}
             placeholder="e.g., This is actually a task, not a person"
-            className="flex-1 px-3 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 bg-slate-800 border border-orange-500/50 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-sm"
             disabled={saving}
           />
           <button
             type="submit"
             disabled={saving || !correction.trim()}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-500 disabled:opacity-50 text-sm font-medium"
           >
             {saving ? "..." : "Fix"}
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-slate-400">
           Use this to make corrections that might change the entity type
         </p>
       </form>
 
       {/* Reprocess with AI */}
       {person.sourceInboxItemId && (
-        <div className="border-t border-gray-200 pt-4">
-          <label className="block text-xs font-medium text-purple-600 mb-2">
+        <div className="border-t border-slate-700/50 pt-4">
+          <label className="block text-xs font-medium text-purple-400 mb-2">
             Reprocess with AI
           </label>
           <button
             type="button"
             onClick={onReprocess}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm font-medium"
             disabled={saving}
           >
             {saving ? "..." : "Reprocess"}
           </button>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-slate-400">
             Send the original text through AI classification again. May change entity type.
           </p>
         </div>
       )}
 
       {/* Delete */}
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-slate-700/50 pt-4">
         <button
           type="button"
           onClick={onDelete}
-          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 text-sm font-medium"
           disabled={saving}
         >
           Delete Person
@@ -1722,11 +1722,11 @@ function PersonEditForm({
       </div>
 
       {/* Collapsible Manual Fields */}
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-slate-700/50 pt-4">
         <button
           type="button"
           onClick={() => setShowAllFields(!showAllFields)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="flex items-center gap-1 text-sm text-slate-400 hover:text-white"
         >
           <svg
             className={`w-4 h-4 transition-transform ${showAllFields ? "rotate-90" : ""}`}
@@ -1742,53 +1742,53 @@ function PersonEditForm({
         {showAllFields && (
           <form onSubmit={handleManualSave} className="mt-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Relationship Context</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Relationship Context</label>
               <textarea
                 value={relationshipContext}
                 onChange={(e) => setRelationshipContext(e.target.value)}
                 rows={2}
                 placeholder="e.g., Work colleague, met at conference..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Follow-up Next Action</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Follow-up Next Action</label>
               <input
                 type="text"
                 value={followUpNextAction}
                 onChange={(e) => setFollowUpNextAction(e.target.value)}
                 placeholder="e.g., Schedule lunch meeting"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Last Touched</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Last Touched</label>
               <input
                 type="date"
                 value={lastTouchedAt}
                 onChange={(e) => setLastTouchedAt(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 text-sm"
               />
-              <p className="mt-1 text-xs text-gray-500">When you last interacted with this person</p>
+              <p className="mt-1 text-xs text-slate-400">When you last interacted with this person</p>
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 text-sm"
+              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 text-sm"
             >
               {saving ? "Saving..." : "Save All Changes"}
             </button>
@@ -1801,7 +1801,7 @@ function PersonEditForm({
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
+          className="w-full px-4 py-2 border border-slate-700 rounded-lg text-slate-400 hover:bg-slate-800 text-sm"
           disabled={saving}
         >
           Close

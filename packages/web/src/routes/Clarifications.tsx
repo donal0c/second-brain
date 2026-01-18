@@ -76,17 +76,17 @@ export function Clarifications() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 md:p-8 min-h-full space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Clarifications</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-white font-display">Clarifications</h2>
+          <p className="text-slate-400 mt-1">
             {items.length} item{items.length !== 1 ? "s" : ""} need{items.length === 1 ? "s" : ""} your input
           </p>
         </div>
         <button
           onClick={() => loadClarifications()}
-          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          className="px-3 py-1 text-sm text-slate-400 hover:text-white"
         >
           Refresh
         </button>
@@ -97,8 +97,8 @@ export function Clarifications() {
       {loading ? (
         <LoadingSkeleton count={2} />
       ) : items.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-          <p className="text-gray-500">
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center">
+          <p className="text-slate-400">
             No clarifications needed. Everything is clear!
           </p>
         </div>
@@ -107,19 +107,19 @@ export function Clarifications() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-lg border border-gray-200 p-6"
+              className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-6"
             >
               {/* Original text */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                <p className="text-sm text-gray-600 mb-1">Original capture:</p>
-                <p className="text-gray-900 whitespace-pre-wrap">
+              <div className="bg-slate-800/30 rounded-lg p-3 mb-4">
+                <p className="text-sm text-slate-400 mb-1">Original capture:</p>
+                <p className="text-white whitespace-pre-wrap">
                   {inboxTexts[item.inboxItemId] || "Loading..."}
                 </p>
               </div>
 
               {/* Question */}
               <div className="mb-4">
-                <h4 className="font-medium text-gray-900 mb-2">{item.question}</h4>
+                <h4 className="font-medium text-white mb-2">{item.question}</h4>
 
                 {/* Options */}
                 {item.options && item.options.length > 0 && (
@@ -130,8 +130,8 @@ export function Clarifications() {
                         onClick={() => setAnswers((prev) => ({ ...prev, [item.id]: option }))}
                         className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                           answers[item.id] === option
-                            ? "bg-gray-900 text-white border-gray-900"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-800"
                         }`}
                       >
                         {option}
@@ -149,13 +149,13 @@ export function Clarifications() {
                       setAnswers((prev) => ({ ...prev, [item.id]: e.target.value }))
                     }
                     placeholder="Or type your answer..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
                     disabled={resolvingId === item.id}
                   />
                   <button
                     onClick={() => handleResolve(item.id)}
                     disabled={!answers[item.id]?.trim() || resolvingId === item.id}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {resolvingId === item.id ? "Resolving..." : "Resolve"}
                   </button>
@@ -163,7 +163,7 @@ export function Clarifications() {
               </div>
 
               {/* Timestamp */}
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-slate-500">
                 Asked {new Date(item.createdAt).toLocaleString()}
               </div>
             </div>

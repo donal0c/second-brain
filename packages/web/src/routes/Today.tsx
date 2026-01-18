@@ -165,8 +165,8 @@ export function Today() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Today</h2>
+      <div className="p-6 md:p-8 min-h-full space-y-4">
+        <h2 className="text-2xl font-bold text-white font-display">Today</h2>
         <LoadingSkeletonLarge />
       </div>
     );
@@ -174,23 +174,23 @@ export function Today() {
 
   if (error) {
     return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Today</h2>
+      <div className="p-6 md:p-8 min-h-full space-y-4">
+        <h2 className="text-2xl font-bold text-white font-display">Today</h2>
         <ErrorBanner error={error} onRetry={() => loadDigest()} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 md:p-8 min-h-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Today</h2>
-          <p className="text-gray-600 mt-1">{data?.date}</p>
+          <h2 className="text-2xl font-bold text-white font-display">Today</h2>
+          <p className="text-slate-400 mt-1">{data?.date}</p>
         </div>
         <button
           onClick={() => loadDigest()}
-          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+          className="px-3 py-1 text-sm text-slate-400 hover:text-white"
           data-testid="refresh-button"
         >
           Refresh
@@ -199,25 +199,25 @@ export function Today() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center" data-testid="stat-active-tasks">
-          <div className="text-2xl font-bold text-gray-900" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
-          <div className="text-sm text-gray-500" data-testid="stat-active-tasks-label">Active Tasks</div>
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 text-center" data-testid="stat-active-tasks">
+          <div className="text-2xl font-bold text-white font-display" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
+          <div className="text-sm text-slate-400" data-testid="stat-active-tasks-label">Active Tasks</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center" data-testid="stat-active-projects">
-          <div className="text-2xl font-bold text-gray-900" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
-          <div className="text-sm text-gray-500" data-testid="stat-active-projects-label">Active Projects</div>
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 text-center" data-testid="stat-active-projects">
+          <div className="text-2xl font-bold text-white font-display" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
+          <div className="text-sm text-slate-400" data-testid="stat-active-projects-label">Active Projects</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4 text-center" data-testid="stat-ideas">
-          <div className="text-2xl font-bold text-gray-900" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
-          <div className="text-sm text-gray-500" data-testid="stat-ideas-label">Ideas</div>
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 text-center" data-testid="stat-ideas">
+          <div className="text-2xl font-bold text-white font-display" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
+          <div className="text-sm text-slate-400" data-testid="stat-ideas-label">Ideas</div>
         </div>
       </div>
 
       {/* Next Actions */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">Next Actions</h3>
+        <h3 className="text-lg font-semibold text-white mb-3">Next Actions</h3>
         {data?.nextActions.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500" data-testid="empty-next-actions">
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-6 text-center text-slate-400" data-testid="empty-next-actions">
             No active tasks. Time to capture some thoughts!
           </div>
         ) : (
@@ -228,12 +228,12 @@ export function Today() {
                 <div
                   key={task.id}
                   onClick={() => setEditingTask(task)}
-                  className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                  className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-medium text-gray-900">{task.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{task.nextAction}</p>
+                      <h4 className="font-medium text-white">{task.title}</h4>
+                      <p className="text-sm text-slate-400 mt-1">{task.nextAction}</p>
                     </div>
                     {due && (
                       <span className={`text-sm font-medium ${due.color}`}>
@@ -243,7 +243,7 @@ export function Today() {
                   </div>
                   {task.context && (
                     <div className="mt-2">
-                      <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                      <span className="text-xs px-2 py-1 bg-slate-700/50 rounded text-slate-400">
                         {task.context}
                       </span>
                     </div>
@@ -258,32 +258,32 @@ export function Today() {
       {/* Flagged Items */}
       {data?.flaggedItems && data.flaggedItems.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-white mb-3">
             Flagged for Review ({data.flaggedItems.length})
           </h3>
           <div className="space-y-2">
             {data.flaggedItems.map((receipt) => (
               <div
                 key={receipt.id}
-                className="bg-rose-50 border border-rose-200 rounded-lg p-4"
+                className="bg-rose-500/20 border border-rose-500/30 rounded-lg p-4"
               >
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs px-2 py-0.5 bg-rose-100 rounded text-rose-700 capitalize">
+                      <span className="text-xs px-2 py-0.5 bg-rose-500/20 rounded text-rose-400 capitalize">
                         {receipt.classification}
                       </span>
                       {receipt.confidenceScore < 0.7 && (
-                        <span className="text-xs px-2 py-0.5 bg-orange-100 rounded text-orange-700">
+                        <span className="text-xs px-2 py-0.5 bg-orange-500/20 rounded text-orange-400">
                           Low confidence ({Math.round(receipt.confidenceScore * 100)}%)
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-slate-400">
                       {receipt.extractedFields?.title as string || receipt.extractedFields?.content as string || 'Review required'}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-slate-400">
                     {new Date(receipt.timestamp).toLocaleDateString()}
                   </span>
                 </div>
@@ -296,11 +296,11 @@ export function Today() {
       {/* Stale Tasks */}
       {data?.staleTasks && data.staleTasks.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-white mb-3">
             Stale Tasks ({data.staleTasks.length})
           </h3>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-gray-600 text-sm mb-3">
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4">
+            <p className="text-slate-400 text-sm mb-3">
               These tasks haven't been updated recently.
             </p>
             <div className="space-y-2">
@@ -310,13 +310,13 @@ export function Today() {
                   <div
                     key={task.id}
                     onClick={() => setEditingTask(task)}
-                    className="bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-gray-300 transition-all"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3 cursor-pointer hover:border-slate-600 transition-all"
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
+                        <h4 className="font-medium text-white text-sm">{task.title}</h4>
                         {task.nextAction && (
-                          <p className="text-xs text-gray-600 mt-1">{task.nextAction}</p>
+                          <p className="text-xs text-slate-400 mt-1">{task.nextAction}</p>
                         )}
                       </div>
                       {due && (
@@ -336,11 +336,11 @@ export function Today() {
       {/* Projects Without Next Action */}
       {data?.projectsWithoutNextAction && data.projectsWithoutNextAction.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-white mb-3">
             Projects Needing Next Action ({data.projectsWithoutNextAction.length})
           </h3>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <p className="text-indigo-700 text-sm mb-3">
+          <div className="bg-indigo-500/20 border border-indigo-500/30 rounded-lg p-4">
+            <p className="text-indigo-400 text-sm mb-3">
               These projects don't have a next action defined.
             </p>
             <div className="space-y-2">
@@ -348,11 +348,11 @@ export function Today() {
                 <a
                   key={project.id}
                   href={`/browse?type=project&id=${project.id}`}
-                  className="block bg-white rounded-lg border border-indigo-100 p-3 hover:border-indigo-300 transition-all"
+                  className="block bg-slate-800/50 rounded-lg border border-indigo-500/30 p-3 hover:border-indigo-400 transition-all"
                 >
-                  <h4 className="font-medium text-gray-900 text-sm">{project.name}</h4>
+                  <h4 className="font-medium text-white text-sm">{project.name}</h4>
                   {project.desiredOutcome && (
-                    <p className="text-xs text-gray-600 mt-1">{project.desiredOutcome}</p>
+                    <p className="text-xs text-slate-400 mt-1">{project.desiredOutcome}</p>
                   )}
                 </a>
               ))}
@@ -364,21 +364,21 @@ export function Today() {
       {/* New Contexts */}
       {data?.newContexts && data.newContexts.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-white mb-3">
             New Contexts ({data.newContexts.length})
           </h3>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <p className="text-purple-700 text-sm mb-3">
+          <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
+            <p className="text-purple-400 text-sm mb-3">
               Recently learned contexts that may need descriptions.
             </p>
             <div className="flex flex-wrap gap-2">
               {data.newContexts.map((ctx) => (
                 <div
                   key={ctx.id}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-white rounded border border-purple-100 text-sm"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-800/50 rounded border border-purple-500/30 text-sm"
                 >
-                  <span className="font-medium text-gray-900">{ctx.name}</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-purple-100 rounded text-purple-700 capitalize">
+                  <span className="font-medium text-white">{ctx.name}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 rounded text-purple-400 capitalize">
                     {ctx.type}
                   </span>
                 </div>
@@ -391,16 +391,16 @@ export function Today() {
       {/* Pending Clarifications */}
       {data?.pendingClarifications && data.pendingClarifications.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-white mb-3">
             Needs Your Input ({data.pendingClarifications.length})
           </h3>
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <p className="text-orange-800">
+          <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg p-4">
+            <p className="text-orange-400">
               You have {data.pendingClarifications.length} item{data.pendingClarifications.length > 1 ? 's' : ''} waiting for clarification.
             </p>
             <a
               href="/clarifications"
-              className="text-orange-600 hover:text-orange-800 text-sm font-medium mt-2 inline-block"
+              className="text-orange-400 hover:text-orange-300 text-sm font-medium mt-2 inline-block"
             >
               Review now &rarr;
             </a>
@@ -418,13 +418,13 @@ export function Today() {
         title="Edit Task"
       >
         {saveError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded text-red-400 text-sm">
             {saveError}
           </div>
         )}
 
         {saveSuccess && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+          <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded text-green-400 text-sm">
             Saved successfully!
           </div>
         )}

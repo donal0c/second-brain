@@ -6,10 +6,10 @@ export function ErrorBanner({
   onRetry?: () => void;
 }) {
   return (
-    <div className="p-5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700">
+    <div className="p-5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400">
       {error}
       {onRetry && (
-        <button onClick={onRetry} className="ml-2 underline hover:no-underline font-medium">
+        <button onClick={onRetry} className="ml-2 underline hover:no-underline font-medium text-rose-300">
           Retry
         </button>
       )}

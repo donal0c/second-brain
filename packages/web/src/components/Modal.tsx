@@ -49,7 +49,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50 px-4 animate-fade-in"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 animate-fade-in"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
@@ -57,17 +57,17 @@ export function Modal({
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up"
+        className="bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up"
         tabIndex={-1}
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 id={titleId.current} className="text-xl font-semibold text-gray-900">
+            <h3 id={titleId.current} className="text-xl font-semibold text-white">
               {title}
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-all duration-150"
+              className="text-slate-400 hover:text-white hover:bg-slate-800 p-1.5 rounded-lg transition-all duration-150"
               aria-label="Close modal"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

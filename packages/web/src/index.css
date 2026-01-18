@@ -1,8 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Base typography: Quicksand for body, Staatliches for display */
+  html {
+    font-family: "Quicksand", system-ui, sans-serif;
+  }
+
+  .font-display {
+    font-family: "Staatliches", system-ui, sans-serif;
+  }
+}
 
 /* Voice capture animation delays */
 .delay-75 {
@@ -12,4 +21,3 @@
 .delay-150 {
   animation-delay: 150ms;
 }
-/* Force Rebuild Sun 11 Jan 2026 08:43:09 GMT */
