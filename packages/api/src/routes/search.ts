@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { InferSelectModel } from "drizzle-orm";
-import { eq, ilike, or, and, sql } from "drizzle-orm";
+import { eq, ilike, or, and, sql, gte, lte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import {
   sendData,
@@ -204,10 +204,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
               taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
             }
             if (from) {
-              taskConditions.push(sql`${schema.tasks.createdAt} >= ${from}`);
+              taskConditions.push(gte(schema.tasks.createdAt, from));
             }
             if (to) {
-              taskConditions.push(sql`${schema.tasks.createdAt} <= ${to}`);
+              taskConditions.push(lte(schema.tasks.createdAt, to));
             }
 
             const [tasks, countResult] = await Promise.all([
@@ -254,10 +254,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
               projectConditions.push(eq(schema.projects.status, status as any));
             }
             if (from) {
-              projectConditions.push(sql`${schema.projects.createdAt} >= ${from}`);
+              projectConditions.push(gte(schema.projects.createdAt, from));
             }
             if (to) {
-              projectConditions.push(sql`${schema.projects.createdAt} <= ${to}`);
+              projectConditions.push(lte(schema.projects.createdAt, to));
             }
 
             const [projects, countResult] = await Promise.all([
@@ -304,10 +304,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
             ];
 
             if (from) {
-              ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from}`);
+              ideaConditions.push(gte(schema.ideas.createdAt, from));
             }
             if (to) {
-              ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to}`);
+              ideaConditions.push(lte(schema.ideas.createdAt, to));
             }
 
             const [ideas, countResult] = await Promise.all([
@@ -351,10 +351,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
             ];
 
             if (from) {
-              personConditions.push(sql`${schema.persons.createdAt} >= ${from}`);
+              personConditions.push(gte(schema.persons.createdAt, from));
             }
             if (to) {
-              personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
+              personConditions.push(lte(schema.persons.createdAt, to));
             }
 
             const [persons, countResult] = await Promise.all([
@@ -413,10 +413,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
         }
         if (from) {
-          taskConditions.push(sql`${schema.tasks.createdAt} >= ${from}`);
+          taskConditions.push(gte(schema.tasks.createdAt, from));
         }
         if (to) {
-          taskConditions.push(sql`${schema.tasks.createdAt} <= ${to}`);
+          taskConditions.push(lte(schema.tasks.createdAt, to));
         }
 
         // Build project conditions
@@ -431,10 +431,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           projectConditions.push(eq(schema.projects.status, status as any));
         }
         if (from) {
-          projectConditions.push(sql`${schema.projects.createdAt} >= ${from}`);
+          projectConditions.push(gte(schema.projects.createdAt, from));
         }
         if (to) {
-          projectConditions.push(sql`${schema.projects.createdAt} <= ${to}`);
+          projectConditions.push(lte(schema.projects.createdAt, to));
         }
 
         // Build idea conditions
@@ -445,10 +445,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           ),
         ];
         if (from) {
-          ideaConditions.push(sql`${schema.ideas.createdAt} >= ${from}`);
+          ideaConditions.push(gte(schema.ideas.createdAt, from));
         }
         if (to) {
-          ideaConditions.push(sql`${schema.ideas.createdAt} <= ${to}`);
+          ideaConditions.push(lte(schema.ideas.createdAt, to));
         }
 
         // Build person conditions
@@ -460,10 +460,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
           ),
         ];
         if (from) {
-          personConditions.push(sql`${schema.persons.createdAt} >= ${from}`);
+          personConditions.push(gte(schema.persons.createdAt, from));
         }
         if (to) {
-          personConditions.push(sql`${schema.persons.createdAt} <= ${to}`);
+          personConditions.push(lte(schema.persons.createdAt, to));
         }
 
         // Fetch capped results per type in parallel to prevent memory bloat
