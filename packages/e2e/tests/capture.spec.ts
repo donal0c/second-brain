@@ -63,16 +63,24 @@ test.describe("Capture Flow", () => {
     // Type and submit
     await input.fill("Clear after submit test");
 
+    // Set up response listener before clicking
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("/inbox") && response.request().method() === "POST"
+    );
+
     // Target the Capture button specifically (not the navbar search button)
     const submitButton = page.getByRole("button", { name: "Capture", exact: true });
     await submitButton.click();
 
-    // Wait for the input to clear or show success
-    await page.waitForTimeout(1000);
+    // Wait for successful API response
+    await responsePromise;
 
-    // Input should be empty or show success state
-    const value = await input.inputValue();
-    expect(value).toBe("");
+    // Wait for success message to appear (confirms the mutation completed and state updated)
+    await expect(page.getByRole("status")).toBeVisible({ timeout: 5000 });
+
+    // Input should now be empty
+    await expect(input).toHaveValue("", { timeout: 3000 });
   });
 
   test("shows error for empty submission", async ({ page }) => {
@@ -145,5 +153,165 @@ test.describe("Capture Keyboard Shortcuts", () => {
     if (response) {
       expect(response.status()).toBe(201);
     }
+  });
+});
+
+test.describe("Capture Full Workflow", () => {
+  const TEST_PREFIX = "__e2e_capture_test__";
+
+  test.afterEach(async ({ page }) => {
+    // Cleanup: Delete any test inbox items created during tests
+    try {
+      const apiBase = process.env.VITE_API_URL || "http://localhost:3001";
+
+      // Get all inbox items
+      const response = await page.request.get(`${apiBase}/inbox`);
+      if (response.ok()) {
+        const data = await response.json();
+        const items = data.data || [];
+
+        // Delete items that match our test prefix
+        for (const item of items) {
+          if (item.rawText?.startsWith(TEST_PREFIX)) {
+            await page.request.delete(`${apiBase}/inbox/${item.id}`);
+          }
+        }
+      }
+    } catch (e) {
+      // Cleanup failed - not critical for test
+      console.log("Cleanup warning:", e);
+    }
+  });
+
+  test("captured item appears in inbox", async ({ page }) => {
+    const uniqueText = `${TEST_PREFIX} ${Date.now()} Test item for inbox verification`;
+
+    // Step 1: Capture a thought
+    await navigateTo(page, "capture");
+    const input = page.getByPlaceholder("What's on your mind?");
+    await input.fill(uniqueText);
+
+    // Set up response listener before clicking
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("/inbox") && response.request().method() === "POST"
+    );
+
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
+    await submitButton.click();
+
+    // Wait for successful API response
+    const response = await responsePromise;
+    expect(response.status()).toBe(201);
+
+    // Wait for success message to confirm the mutation completed
+    await expect(page.getByRole("status")).toBeVisible({ timeout: 5000 });
+
+    // Step 2: Navigate to inbox
+    await navigateTo(page, "inbox");
+
+    // Step 3: Verify item appears in inbox
+    // Force a refresh to bypass React Query cache / stale component state
+    await page.reload();
+    await page.waitForLoadState("networkidle");
+
+    // The inbox displays rawText, so look for a portion of our unique text
+    // Use a partial match since the display might be truncated
+    const uniquePart = uniqueText.substring(0, 50);
+    const inboxItem = page.getByText(uniquePart, { exact: false });
+    await expect(inboxItem).toBeVisible({ timeout: 10000 });
+  });
+
+  test("success feedback is displayed after capture", async ({ page }) => {
+    const uniqueText = `${TEST_PREFIX} ${Date.now()} Success feedback test`;
+
+    await navigateTo(page, "capture");
+    const input = page.getByPlaceholder("What's on your mind?");
+    await input.fill(uniqueText);
+
+    // Set up response listener before clicking
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("/inbox") && response.request().method() === "POST"
+    );
+
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
+    await submitButton.click();
+
+    // Wait for successful API response
+    await responsePromise;
+
+    // The app shows a success message with role="status" after successful capture
+    const successMessage = page.getByRole("status");
+    await expect(successMessage).toBeVisible({ timeout: 5000 });
+
+    // Verify the success message contains expected text
+    await expect(successMessage).toContainText(/captured|queued/i);
+
+    // Input should also be cleared
+    await expect(input).toHaveValue("", { timeout: 3000 });
+  });
+
+  test("multiple captures can be submitted in sequence", async ({ page }) => {
+    // Increase timeout for this test since it submits 3 captures
+    test.setTimeout(60000);
+
+    await navigateTo(page, "capture");
+    const input = page.getByPlaceholder("What's on your mind?");
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
+
+    // Capture 3 items in sequence
+    for (let i = 1; i <= 3; i++) {
+      const text = `${TEST_PREFIX} ${Date.now()} Sequential capture ${i}`;
+
+      // Wait for input to be enabled and fill it
+      await expect(input).toBeEnabled({ timeout: 5000 });
+      await input.fill(text);
+
+      const responsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/inbox") && response.request().method() === "POST"
+      );
+
+      await submitButton.click();
+
+      const response = await responsePromise;
+      expect(response.status()).toBe(201);
+
+      // Wait for success message to appear (confirms mutation completed)
+      await expect(page.getByRole("status")).toBeVisible({ timeout: 5000 });
+
+      // Wait for input to clear before next capture
+      await expect(input).toHaveValue("", { timeout: 3000 });
+    }
+  });
+
+  test("capture with newlines preserves formatting", async ({ page }) => {
+    const multilineText = `${TEST_PREFIX} ${Date.now()}
+Line 1: First thought
+Line 2: Second thought
+Line 3: Third thought`;
+
+    await navigateTo(page, "capture");
+    const input = page.getByPlaceholder("What's on your mind?");
+    await input.fill(multilineText);
+
+    // Verify multiline text is preserved in input
+    const value = await input.inputValue();
+    expect(value).toContain("Line 1:");
+    expect(value).toContain("Line 2:");
+    expect(value).toContain("Line 3:");
+
+    // Submit and verify API accepts it
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("/inbox") && response.request().method() === "POST"
+    );
+
+    const submitButton = page.getByRole("button", { name: "Capture", exact: true });
+    await submitButton.click();
+
+    const response = await responsePromise;
+    expect(response.status()).toBe(201);
   });
 });
