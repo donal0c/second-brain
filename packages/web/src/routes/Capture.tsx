@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
-import { inbox, extractErrorMessage } from "../lib/api";
+import { extractErrorMessage } from "../lib/api";
+import { useCapture } from "../lib/queries";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 
@@ -25,6 +26,7 @@ export function Capture() {
   } = useVoiceCapture({ continuous: false, interimResults: true });
 
   const { queueCount, isOnline, addToQueue, syncQueue } = useOfflineQueue();
+  const captureMutation = useCapture();
   const wasOnlineRef = useRef(isOnline);
 
   useEffect(() => {
@@ -38,11 +40,11 @@ export function Capture() {
   useEffect(() => {
     if (isOnline && !wasOnlineRef.current) {
       syncQueue(async (text) => {
-        await inbox.capture(text);
+        await captureMutation.mutateAsync(text);
       }).catch(console.error);
     }
     wasOnlineRef.current = isOnline;
-  }, [isOnline, syncQueue]);
+  }, [isOnline, syncQueue, captureMutation]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -56,7 +58,7 @@ export function Capture() {
     try {
       const queued = !isOnline;
       if (isOnline) {
-        const response = await inbox.capture(text.trim());
+        const response = await captureMutation.mutateAsync(text.trim());
         setClarificationCreated(!!response.result?.clarification);
       } else {
         await addToQueue(text.trim());

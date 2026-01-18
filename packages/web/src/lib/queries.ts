@@ -391,3 +391,19 @@ export function useDeletePerson() {
     },
   });
 }
+
+export function useCapture() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (text: string) => inbox.capture(text),
+    onSuccess: () => {
+      // Invalidate all entity queries since capture may create any entity type
+      queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ideas });
+      queryClient.invalidateQueries({ queryKey: queryKeys.persons });
+    },
+  });
+}

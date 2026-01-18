@@ -18,9 +18,12 @@ Your job is to identify:
 Guidelines:
 - Next action should be specific and actionable (not vague like "work on X")
 - If no due date is mentioned, return null
-- Extract context clues that help identify when/where/who this task involves`;
+- Extract context clues that help identify when/where/who this task involves
+- When interpreting relative dates (tomorrow, next week, etc.), use the current date provided in the prompt`;
 
-export const TASK_EXTRACTOR_USER_PROMPT = `Extract task details from this text:
+export const TASK_EXTRACTOR_USER_PROMPT = `Today's date is {currentDate}.
+
+Extract task details from this text:
 
 """
 {rawText}
@@ -156,7 +159,10 @@ Generate a clarifying question:
 // -----------------------------------------------------------------------------
 
 export function buildTaskExtractorPrompt(rawText: string): string {
-  return TASK_EXTRACTOR_USER_PROMPT.replace("{rawText}", rawText);
+  const currentDate = new Date().toISOString().split('T')[0];
+  return TASK_EXTRACTOR_USER_PROMPT
+    .replace("{currentDate}", currentDate)
+    .replace("{rawText}", rawText);
 }
 
 export function buildProjectExtractorPrompt(rawText: string): string {

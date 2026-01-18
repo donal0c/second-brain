@@ -309,6 +309,7 @@ export async function processInboxItem(
 
     // Update inbox item status (clear processing timestamp on success)
     const finalStatus = result.clarification ? "blocked" : "processed";
+
     await db
       .update(schema.inboxItems)
       .set({ status: finalStatus, processingStartedAt: null })
