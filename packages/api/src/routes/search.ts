@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { InferSelectModel } from "drizzle-orm";
 import { eq, ilike, or, and, sql, gte, lte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { generateEmbedding, hasOpenAIClient } from "../services/embedding.js";
+import { findSimilarByEmbedding } from "../services/similarity.js";
 import {
   sendData,
   sendValidationError,
@@ -25,6 +27,7 @@ type TaskSearchResult = {
   id: string;
   entity: DbTask;
   snippet: SearchResultSnippet;
+  similarity?: number;
 };
 
 type ProjectSearchResult = {
@@ -32,6 +35,7 @@ type ProjectSearchResult = {
   id: string;
   entity: DbProject;
   snippet: SearchResultSnippet;
+  similarity?: number;
 };
 
 type IdeaSearchResult = {
@@ -39,6 +43,7 @@ type IdeaSearchResult = {
   id: string;
   entity: DbIdea;
   snippet: SearchResultSnippet;
+  similarity?: number;
 };
 
 type PersonSearchResult = {
@@ -46,6 +51,7 @@ type PersonSearchResult = {
   id: string;
   entity: DbPerson;
   snippet: SearchResultSnippet;
+  similarity?: number;
 };
 
 type SearchResult = TaskSearchResult | ProjectSearchResult | IdeaSearchResult | PersonSearchResult;
@@ -63,6 +69,9 @@ export const SearchQuerySchema = z.object({
   to: z.coerce.date().optional(),
   limit: z.coerce.number().min(1).max(100).optional().default(50),
   offset: z.coerce.number().min(0).optional().default(0),
+  mode: z.enum(["keyword", "semantic", "hybrid"]).optional().default("keyword"),
+  semanticWeight: z.coerce.number().min(0).max(1).optional().default(0.7),
+  semanticThreshold: z.coerce.number().min(0).max(1).optional().default(0.7),
 });
 
 // =============================================================================
@@ -160,6 +169,518 @@ export function getTitleRelevanceScore(title: string, query: string): number {
   return 0;
 }
 
+/**
+ * Merge keyword and semantic results using Reciprocal Rank Fusion.
+ */
+function mergeWithRRF<T extends { id: string }>(
+  keywordResults: T[],
+  semanticResults: T[],
+  semanticWeight: number
+): T[] {
+  const K = 60;
+  const scores = new Map<string, { score: number; item: T }>();
+
+  keywordResults.forEach((item, index) => {
+    const rrfScore = (1 - semanticWeight) / (K + index + 1);
+    scores.set(item.id, { score: rrfScore, item });
+  });
+
+  semanticResults.forEach((item, index) => {
+    const rrfScore = semanticWeight / (K + index + 1);
+    const existing = scores.get(item.id);
+    if (existing) {
+      existing.score += rrfScore;
+      if ("similarity" in item && (existing.item as any).similarity === undefined) {
+        (existing.item as any).similarity = (item as any).similarity;
+      }
+    } else {
+      scores.set(item.id, { score: rrfScore, item });
+    }
+  });
+
+  return Array.from(scores.values())
+    .sort((a, b) => b.score - a.score)
+    .map(({ item }) => item);
+}
+
+function isShortQuery(query: string): boolean {
+  return query.trim().length < 3;
+}
+
+function matchesFilters(
+  result: SearchResult,
+  filters: {
+    context?: string;
+    status?: string;
+    from?: Date;
+    to?: Date;
+  }
+): boolean {
+  const { context, status, from, to } = filters;
+
+  if (from) {
+    const createdAt = (result.entity as { createdAt?: Date }).createdAt;
+    if (createdAt && createdAt < from) return false;
+  }
+
+  if (to) {
+    const createdAt = (result.entity as { createdAt?: Date }).createdAt;
+    if (createdAt && createdAt > to) return false;
+  }
+
+  if (status) {
+    if (result.type === "task") {
+      if (result.entity.status !== status) return false;
+    } else if (result.type === "project") {
+      if (result.entity.status !== status) return false;
+    }
+  }
+
+  if (context && result.type === "task") {
+    const taskContext = result.entity.context || "";
+    if (!taskContext.toLowerCase().includes(context.toLowerCase())) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function performSemanticSearch(
+  query: string,
+  type: string | undefined,
+  threshold: number,
+  limit: number,
+  filters: {
+    context?: string;
+    status?: string;
+    from?: Date;
+    to?: Date;
+  }
+): Promise<SearchResult[]> {
+  const embedding = await generateEmbedding(query);
+  const results: SearchResult[] = [];
+
+  if (!type || type === "task") {
+    const tasks = await findSimilarByEmbedding<DbTask>("tasks", embedding, limit, threshold);
+    results.push(
+      ...tasks.map((r) => ({
+        type: "task" as const,
+        id: r.entity.id,
+        entity: r.entity,
+        similarity: r.similarity,
+        snippet: {
+          title: generateSnippet(r.entity.title, query, 100),
+          content: generateSnippet(r.entity.nextAction, query, 200),
+        },
+      }))
+    );
+  }
+
+  if (!type || type === "project") {
+    const projects = await findSimilarByEmbedding<DbProject>("projects", embedding, limit, threshold);
+    results.push(
+      ...projects.map((r) => ({
+        type: "project" as const,
+        id: r.entity.id,
+        entity: r.entity,
+        similarity: r.similarity,
+        snippet: {
+          title: generateSnippet(r.entity.name, query, 100),
+          content: generateSnippet(
+            r.entity.desiredOutcome || r.entity.nextAction || "",
+            query,
+            200
+          ),
+        },
+      }))
+    );
+  }
+
+  if (!type || type === "idea") {
+    const ideas = await findSimilarByEmbedding<DbIdea>("ideas", embedding, limit, threshold);
+    results.push(
+      ...ideas.map((r) => ({
+        type: "idea" as const,
+        id: r.entity.id,
+        entity: r.entity,
+        similarity: r.similarity,
+        snippet: {
+          title: generateSnippet(r.entity.title, query, 100),
+          content: generateSnippet(r.entity.summary || "", query, 200),
+        },
+      }))
+    );
+  }
+
+  if (!type || type === "person") {
+    const persons = await findSimilarByEmbedding<DbPerson>("persons", embedding, limit, threshold);
+    results.push(
+      ...persons.map((r) => ({
+        type: "person" as const,
+        id: r.entity.id,
+        entity: r.entity,
+        similarity: r.similarity,
+        snippet: {
+          title: generateSnippet(r.entity.name, query, 100),
+          content: generateSnippet(
+            r.entity.relationshipContext || r.entity.followUpNextAction || "",
+            query,
+            200
+          ),
+        },
+      }))
+    );
+  }
+
+  return results
+    .filter((result) => matchesFilters(result, filters))
+    .sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+}
+
+async function performKeywordSearchSingleType(
+  type: "task" | "project" | "idea" | "person",
+  query: string,
+  filters: {
+    context?: string;
+    status?: string;
+    from?: Date;
+    to?: Date;
+  },
+  limit: number,
+  offset: number
+): Promise<{ results: SearchResult[]; total: number }> {
+  const { context, status, from, to } = filters;
+  const searchPattern = `%${query}%`;
+
+  if (type === "task") {
+    const taskConditions = [
+      or(
+        ilike(schema.tasks.title, searchPattern),
+        ilike(schema.tasks.nextAction, searchPattern),
+        ilike(schema.tasks.context, searchPattern)
+      ),
+    ];
+
+    if (status) {
+      taskConditions.push(eq(schema.tasks.status, status as any));
+    }
+    if (context) {
+      taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
+    }
+    if (from) {
+      taskConditions.push(gte(schema.tasks.createdAt, from));
+    }
+    if (to) {
+      taskConditions.push(lte(schema.tasks.createdAt, to));
+    }
+
+    const [tasks, countResult] = await Promise.all([
+      db.select().from(schema.tasks).where(and(...taskConditions)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(schema.tasks).where(and(...taskConditions)),
+    ]);
+
+    const results: TaskSearchResult[] = tasks.map((task) => ({
+      type: "task" as const,
+      id: task.id,
+      entity: task,
+      snippet: {
+        title: generateSnippet(task.title, query, 100),
+        content: generateSnippet(task.nextAction, query, 200),
+      },
+    }));
+
+    return { results, total: countResult[0]?.count ?? 0 };
+  }
+
+  if (type === "project") {
+    const projectConditions = [
+      or(
+        ilike(schema.projects.name, searchPattern),
+        ilike(schema.projects.desiredOutcome, searchPattern),
+        ilike(schema.projects.nextAction, searchPattern)
+      ),
+    ];
+
+    if (status) {
+      projectConditions.push(eq(schema.projects.status, status as any));
+    }
+    if (from) {
+      projectConditions.push(gte(schema.projects.createdAt, from));
+    }
+    if (to) {
+      projectConditions.push(lte(schema.projects.createdAt, to));
+    }
+
+    const [projects, countResult] = await Promise.all([
+      db
+        .select()
+        .from(schema.projects)
+        .where(and(...projectConditions))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.projects)
+        .where(and(...projectConditions)),
+    ]);
+
+    const results: ProjectSearchResult[] = projects.map((project) => ({
+      type: "project" as const,
+      id: project.id,
+      entity: project,
+      snippet: {
+        title: generateSnippet(project.name, query, 100),
+        content: generateSnippet(
+          project.desiredOutcome || project.nextAction || "",
+          query,
+          200
+        ),
+      },
+    }));
+
+    return { results, total: countResult[0]?.count ?? 0 };
+  }
+
+  if (type === "idea") {
+    const ideaConditions = [
+      or(
+        ilike(schema.ideas.title, searchPattern),
+        ilike(schema.ideas.summary, searchPattern)
+      ),
+    ];
+
+    if (from) {
+      ideaConditions.push(gte(schema.ideas.createdAt, from));
+    }
+    if (to) {
+      ideaConditions.push(lte(schema.ideas.createdAt, to));
+    }
+
+    const [ideas, countResult] = await Promise.all([
+      db.select().from(schema.ideas).where(and(...ideaConditions)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(schema.ideas).where(and(...ideaConditions)),
+    ]);
+
+    const results: IdeaSearchResult[] = ideas.map((idea) => ({
+      type: "idea" as const,
+      id: idea.id,
+      entity: idea,
+      snippet: {
+        title: generateSnippet(idea.title, query, 100),
+        content: generateSnippet(idea.summary || "", query, 200),
+      },
+    }));
+
+    return { results, total: countResult[0]?.count ?? 0 };
+  }
+
+  const personConditions = [
+    or(
+      ilike(schema.persons.name, searchPattern),
+      ilike(schema.persons.relationshipContext, searchPattern),
+      ilike(schema.persons.followUpNextAction, searchPattern)
+    ),
+  ];
+
+  if (from) {
+    personConditions.push(gte(schema.persons.createdAt, from));
+  }
+  if (to) {
+    personConditions.push(lte(schema.persons.createdAt, to));
+  }
+
+  const [persons, countResult] = await Promise.all([
+    db.select().from(schema.persons).where(and(...personConditions)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(schema.persons).where(and(...personConditions)),
+  ]);
+
+  const results: PersonSearchResult[] = persons.map((person) => ({
+    type: "person" as const,
+    id: person.id,
+    entity: person,
+    snippet: {
+      title: generateSnippet(person.name, query, 100),
+      content: generateSnippet(
+        person.relationshipContext || person.followUpNextAction || "",
+        query,
+        200
+      ),
+    },
+  }));
+
+  return { results, total: countResult[0]?.count ?? 0 };
+}
+
+async function performKeywordSearchAllTypes(
+  query: string,
+  filters: {
+    context?: string;
+    status?: string;
+    from?: Date;
+    to?: Date;
+  },
+  limit: number,
+  offset: number,
+  perTypeLimitOverride?: number,
+  applyPagination: boolean = true
+): Promise<{ results: SearchResult[]; total: number }> {
+  const { context, status, from, to } = filters;
+  const searchPattern = `%${query}%`;
+  const perTypeLimit = perTypeLimitOverride ?? Math.max(limit * 2, 100);
+
+  const taskConditions = [
+    or(
+      ilike(schema.tasks.title, searchPattern),
+      ilike(schema.tasks.nextAction, searchPattern),
+      ilike(schema.tasks.context, searchPattern)
+    ),
+  ];
+  if (status) {
+    taskConditions.push(eq(schema.tasks.status, status as any));
+  }
+  if (context) {
+    taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
+  }
+  if (from) {
+    taskConditions.push(gte(schema.tasks.createdAt, from));
+  }
+  if (to) {
+    taskConditions.push(lte(schema.tasks.createdAt, to));
+  }
+
+  const projectConditions = [
+    or(
+      ilike(schema.projects.name, searchPattern),
+      ilike(schema.projects.desiredOutcome, searchPattern),
+      ilike(schema.projects.nextAction, searchPattern)
+    ),
+  ];
+  if (status) {
+    projectConditions.push(eq(schema.projects.status, status as any));
+  }
+  if (from) {
+    projectConditions.push(gte(schema.projects.createdAt, from));
+  }
+  if (to) {
+    projectConditions.push(lte(schema.projects.createdAt, to));
+  }
+
+  const ideaConditions = [
+    or(
+      ilike(schema.ideas.title, searchPattern),
+      ilike(schema.ideas.summary, searchPattern)
+    ),
+  ];
+  if (from) {
+    ideaConditions.push(gte(schema.ideas.createdAt, from));
+  }
+  if (to) {
+    ideaConditions.push(lte(schema.ideas.createdAt, to));
+  }
+
+  const personConditions = [
+    or(
+      ilike(schema.persons.name, searchPattern),
+      ilike(schema.persons.relationshipContext, searchPattern),
+      ilike(schema.persons.followUpNextAction, searchPattern)
+    ),
+  ];
+  if (from) {
+    personConditions.push(gte(schema.persons.createdAt, from));
+  }
+  if (to) {
+    personConditions.push(lte(schema.persons.createdAt, to));
+  }
+
+  const [tasks, projects, ideas, persons] = await Promise.all([
+    db.select().from(schema.tasks).where(and(...taskConditions)).limit(perTypeLimit),
+    db.select().from(schema.projects).where(and(...projectConditions)).limit(perTypeLimit),
+    db.select().from(schema.ideas).where(and(...ideaConditions)).limit(perTypeLimit),
+    db.select().from(schema.persons).where(and(...personConditions)).limit(perTypeLimit),
+  ]);
+
+  const results: SearchResult[] = [];
+
+  for (const task of tasks) {
+    results.push({
+      type: "task",
+      id: task.id,
+      entity: task,
+      snippet: {
+        title: generateSnippet(task.title, query, 100),
+        content: generateSnippet(task.nextAction, query, 200),
+      },
+    });
+  }
+
+  for (const project of projects) {
+    results.push({
+      type: "project",
+      id: project.id,
+      entity: project,
+      snippet: {
+        title: generateSnippet(project.name, query, 100),
+        content: generateSnippet(project.desiredOutcome || project.nextAction || "", query, 200),
+      },
+    });
+  }
+
+  for (const idea of ideas) {
+    results.push({
+      type: "idea",
+      id: idea.id,
+      entity: idea,
+      snippet: {
+        title: generateSnippet(idea.title, query, 100),
+        content: generateSnippet(idea.summary || "", query, 200),
+      },
+    });
+  }
+
+  for (const person of persons) {
+    results.push({
+      type: "person",
+      id: person.id,
+      entity: person,
+      snippet: {
+        title: generateSnippet(person.name, query, 100),
+        content: generateSnippet(
+          person.relationshipContext || person.followUpNextAction || "",
+          query,
+          200
+        ),
+      },
+    });
+  }
+
+  const getEntityTitle = (result: SearchResult): string => {
+    switch (result.type) {
+      case "task":
+        return result.entity.title;
+      case "project":
+        return result.entity.name;
+      case "idea":
+        return result.entity.title;
+      case "person":
+        return result.entity.name;
+    }
+  };
+
+  results.sort((a, b) => {
+    const aScore = getTitleRelevanceScore(getEntityTitle(a), query);
+    const bScore = getTitleRelevanceScore(getEntityTitle(b), query);
+    return bScore - aScore;
+  });
+
+  const total = results.length;
+
+  return {
+    results: applyPagination ? results.slice(offset, offset + limit) : results,
+    total,
+  };
+}
+
 
 // =============================================================================
 // Search Route
@@ -181,389 +702,139 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      const { q, type, context, status, from, to, limit, offset } = parseResult.data;
+      const {
+        q,
+        type,
+        context,
+        status,
+        from,
+        to,
+        limit,
+        offset,
+        mode,
+        semanticWeight,
+        semanticThreshold,
+      } = parseResult.data;
 
       try {
-        const searchPattern = `%${q}%`;
+        const filters = { context, status, from, to };
 
-        // Single-type search: use SQL-level pagination for efficiency
-        if (type) {
-          if (type === "task") {
-            const taskConditions = [
-              or(
-                ilike(schema.tasks.title, searchPattern),
-                ilike(schema.tasks.nextAction, searchPattern),
-                ilike(schema.tasks.context, searchPattern)
-              ),
-            ];
-
-            if (status) {
-              taskConditions.push(eq(schema.tasks.status, status as any));
-            }
-            if (context) {
-              taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
-            }
-            if (from) {
-              taskConditions.push(gte(schema.tasks.createdAt, from));
-            }
-            if (to) {
-              taskConditions.push(lte(schema.tasks.createdAt, to));
-            }
-
-            const [tasks, countResult] = await Promise.all([
-              db
-                .select()
-                .from(schema.tasks)
-                .where(and(...taskConditions))
-                .limit(limit)
-                .offset(offset),
-              db
-                .select({ count: sql<number>`count(*)` })
-                .from(schema.tasks)
-                .where(and(...taskConditions)),
-            ]);
-
-            const results: TaskSearchResult[] = tasks.map((task) => ({
-              type: "task" as const,
-              id: task.id,
-              entity: task,
-              snippet: {
-                title: generateSnippet(task.title, q, 100),
-                content: generateSnippet(task.nextAction, q, 200),
-              },
-            }));
-
-            return sendData(reply, results, {
-              total: countResult[0]?.count ?? 0,
-              limit,
-              offset,
-              query: q,
-            });
+        if (mode === "semantic") {
+          if (!hasOpenAIClient()) {
+            return sendValidationError(reply, "Semantic search requires OPENAI_API_KEY");
           }
 
-          if (type === "project") {
-            const projectConditions = [
-              or(
-                ilike(schema.projects.name, searchPattern),
-                ilike(schema.projects.desiredOutcome, searchPattern),
-                ilike(schema.projects.nextAction, searchPattern)
-              ),
-            ];
-
-            if (status) {
-              projectConditions.push(eq(schema.projects.status, status as any));
-            }
-            if (from) {
-              projectConditions.push(gte(schema.projects.createdAt, from));
-            }
-            if (to) {
-              projectConditions.push(lte(schema.projects.createdAt, to));
-            }
-
-            const [projects, countResult] = await Promise.all([
-              db
-                .select()
-                .from(schema.projects)
-                .where(and(...projectConditions))
-                .limit(limit)
-                .offset(offset),
-              db
-                .select({ count: sql<number>`count(*)` })
-                .from(schema.projects)
-                .where(and(...projectConditions)),
-            ]);
-
-            const results: ProjectSearchResult[] = projects.map((project) => ({
-              type: "project" as const,
-              id: project.id,
-              entity: project,
-              snippet: {
-                title: generateSnippet(project.name, q, 100),
-                content: generateSnippet(
-                  project.desiredOutcome || project.nextAction || "",
-                  q,
-                  200
-                ),
-              },
-            }));
-
-            return sendData(reply, results, {
-              total: countResult[0]?.count ?? 0,
-              limit,
-              offset,
-              query: q,
-            });
-          }
-
-          if (type === "idea") {
-            const ideaConditions = [
-              or(
-                ilike(schema.ideas.title, searchPattern),
-                ilike(schema.ideas.summary, searchPattern)
-              ),
-            ];
-
-            if (from) {
-              ideaConditions.push(gte(schema.ideas.createdAt, from));
-            }
-            if (to) {
-              ideaConditions.push(lte(schema.ideas.createdAt, to));
-            }
-
-            const [ideas, countResult] = await Promise.all([
-              db
-                .select()
-                .from(schema.ideas)
-                .where(and(...ideaConditions))
-                .limit(limit)
-                .offset(offset),
-              db
-                .select({ count: sql<number>`count(*)` })
-                .from(schema.ideas)
-                .where(and(...ideaConditions)),
-            ]);
-
-            const results: IdeaSearchResult[] = ideas.map((idea) => ({
-              type: "idea" as const,
-              id: idea.id,
-              entity: idea,
-              snippet: {
-                title: generateSnippet(idea.title, q, 100),
-                content: generateSnippet(idea.summary || "", q, 200),
-              },
-            }));
-
-            return sendData(reply, results, {
-              total: countResult[0]?.count ?? 0,
-              limit,
-              offset,
-              query: q,
-            });
-          }
-
-          if (type === "person") {
-            const personConditions = [
-              or(
-                ilike(schema.persons.name, searchPattern),
-                ilike(schema.persons.relationshipContext, searchPattern),
-                ilike(schema.persons.followUpNextAction, searchPattern)
-              ),
-            ];
-
-            if (from) {
-              personConditions.push(gte(schema.persons.createdAt, from));
-            }
-            if (to) {
-              personConditions.push(lte(schema.persons.createdAt, to));
-            }
-
-            const [persons, countResult] = await Promise.all([
-              db
-                .select()
-                .from(schema.persons)
-                .where(and(...personConditions))
-                .limit(limit)
-                .offset(offset),
-              db
-                .select({ count: sql<number>`count(*)` })
-                .from(schema.persons)
-                .where(and(...personConditions)),
-            ]);
-
-            const results: PersonSearchResult[] = persons.map((person) => ({
-              type: "person" as const,
-              id: person.id,
-              entity: person,
-              snippet: {
-                title: generateSnippet(person.name, q, 100),
-                content: generateSnippet(
-                  person.relationshipContext || person.followUpNextAction || "",
-                  q,
-                  200
-                ),
-              },
-            }));
-
-            return sendData(reply, results, {
-              total: countResult[0]?.count ?? 0,
-              limit,
-              offset,
-              query: q,
-            });
-          }
-        }
-
-        // Cross-type search: fetch capped results per type, combine, sort by relevance, then paginate
-        // Cap per-type results to prevent memory bloat while maintaining reasonable ranking accuracy
-        const perTypeLimit = Math.max(limit * 2, 100); // Fetch enough candidates for accurate cross-type sorting
-        const results: SearchResult[] = [];
-
-        // Build task conditions
-        const taskConditions = [
-          or(
-            ilike(schema.tasks.title, searchPattern),
-            ilike(schema.tasks.nextAction, searchPattern),
-            ilike(schema.tasks.context, searchPattern)
-          ),
-        ];
-        if (status) {
-          taskConditions.push(eq(schema.tasks.status, status as any));
-        }
-        if (context) {
-          taskConditions.push(ilike(schema.tasks.context, `%${context}%`));
-        }
-        if (from) {
-          taskConditions.push(gte(schema.tasks.createdAt, from));
-        }
-        if (to) {
-          taskConditions.push(lte(schema.tasks.createdAt, to));
-        }
-
-        // Build project conditions
-        const projectConditions = [
-          or(
-            ilike(schema.projects.name, searchPattern),
-            ilike(schema.projects.desiredOutcome, searchPattern),
-            ilike(schema.projects.nextAction, searchPattern)
-          ),
-        ];
-        if (status) {
-          projectConditions.push(eq(schema.projects.status, status as any));
-        }
-        if (from) {
-          projectConditions.push(gte(schema.projects.createdAt, from));
-        }
-        if (to) {
-          projectConditions.push(lte(schema.projects.createdAt, to));
-        }
-
-        // Build idea conditions
-        const ideaConditions = [
-          or(
-            ilike(schema.ideas.title, searchPattern),
-            ilike(schema.ideas.summary, searchPattern)
-          ),
-        ];
-        if (from) {
-          ideaConditions.push(gte(schema.ideas.createdAt, from));
-        }
-        if (to) {
-          ideaConditions.push(lte(schema.ideas.createdAt, to));
-        }
-
-        // Build person conditions
-        const personConditions = [
-          or(
-            ilike(schema.persons.name, searchPattern),
-            ilike(schema.persons.relationshipContext, searchPattern),
-            ilike(schema.persons.followUpNextAction, searchPattern)
-          ),
-        ];
-        if (from) {
-          personConditions.push(gte(schema.persons.createdAt, from));
-        }
-        if (to) {
-          personConditions.push(lte(schema.persons.createdAt, to));
-        }
-
-        // Fetch capped results per type in parallel to prevent memory bloat
-        const [tasks, projects, ideas, persons] = await Promise.all([
-          db.select().from(schema.tasks).where(and(...taskConditions)).limit(perTypeLimit),
-          db.select().from(schema.projects).where(and(...projectConditions)).limit(perTypeLimit),
-          db.select().from(schema.ideas).where(and(...ideaConditions)).limit(perTypeLimit),
-          db.select().from(schema.persons).where(and(...personConditions)).limit(perTypeLimit),
-        ]);
-
-        // Convert to search results with relevance scores
-        for (const task of tasks) {
-          results.push({
-            type: "task",
-            id: task.id,
-            entity: task,
-            snippet: {
-              title: generateSnippet(task.title, q, 100),
-              content: generateSnippet(task.nextAction, q, 200),
-            },
-          });
-        }
-
-        for (const project of projects) {
-          results.push({
-            type: "project",
-            id: project.id,
-            entity: project,
-            snippet: {
-              title: generateSnippet(project.name, q, 100),
-              content: generateSnippet(
-                project.desiredOutcome || project.nextAction || "",
+          if (isShortQuery(q)) {
+            if (type) {
+              const { results, total } = await performKeywordSearchSingleType(
+                type,
                 q,
-                200
-              ),
-            },
-          });
-        }
+                filters,
+                limit,
+                offset
+              );
+              return sendData(reply, results, { total, limit, offset, query: q });
+            }
 
-        for (const idea of ideas) {
-          results.push({
-            type: "idea",
-            id: idea.id,
-            entity: idea,
-            snippet: {
-              title: generateSnippet(idea.title, q, 100),
-              content: generateSnippet(idea.summary || "", q, 200),
-            },
-          });
-        }
-
-        for (const person of persons) {
-          results.push({
-            type: "person",
-            id: person.id,
-            entity: person,
-            snippet: {
-              title: generateSnippet(person.name, q, 100),
-              content: generateSnippet(
-                person.relationshipContext || person.followUpNextAction || "",
-                q,
-                200
-              ),
-            },
-          });
-        }
-
-        // Sort results by relevance (scoring based on title matches)
-        const getEntityTitle = (result: SearchResult): string => {
-          switch (result.type) {
-            case "task":
-              return result.entity.title;
-            case "project":
-              return result.entity.name;
-            case "idea":
-              return result.entity.title;
-            case "person":
-              return result.entity.name;
+            const { results, total } = await performKeywordSearchAllTypes(
+              q,
+              filters,
+              limit,
+              offset
+            );
+            return sendData(reply, results, { total, limit, offset, query: q });
           }
-        };
 
-        results.sort((a, b) => {
-          const aScore = getTitleRelevanceScore(getEntityTitle(a), q);
-          const bScore = getTitleRelevanceScore(getEntityTitle(b), q);
-          return bScore - aScore;
-        });
-
-        // Store total before slicing (note: may be capped per type for memory efficiency)
-        const total = results.length;
-
-        return sendData(
-          reply,
-          results.slice(offset, offset + limit),
-          {
+          const candidateLimit = Math.max(limit + offset, limit * 2);
+          const semanticResults = await performSemanticSearch(
+            q,
+            type,
+            semanticThreshold,
+            candidateLimit,
+            filters
+          );
+          const total = semanticResults.length;
+          return sendData(reply, semanticResults.slice(offset, offset + limit), {
             total,
             limit,
             offset,
             query: q,
+          });
+        }
+
+        if (mode === "hybrid") {
+          if (!hasOpenAIClient() || isShortQuery(q)) {
+            if (type) {
+              const { results, total } = await performKeywordSearchSingleType(
+                type,
+                q,
+                filters,
+                limit,
+                offset
+              );
+              return sendData(reply, results, { total, limit, offset, query: q });
+            }
+
+            const { results, total } = await performKeywordSearchAllTypes(
+              q,
+              filters,
+              limit,
+              offset
+            );
+            return sendData(reply, results, { total, limit, offset, query: q });
           }
+
+          const candidateLimit = type ? Math.max(limit * 2, limit + offset) : Math.max(limit * 2, 100);
+          const keywordResults = type
+            ? (await performKeywordSearchSingleType(type, q, filters, candidateLimit, 0)).results
+            : (
+                await performKeywordSearchAllTypes(
+                  q,
+                  filters,
+                  candidateLimit,
+                  0,
+                  candidateLimit,
+                  false
+                )
+              ).results;
+
+          const semanticResults = await performSemanticSearch(
+            q,
+            type,
+            semanticThreshold,
+            candidateLimit,
+            filters
+          );
+
+          const merged = mergeWithRRF(keywordResults, semanticResults, semanticWeight);
+          const total = merged.length;
+          return sendData(reply, merged.slice(offset, offset + limit), {
+            total,
+            limit,
+            offset,
+            query: q,
+          });
+        }
+
+        if (type) {
+          const { results, total } = await performKeywordSearchSingleType(
+            type,
+            q,
+            filters,
+            limit,
+            offset
+          );
+          return sendData(reply, results, { total, limit, offset, query: q });
+        }
+
+        const { results, total } = await performKeywordSearchAllTypes(
+          q,
+          filters,
+          limit,
+          offset
         );
+
+        return sendData(reply, results, { total, limit, offset, query: q });
       } catch (error) {
         app.log.error(error);
         return sendInternalError(

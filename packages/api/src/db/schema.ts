@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, timestamp, jsonb, index, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, timestamp, jsonb, index, boolean, vector } from "drizzle-orm/pg-core";
 
 // =============================================================================
 // Database Schema
@@ -17,6 +17,7 @@ export const inboxItems = pgTable("inbox_items", {
   processingStartedAt: timestamp("processing_started_at"),
   errorMessage: text("error_message"),
   clarificationAttempts: integer("clarification_attempts").notNull().default(0),
+  embedding: vector("embedding", { dimensions: 1536 }),
 }, (table) => ({
   statusIdx: index("inbox_items_status_idx").on(table.status),
   capturedAtIdx: index("inbox_items_captured_at_idx").on(table.capturedAt),
@@ -36,6 +37,7 @@ export const tasks = pgTable("tasks", {
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  embedding: vector("embedding", { dimensions: 1536 }),
 }, (table) => ({
   statusIdx: index("tasks_status_idx").on(table.status),
   contextIdx: index("tasks_context_idx").on(table.context),
@@ -55,6 +57,7 @@ export const projects = pgTable("projects", {
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  embedding: vector("embedding", { dimensions: 1536 }),
 }, (table) => ({
   needsReviewIdx: index("projects_needs_review_idx").on(table.needsReview),
 }));
@@ -69,6 +72,7 @@ export const ideas = pgTable("ideas", {
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  embedding: vector("embedding", { dimensions: 1536 }),
 }, (table) => ({
   needsReviewIdx: index("ideas_needs_review_idx").on(table.needsReview),
 }));
@@ -84,6 +88,7 @@ export const persons = pgTable("persons", {
   sourceInboxItemId: text("source_inbox_item_id").references(() => inboxItems.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  embedding: vector("embedding", { dimensions: 1536 }),
 }, (table) => ({
   needsReviewIdx: index("persons_needs_review_idx").on(table.needsReview),
 }));
@@ -149,6 +154,7 @@ export const personalContexts = pgTable("personal_contexts", {
   learnedFrom: jsonb("learned_from").$type<string[]>().default([]),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  embedding: vector("embedding", { dimensions: 1536 }),
 }, (table) => ({
   nameIdx: index("personal_contexts_name_idx").on(table.name),
   mentionCountIdx: index("personal_contexts_mention_count_idx").on(table.mentionCount),

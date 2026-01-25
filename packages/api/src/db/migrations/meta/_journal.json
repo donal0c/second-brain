@@ -71,6 +71,27 @@
       "when": 1736687220000,
       "tag": "0009_search_text_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1737110880000,
+      "tag": "0010_personal_contexts_unique_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1737795960000,
+      "tag": "0011_enable_pgvector",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1737804060000,
+      "tag": "0012_add_embedding_columns",
+      "breakpoints": true
     }
   ]
 }

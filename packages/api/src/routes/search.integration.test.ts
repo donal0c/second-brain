@@ -203,6 +203,12 @@ async function cleanupTestData() {
 async function runTests() {
   console.log("\n--- Search Integration Tests ---\n");
 
+  // Semantic/hybrid tests require OpenAI and pgvector
+  const shouldRunSemanticTests = !!process.env.OPENAI_API_KEY && process.env.RUN_OPENAI_TESTS === "1";
+  if (!shouldRunSemanticTests) {
+    console.log("⚠ Skipping semantic/hybrid tests (set RUN_OPENAI_TESTS=1 to enable)\n");
+  }
+
   // Check database connectivity
   try {
     await rawDb`SELECT 1`;
@@ -490,6 +496,77 @@ async function runTests() {
       assert(result.entity.title !== undefined, "Task entity should have title");
       assert(result.entity.status !== undefined, "Task entity should have status");
       assert(result.entity.createdAt !== undefined, "Entity should have createdAt");
+    });
+
+    // --- Semantic / Hybrid Tests ---
+    if (shouldRunSemanticTests) {
+      await test("semantic mode returns results with similarity scores", async () => {
+        const response = await app.inject({
+          method: "GET",
+          url: `/search?q=${uniqueTerm}&mode=semantic&limit=5`,
+        });
+
+        assertEqual(response.statusCode, 200, "Should return 200");
+        const body = JSON.parse(response.body);
+        assert(Array.isArray(body.data), "Data should be array");
+        if (body.data.length > 0) {
+          assert(
+            body.data.some((r: any) => typeof r.similarity === "number"),
+            "Semantic results should include similarity"
+          );
+        }
+      });
+
+      await test("hybrid mode returns results with similarity scores", async () => {
+        const response = await app.inject({
+          method: "GET",
+          url: `/search?q=${uniqueTerm}&mode=hybrid&limit=5`,
+        });
+
+        assertEqual(response.statusCode, 200, "Should return 200");
+        const body = JSON.parse(response.body);
+        assert(Array.isArray(body.data), "Data should be array");
+        if (body.data.length > 0) {
+          assert(
+            body.data.some((r: any) => typeof r.similarity === "number"),
+            "Hybrid results should include similarity"
+          );
+        }
+      });
+    }
+
+    await test("semantic mode returns 400 when OPENAI_API_KEY missing", async () => {
+      const originalKey = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/search?q=${uniqueTerm}&mode=semantic&limit=5`,
+      });
+
+      assertEqual(response.statusCode, 400, "Should return 400 without API key");
+
+      if (originalKey) {
+        process.env.OPENAI_API_KEY = originalKey;
+      }
+    });
+
+    await test("hybrid mode falls back to keyword when OPENAI_API_KEY missing", async () => {
+      const originalKey = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/search?q=${uniqueTerm}&mode=hybrid&limit=5`,
+      });
+
+      assertEqual(response.statusCode, 200, "Should return 200 without API key");
+      const body = JSON.parse(response.body);
+      assert(Array.isArray(body.data), "Data should be array");
+
+      if (originalKey) {
+        process.env.OPENAI_API_KEY = originalKey;
+      }
     });
 
     // --- Date Range Filter Tests ---
