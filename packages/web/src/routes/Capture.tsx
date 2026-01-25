@@ -226,7 +226,6 @@ export function Capture() {
           </div>
         </motion.div>
       </div>
-      </div>
     </div>
   );
 }
