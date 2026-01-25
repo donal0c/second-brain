@@ -24,37 +24,63 @@ Most productivity systems fail because they require effort at the worst moments 
 
 ## Current Status
 
-**Phase 1 (MVP) - Complete** ✓
+**Phase 1-3 Complete** ✓
 
-The system implements the core closed loop:
+The system implements the full closed loop with proactive retrieval:
 
 ```
-Capture → Process → File (or Clarify) → Digest → Fix
+Capture → Process → File (or Clarify) → Digest → Nudge → Fix
 ```
 
 ### Implemented Features
 
+#### Core Pipeline
 - **Universal Capture**: Frictionless text input with < 5 second capture time
 - **AI Classification**: Automatic routing to Task, Project, Idea, Person, or Clarification
 - **Structured Extraction**: Next actions, due dates, relationship context, and more
 - **Confidence Gating**: Low-confidence items are held for clarification instead of being filed incorrectly
-- **Daily Digest**: Actionable summary of what matters today
-- **Receipts System**: Full audit trail of every AI decision
+- **Deja Capture**: Semantic duplicate detection prevents re-capturing similar information
+- **Circuit Breaker**: After 3 failed clarification attempts, items are force-filed with best-effort extraction
+
+#### Search & Discovery
+- **Keyword Search**: Full-text search across all entity fields
+- **Semantic Search**: Vector similarity search using OpenAI embeddings
+- **Hybrid Search**: Combines keyword + semantic with Reciprocal Rank Fusion (RRF)
+- **Similarity Search**: Find entities similar to any existing entity or arbitrary text
+- **Result Snippets**: Highlighted matches in search results
+
+#### Digests & Nudges
+- **Daily Digest**: Actionable summary with top tasks, flagged items, clarifications, stale tasks
+- **Weekly Digest**: Open loops, stale projects, context learning questions, wins, focus areas
+- **Nudge System**: Contextual micro-prompts for due tasks, stale items, follow-ups, missing next actions
+- **Snooze & Dismiss**: Control nudge visibility with snooze (1-168 hours) or dismiss
+
+#### Learning & Context
 - **Personal Context Learning**: System learns your world (people, places, organizations) from captures
-- **Hybrid Editing**: Natural language editing with auto-processing
+- **Context Injection**: Learned entities improve AI extraction accuracy
+- **Undescribed Context Questions**: Prompts to describe frequently-mentioned entities
+
+#### Trust & Repair
+- **Receipts System**: Full audit trail of every AI decision
+- **Natural Language Editing**: Fix entities with plain English instructions
+- **Reprocessing**: Reset and reprocess any inbox item
+- **Review Queue**: Surface items that need manual validation
+
+#### Browse & Explore
 - **Browse View**: Explore all stored entities (tasks, projects, ideas, people)
+- **Entity Relationships**: Find similar items via vector embeddings
 
 ### Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Web UI (React + Vite + Tailwind)             │
-│  • Capture • Inbox • Today • Clarifications    │
-│  • Browse • Receipts                            │
+│  Web UI (React + Vite + Tailwind)               │
+│  • Capture • Inbox • Today • Clarifications     │
+│  • Browse • Receipts • Search                   │
 └─────────────────────────────────────────────────┘
                       ▼
 ┌─────────────────────────────────────────────────┐
-│  API Server (Fastify + TypeScript)             │
+│  API Server (Fastify + TypeScript)              │
 │  • REST endpoints • Error handling              │
 │  • Background jobs • LLM integration            │
 └─────────────────────────────────────────────────┘
@@ -63,13 +89,14 @@ Capture → Process → File (or Clarify) → Digest → Fix
 │  Processing Pipeline                            │
 │  • Classification • Field extraction            │
 │  • Confidence gating • Receipt generation       │
-│  • Personal context injection                   │
+│  • Personal context injection • Embeddings      │
 └─────────────────────────────────────────────────┘
                       ▼
 ┌─────────────────────────────────────────────────┐
-│  PostgreSQL Database (Drizzle ORM)             │
+│  PostgreSQL + pgvector                          │
 │  • Tasks • Projects • Ideas • Persons           │
 │  • Receipts • Clarifications • Personal Context │
+│  • Nudges • Vector embeddings (1536 dim)        │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -77,8 +104,9 @@ Capture → Process → File (or Clarify) → Digest → Fix
 
 - **Backend**: Fastify (TypeScript)
 - **Frontend**: React 18 + Vite + Tailwind CSS
-- **Database**: PostgreSQL + Drizzle ORM
-- **AI**: Anthropic Claude API
+- **Database**: PostgreSQL + Drizzle ORM + pgvector
+- **AI Classification**: Anthropic Claude API (claude-sonnet-4)
+- **AI Embeddings**: OpenAI API (text-embedding-3-small, 1536 dimensions)
 - **Package Manager**: pnpm (monorepo with workspaces)
 - **Runtime**: Node.js ≥20.0.0
 
@@ -98,8 +126,9 @@ packages/
 
 - Node.js ≥20.0.0
 - pnpm ≥9.15.0
-- PostgreSQL ≥14.0
-- Anthropic API key
+- PostgreSQL ≥14.0 with pgvector extension
+- Anthropic API key (required for classification/extraction)
+- OpenAI API key (optional, enables semantic search & similarity)
 
 ### Installation
 
@@ -116,8 +145,11 @@ packages/
 
 3. **Set up PostgreSQL database**
    ```bash
-   # Create a database (using psql or your preferred method)
+   # Create a database
    createdb second_brain
+
+   # Enable pgvector extension (connect to database first)
+   psql second_brain -c "CREATE EXTENSION IF NOT EXISTS vector;"
    ```
 
 4. **Configure environment**
@@ -125,15 +157,21 @@ packages/
    cp .env.example .env
    ```
 
-   Edit `.env` with your configuration (see [Environment Variables](#environment-variables) for details):
+   Edit `.env` with your configuration (see [Environment Variables](#environment-variables)):
    ```
    DATABASE_URL=postgresql://localhost:5432/second_brain
-   ANTHROPIC_API_KEY=your_key_here
+   ANTHROPIC_API_KEY=your_anthropic_key_here
+   OPENAI_API_KEY=your_openai_key_here  # Optional: enables semantic search
    ```
 
 5. **Initialize the database**
    ```bash
    pnpm --filter @second-brain/api db:migrate
+   ```
+
+6. **Backfill embeddings** (if you have existing data)
+   ```bash
+   pnpm --filter @second-brain/api backfill:embeddings
    ```
 
 ### Running the Application
@@ -177,15 +215,18 @@ Open the web UI and use the capture box. Type anything:
 The system automatically processes items within minutes:
 - Classifies the type (task, project, person, idea)
 - Extracts structured fields (next action, due date, context)
+- Detects similar existing items (Deja Capture)
 - Files into memory or creates a clarification if uncertain
+- Generates embeddings for semantic search
 
 ### 3. Review
 
-- **Today**: See your daily digest with relevant next actions
+- **Today**: See your daily digest with relevant next actions and nudges
 - **Inbox**: Monitor processing status
 - **Clarifications**: Answer questions about uncertain items
 - **Browse**: Explore all stored entities
 - **Receipts**: Audit what the AI did and why
+- **Search**: Find anything with keyword, semantic, or hybrid search
 
 ### 4. Fix
 
@@ -195,6 +236,54 @@ Found an error? Use natural language editing:
 - "Mark this as completed"
 
 The system processes corrections and generates new receipts.
+
+## API Endpoints
+
+### Inbox
+- `POST /inbox` - Capture new item (auto-processes)
+- `GET /inbox` - List items (paginated, filterable)
+- `POST /inbox/:id/reprocess` - Reset and reprocess item
+
+### Processing
+- `POST /process/:id` - Process single item
+- `POST /process/batch` - Process multiple pending items
+- `GET /process/status` - Check if processing available
+
+### Entities (tasks, projects, ideas, persons)
+- `GET /:type` - List entities (paginated, filtered)
+- `POST /:type` - Create entity
+- `GET /:type/:id` - Get single entity
+- `PATCH /:type/:id` - Update entity
+- `DELETE /:type/:id` - Delete entity
+- `POST /:type/:id/interpret` - Natural language edit
+
+### Search
+- `GET /search?q=query&mode=keyword|semantic|hybrid` - Search across all entities
+- `GET /:type/:id/similar` - Find similar entities
+- `POST /similar` - Find entities similar to text
+
+### Digests
+- `GET /digest/daily` - Today's actionable summary
+- `GET /digest/weekly` - Weekly review
+- `GET /digest/summary` - Quick stats
+
+### Nudges
+- `GET /nudges` - Get active nudges (max 2/day)
+- `POST /nudges/:id/dismiss` - Dismiss a nudge
+- `POST /nudges/:id/snooze` - Snooze for N hours
+
+### Context
+- `GET /context` - List learned entities
+- `GET /context/questions` - Get context clarification questions
+- `PATCH /context/:id` - Update entity description
+
+### Clarifications
+- `GET /clarifications` - List pending/resolved questions
+- `POST /clarifications/:id/resolve` - Answer and reprocess
+
+### Receipts
+- `GET /receipts` - Audit trail (filterable)
+- `GET /receipts/:id` - Get receipt details
 
 ## Database Management
 
@@ -207,6 +296,9 @@ pnpm --filter @second-brain/api db:migrate
 
 # Open Drizzle Studio (database GUI)
 pnpm --filter @second-brain/api db:studio
+
+# Backfill embeddings for existing entities
+pnpm --filter @second-brain/api backfill:embeddings
 ```
 
 ## Development Commands
@@ -222,6 +314,13 @@ pnpm format:check
 
 # Type checking
 pnpm typecheck
+
+# Run unit tests
+pnpm --filter @second-brain/api test
+
+# Run integration tests (requires database)
+DATABASE_URL=postgresql://localhost:5432/second_brain \
+  pnpm --filter @second-brain/api test:integration
 ```
 
 ## Environment Variables
@@ -229,7 +328,8 @@ pnpm typecheck
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `postgresql://localhost:5432/second_brain` | PostgreSQL connection string |
-| `ANTHROPIC_API_KEY` | Yes | - | Your Anthropic API key for Claude |
+| `ANTHROPIC_API_KEY` | Yes | - | Anthropic API key for Claude (classification/extraction) |
+| `OPENAI_API_KEY` | No | - | OpenAI API key (enables semantic search & similarity) |
 | `PORT` | No | `3001` | API server port |
 | `HOST` | No | `0.0.0.0` | API server host binding |
 | `CORS_ORIGIN` | No | `http://localhost:5173` | Allowed CORS origin for web UI |
@@ -250,6 +350,9 @@ pnpm typecheck
 **Error: `relation does not exist`**
 - Run migrations: `pnpm --filter @second-brain/api db:migrate`
 
+**Error: `type "vector" does not exist`**
+- Install pgvector extension: `psql second_brain -c "CREATE EXTENSION vector;"`
+
 ### API Issues
 
 **Error: `ANTHROPIC_API_KEY is not set`**
@@ -259,6 +362,10 @@ pnpm typecheck
 **Error: CORS blocked**
 - Check `CORS_ORIGIN` matches your frontend URL
 - For local development, use `http://localhost:5173`
+
+**Semantic search returns empty results**
+- Check if `OPENAI_API_KEY` is set
+- Ensure entities have embeddings: run `pnpm --filter @second-brain/api backfill:embeddings`
 
 ### Port Conflicts
 
@@ -283,11 +390,13 @@ pnpm typecheck
 
 **InboxItem**
 - Universal capture point
-- Status: new → processing → processed/blocked
+- Status: new → processing → processed/blocked/error
+- Tracks clarification attempts
 
 **Task**
 - Title, next action, due date, context
 - Status: active, completed, waiting, someday
+- Vector embedding for similarity
 
 **Project**
 - Name, desired outcome, next action
@@ -303,12 +412,12 @@ pnpm typecheck
 ### System Entities
 
 **Receipt** (Audit Trail)
-- Classification decision
+- Classification decision and confidence score
 - Extracted fields
-- Confidence score
 - Model used and timestamp
 - List of writes (created/updated entities)
 - Personal context used in processing
+- Context extraction status
 
 **Clarification**
 - Question for user
@@ -318,8 +427,13 @@ pnpm typecheck
 **PersonalContext** (Learning System)
 - Entities from your world (people, places, organizations, concepts)
 - Domain categorization (work, family, health, etc.)
-- Mention tracking
-- Used to inject context into AI processing
+- Mention tracking and frequency
+- Vector embedding for similarity
+
+**Nudge**
+- Type: task_due_soon, task_stale, project_missing_next_action, person_follow_up
+- Message and target entity
+- Dismissed/snoozed status
 
 ## Design Principles
 
@@ -340,17 +454,7 @@ pnpm typecheck
 
 ## Roadmap
 
-### Phase 2: Trust + Repair (Next)
-- ✓ Receipt viewer (implemented)
-- Enhanced fix flow with receipt chaining
-- Sub-15-second correction UX
-
-### Phase 3: Proactive Retrieval
-- Weekly review digest
-- Nudge engine (stale projects, people follow-ups)
-- Smart surfacing of relevant context
-
-### Phase 4: Multi-device
+### Phase 4: Multi-device (Next)
 - PWA for mobile
 - Offline capture queue
 - Sync layer (self-hosted API + Postgres)
@@ -362,6 +466,11 @@ pnpm typecheck
 - Voice capture + transcription
 - Watch integration
 
+### Phase 6: Electron Desktop App
+- Native desktop application
+- System tray integration
+- Global capture hotkey
+
 ## Contributing
 
 This is a personal cognitive architecture project. The code is open for reference and learning, but contributions are not currently accepted.
@@ -372,4 +481,4 @@ Private use only.
 
 ---
 
-**Built with**: TypeScript, React, Fastify, PostgreSQL, Drizzle ORM, Anthropic Claude API
+**Built with**: TypeScript, React, Fastify, PostgreSQL, Drizzle ORM, pgvector, Anthropic Claude API, OpenAI Embeddings
