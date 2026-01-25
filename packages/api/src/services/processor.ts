@@ -991,5 +991,41 @@ async function upsertPersonalContext(
 
   // Return the id (either new or existing)
   // db.execute returns RowList which is array-like, access first element directly
-  return (result[0] as { id: string }).id;
+  const returnedId = (result[0] as { id: string }).id;
+
+  // Only embed on insert (not on mention_count updates)
+  if (shouldEmbedPersonalContextOnInsert(id, returnedId)) {
+    void embedPersonalContextAfterCreate(returnedId, {
+      name: entity.name,
+      description: entity.description,
+      domain: entity.domain,
+    });
+  }
+
+  return returnedId;
+}
+
+export function shouldEmbedPersonalContextOnInsert(createdId: string, returnedId: string): boolean {
+  return createdId === returnedId;
+}
+
+async function embedPersonalContextAfterCreate(
+  contextId: string,
+  data: { name: string; description?: string | null; domain?: string | null }
+): Promise<void> {
+  if (!hasOpenAIClient()) return;
+
+  try {
+    const embedding = await generateEntityEmbedding({
+      type: "personal_context",
+      data,
+    });
+
+    await db
+      .update(schema.personalContexts)
+      .set({ embedding })
+      .where(eq(schema.personalContexts.id, contextId));
+  } catch (error) {
+    console.error(`[EMBEDDING] Failed to embed personal_context ${contextId}:`, error);
+  }
 }

@@ -15,8 +15,10 @@
 // - Database schema applied (run migrations first)
 
 import Fastify, { type FastifyInstance } from "fastify";
+import { eq } from "drizzle-orm";
 import { searchRoutes } from "./search.js";
 import { db, rawDb, schema } from "../db/index.js";
+import { generateEmbedding, prepareTextForEmbedding, hasOpenAIClient } from "../services/embedding.js";
 
 let passed = 0;
 let failed = 0;
@@ -187,6 +189,36 @@ async function setupTestData(): Promise<TestData> {
   // Store the unique term for tests to use
   (testData as any).uniqueTerm = uniqueTerm;
 
+  // Generate embeddings for test data if OpenAI is available and semantic tests will run
+  if (process.env.RUN_OPENAI_TESTS === "1" && hasOpenAIClient()) {
+    // Generate embeddings for tasks
+    for (const task of taskData) {
+      const text = prepareTextForEmbedding({ type: "task", data: task });
+      const embedding = await generateEmbedding(text);
+      await db.update(schema.tasks)
+        .set({ embedding })
+        .where(eq(schema.tasks.id, task.id));
+    }
+
+    // Generate embeddings for projects
+    for (const project of projectData) {
+      const text = prepareTextForEmbedding({ type: "project", data: project });
+      const embedding = await generateEmbedding(text);
+      await db.update(schema.projects)
+        .set({ embedding })
+        .where(eq(schema.projects.id, project.id));
+    }
+
+    // Generate embeddings for ideas
+    for (const idea of ideaData) {
+      const text = prepareTextForEmbedding({ type: "idea", data: idea });
+      const embedding = await generateEmbedding(text);
+      await db.update(schema.ideas)
+        .set({ embedding })
+        .where(eq(schema.ideas.id, idea.id));
+    }
+  }
+
   return testData;
 }
 
@@ -202,6 +234,11 @@ async function cleanupTestData() {
 
 async function runTests() {
   console.log("\n--- Search Integration Tests ---\n");
+
+  if (!process.env.DATABASE_URL) {
+    console.log("⚠ Skipping integration tests (set DATABASE_URL to enable)\n");
+    process.exit(0);
+  }
 
   // Semantic/hybrid tests require OpenAI and pgvector
   const shouldRunSemanticTests = !!process.env.OPENAI_API_KEY && process.env.RUN_OPENAI_TESTS === "1";
@@ -501,9 +538,10 @@ async function runTests() {
     // --- Semantic / Hybrid Tests ---
     if (shouldRunSemanticTests) {
       await test("semantic mode returns results with similarity scores", async () => {
+        // Use lower threshold since uniqueTerm is a random string with low semantic meaning
         const response = await app.inject({
           method: "GET",
-          url: `/search?q=${uniqueTerm}&mode=semantic&limit=5`,
+          url: `/search?q=${uniqueTerm}&mode=semantic&limit=5&semanticThreshold=0.3`,
         });
 
         assertEqual(response.statusCode, 200, "Should return 200");
@@ -518,9 +556,10 @@ async function runTests() {
       });
 
       await test("hybrid mode returns results with similarity scores", async () => {
+        // Use lower threshold since uniqueTerm is a random string with low semantic meaning
         const response = await app.inject({
           method: "GET",
-          url: `/search?q=${uniqueTerm}&mode=hybrid&limit=5`,
+          url: `/search?q=${uniqueTerm}&mode=hybrid&limit=5&semanticThreshold=0.3`,
         });
 
         assertEqual(response.statusCode, 200, "Should return 200");

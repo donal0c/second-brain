@@ -3,7 +3,7 @@
 // =============================================================================
 // Run with: npx tsx packages/api/src/routes/entities.test.ts
 
-import { hasEmbeddedFieldChange } from "./entities.js";
+import { fireAndForgetEmbeddingOnCreate, hasEmbeddedFieldChange } from "./entities.js";
 
 let passed = 0;
 let failed = 0;
@@ -54,6 +54,34 @@ test("non-embedded fields do not trigger", () => {
   assert(!hasEmbeddedFieldChange("project", { needsReview: true }), "needsReview should not trigger");
   assert(!hasEmbeddedFieldChange("idea", { links: [] }), "links should not trigger");
   assert(!hasEmbeddedFieldChange("person", { lastTouchedAt: new Date() }), "lastTouchedAt should not trigger");
+});
+
+test("fireAndForgetEmbeddingOnCreate skips when OpenAI is unavailable", () => {
+  let called = false;
+  fireAndForgetEmbeddingOnCreate({
+    entityName: "task",
+    entity: { id: "1", title: "Test" },
+    table: {} as typeof import("../db/schema.js").schema.tasks,
+    hasClient: false,
+    embedFn: async () => {
+      called = true;
+    },
+  });
+  assert(!called, "embedFn should not be called when hasClient is false");
+});
+
+test("fireAndForgetEmbeddingOnCreate invokes embedder when OpenAI is available", () => {
+  let called = false;
+  fireAndForgetEmbeddingOnCreate({
+    entityName: "project",
+    entity: { id: "2", name: "Test" },
+    table: {} as typeof import("../db/schema.js").schema.projects,
+    hasClient: true,
+    embedFn: async () => {
+      called = true;
+    },
+  });
+  assert(called, "embedFn should be called when hasClient is true");
 });
 
 console.log("\n" + "=".repeat(50));

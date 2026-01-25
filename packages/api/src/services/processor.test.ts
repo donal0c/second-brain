@@ -14,6 +14,7 @@ import {
   sanitizeErrorMessage,
   buildValidationClarificationQuestion,
   buildBestEffortExtraction,
+  shouldEmbedPersonalContextOnInsert,
 } from "./processor.js";
 
 let passed = 0;
@@ -110,6 +111,18 @@ test("sanitizeErrorMessage: truncates long safe messages to 200 chars", () => {
   const result = sanitizeErrorMessage(longMsg);
   assertEqual(result.length, 200, "Should truncate to 200 characters");
   assert(result.startsWith("LLM_JSON_PARSE_ERROR"), "Should keep safe prefix");
+});
+
+// =============================================================================
+// Personal Context Embedding Tests
+// =============================================================================
+
+test("shouldEmbedPersonalContextOnInsert returns true for new insert", () => {
+  assert(shouldEmbedPersonalContextOnInsert("new-id", "new-id"), "Should embed on insert");
+});
+
+test("shouldEmbedPersonalContextOnInsert returns false for updates", () => {
+  assert(!shouldEmbedPersonalContextOnInsert("new-id", "existing-id"), "Should skip on update");
 });
 
 // =============================================================================

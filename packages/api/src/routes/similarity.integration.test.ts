@@ -92,6 +92,11 @@ async function cleanupTestData() {
 async function runTests() {
   console.log("\n--- Similarity Integration Tests ---\n");
 
+  if (!process.env.DATABASE_URL) {
+    console.log("⚠ Skipping integration tests (set DATABASE_URL to enable)\n");
+    process.exit(0);
+  }
+
   // Check database connectivity
   try {
     await rawDb`SELECT 1`;
@@ -118,7 +123,7 @@ async function runTests() {
   }
 
   try {
-    await test("GET /:entityType/:id/similar returns 400 without OPENAI_API_KEY", async () => {
+    await test("GET /:entityType/:id/similar works without OPENAI_API_KEY", async () => {
       const originalKey = process.env.OPENAI_API_KEY;
       delete process.env.OPENAI_API_KEY;
 
@@ -127,7 +132,7 @@ async function runTests() {
         url: `/tasks/${TEST_PREFIX}task_missing/similar?limit=5`,
       });
 
-      assertEqual(response.statusCode, 400, "Should return 400 without API key");
+      assertEqual(response.statusCode, 200, "Should allow similarity without API key");
 
       if (originalKey) {
         process.env.OPENAI_API_KEY = originalKey;

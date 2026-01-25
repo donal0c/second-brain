@@ -187,6 +187,34 @@ async function updateEmbeddingForEntity(
   }
 }
 
+type EmbeddableEntityName = "task" | "project" | "idea" | "person";
+type EmbeddableTable =
+  | typeof schema.tasks
+  | typeof schema.projects
+  | typeof schema.ideas
+  | typeof schema.persons;
+
+export function fireAndForgetEmbeddingOnCreate({
+  entityName,
+  entity,
+  table,
+  hasClient = hasOpenAIClient(),
+  embedFn = updateEmbeddingForEntity,
+}: {
+  entityName: EmbeddableEntityName;
+  entity: Record<string, unknown>;
+  table: EmbeddableTable;
+  hasClient?: boolean;
+  embedFn?: (
+    name: EmbeddableEntityName,
+    data: Record<string, unknown>,
+    entityTable: EmbeddableTable
+  ) => Promise<void>;
+}): void {
+  if (!hasClient) return;
+  void embedFn(entityName, entity, table);
+}
+
 // =============================================================================
 // Generic Entity Route Factory
 // =============================================================================
@@ -292,9 +320,16 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
         };
 
         const result = await db.insert(table).values(newEntity).returning();
+        const createdEntity = result[0];
+
+        fireAndForgetEmbeddingOnCreate({
+          entityName: entityName as EmbeddableEntityName,
+          entity: createdEntity as Record<string, unknown>,
+          table,
+        });
 
         return reply.status(201).send({
-          data: result[0],
+          data: createdEntity,
         });
       }
     );

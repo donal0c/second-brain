@@ -52,10 +52,6 @@ export async function similarityRoutes(app: FastifyInstance): Promise<void> {
         return sendValidationError(reply, `Invalid entity type: ${request.params.entityType}`);
       }
 
-      if (!hasOpenAIClient()) {
-        return sendValidationError(reply, "Similarity search requires OPENAI_API_KEY");
-      }
-
       const parseResult = SimilarQuerySchema.safeParse(request.query);
       if (!parseResult.success) {
         return sendValidationError(reply, "Validation failed", parseResult.error.flatten().fieldErrors);
