@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { eq, sql, desc, asc, like, and } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
+import { generateEntityEmbedding, hasOpenAIClient } from "../services/embedding.js";
 import { getLLMProvider, hasLLMProvider } from "../llm/index.js";
 import {
   sendData,
@@ -146,6 +147,43 @@ function getSortOrder(sort: string, table: typeof schema.tasks | typeof schema.p
     case "-updated":
     default:
       return desc(table.updatedAt);
+  }
+}
+
+const EMBEDDED_FIELDS: Record<string, string[]> = {
+  task: ["title", "nextAction", "context"],
+  project: ["name", "desiredOutcome", "nextAction"],
+  idea: ["title", "summary"],
+  person: ["name", "relationshipContext", "followUpNextAction"],
+};
+
+export function hasEmbeddedFieldChange(
+  entityName: "task" | "project" | "idea" | "person",
+  updates: Record<string, unknown>
+): boolean {
+  const fields = EMBEDDED_FIELDS[entityName];
+  return fields.some((field) => field in updates);
+}
+
+async function updateEmbeddingForEntity(
+  entityName: "task" | "project" | "idea" | "person",
+  entity: Record<string, unknown>,
+  table: typeof schema.tasks | typeof schema.projects | typeof schema.ideas | typeof schema.persons
+): Promise<void> {
+  if (!hasOpenAIClient()) return;
+
+  try {
+    const embedding = await generateEntityEmbedding({
+      type: entityName,
+      data: entity,
+    });
+
+    await db
+      .update(table)
+      .set({ embedding })
+      .where(eq(table.id, entity.id as string));
+  } catch (error) {
+    console.error(`[EMBEDDING] Failed to re-embed ${entityName} ${(entity as any).id}:`, error);
   }
 }
 
@@ -314,6 +352,16 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
 
         if (result.length === 0) {
           return sendNotFound(reply, entityName);
+        }
+
+        if (
+          hasEmbeddedFieldChange(entityName as "task" | "project" | "idea" | "person", bodyResult.data as Record<string, unknown>)
+        ) {
+          void updateEmbeddingForEntity(
+            entityName as "task" | "project" | "idea" | "person",
+            result[0] as Record<string, unknown>,
+            table
+          );
         }
 
         return sendData(reply, result[0]);

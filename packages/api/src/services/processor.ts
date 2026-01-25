@@ -11,6 +11,8 @@ import type { ClassificationResult, ExtractedContextEntity, PersonalContext, Cla
 import { validateExtractionResult } from "../llm/types.js";
 import { getConfidenceAction, DEFAULT_THRESHOLDS } from "@second-brain/config";
 import { escapeRegex } from "../routes/search.js";
+import { generateEntityEmbedding, hasOpenAIClient } from "./embedding.js";
+import { findSimilarAcrossAllTables } from "./similarity.js";
 
 // =============================================================================
 // Constants
@@ -166,6 +168,12 @@ export interface ProcessResult {
     question: string;
     options: string[] | null;
   };
+  similarItems?: Array<{
+    type: string;
+    id: string;
+    title: string;
+    similarity: number;
+  }>;
 }
 
 // Map config action to our action names (exported for testing)
@@ -249,6 +257,40 @@ export async function processInboxItem(
     throw new Error(`Inbox item ${inboxItemId} is not in 'new' status (current: ${inboxItem.status})`);
   }
 
+  // Deja Capture: check for similar existing items (best-effort)
+  let similarItems: ProcessResult["similarItems"] | undefined;
+  if (hasOpenAIClient()) {
+    try {
+      const DEJA_CAPTURE_THRESHOLD = 0.85;
+      const similarResults = await findSimilarAcrossAllTables(
+        inboxItem.rawText,
+        3,
+        DEJA_CAPTURE_THRESHOLD
+      );
+
+      const allSimilar: ProcessResult["similarItems"] = [];
+      for (const { type, results } of similarResults) {
+        for (const { entity, similarity } of results) {
+          const title = (entity as any).title || (entity as any).name || "Untitled";
+          allSimilar.push({
+            type,
+            id: (entity as any).id,
+            title,
+            similarity,
+          });
+        }
+      }
+
+      if (allSimilar.length > 0) {
+        similarItems = allSimilar
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 5);
+      }
+    } catch (error) {
+      console.error("[DEJA_CAPTURE] Error checking for similar items:", error);
+    }
+  }
+
   // Mark as processing with timestamp for stale detection
   await db
     .update(schema.inboxItems)
@@ -307,6 +349,10 @@ export async function processInboxItem(
       );
     }
 
+    if (similarItems && similarItems.length > 0) {
+      result.similarItems = similarItems;
+    }
+
     // Update inbox item status (clear processing timestamp on success)
     const finalStatus = result.clarification ? "blocked" : "processed";
 
@@ -335,6 +381,38 @@ export async function processInboxItem(
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+async function embedEntityAfterCreate(
+  entityType: "task" | "project" | "idea" | "person",
+  entityId: string,
+  entityData: Record<string, unknown>
+): Promise<void> {
+  if (!hasOpenAIClient()) return;
+
+  try {
+    const embedding = await generateEntityEmbedding({
+      type: entityType,
+      data: entityData,
+    });
+
+    switch (entityType) {
+      case "task":
+        await db.update(schema.tasks).set({ embedding }).where(eq(schema.tasks.id, entityId));
+        break;
+      case "project":
+        await db.update(schema.projects).set({ embedding }).where(eq(schema.projects.id, entityId));
+        break;
+      case "idea":
+        await db.update(schema.ideas).set({ embedding }).where(eq(schema.ideas.id, entityId));
+        break;
+      case "person":
+        await db.update(schema.persons).set({ embedding }).where(eq(schema.persons.id, entityId));
+        break;
+    }
+  } catch (error) {
+    console.error(`[EMBEDDING] Failed to embed ${entityType} ${entityId}:`, error);
+  }
+}
 
 async function handleClarification(
   inboxItem: typeof schema.inboxItems.$inferSelect,
@@ -535,6 +613,9 @@ async function handleForceFile(
 
   console.log(`[CIRCUIT_BREAKER] Successfully force-filed ${inboxItem.id} as ${extraction.type} (entity: ${entityId})`);
 
+  // Fire-and-forget embedding outside transaction
+  void embedEntityAfterCreate(extraction.type, entityId, entityData!);
+
   return {
     inboxItemId: inboxItem.id,
     classification,
@@ -730,6 +811,7 @@ async function handleExtraction(
   // This is where the system "learns" about the user's world
   // Status is tracked in receipt.contextExtractionStatus
   void extractAndStoreContext(inboxItem.rawText, receiptId);
+  void embedEntityAfterCreate(extraction.type, entityId, entityData!);
 
   return {
     inboxItemId: inboxItem.id,
