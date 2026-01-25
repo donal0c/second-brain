@@ -953,7 +953,7 @@ async function upsertPersonalContext(
   entity: ExtractedContextEntity,
   receiptId: string
 ): Promise<string> {
-  const now = new Date();
+  const now = new Date().toISOString();
   const id = randomUUID();
 
   // Atomic upsert using ON CONFLICT with expression index on lower(name)
@@ -968,8 +968,8 @@ async function upsertPersonalContext(
       ${entity.domain},
       1,
       ${JSON.stringify([receiptId])}::jsonb,
-      ${now},
-      ${now}
+      ${now}::timestamp,
+      ${now}::timestamp
     )
     ON CONFLICT ((LOWER(name))) DO UPDATE SET
       mention_count = personal_contexts.mention_count + 1,

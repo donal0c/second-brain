@@ -34,8 +34,11 @@ async function listContexts(request: APIRequestContext): Promise<PersonalContext
 async function findContextByToken(
   request: APIRequestContext,
   token: string,
-  attempts = 10
+  attempts = 15
 ): Promise<PersonalContext | null> {
+  // Initial delay to let async context extraction complete
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
   for (let i = 0; i < attempts; i++) {
     const contexts = await listContexts(request);
     const match = contexts.find((ctx) => ctx.name.toLowerCase().includes(token.toLowerCase()));
@@ -46,8 +49,13 @@ async function findContextByToken(
 }
 
 test.describe("Personal Context Learning", () => {
-  const token = `${TEST_PREFIX}_${Date.now()}`;
-  const contextName = `Zorgle ${token}`;
+  // Run serially to share context across tests
+  test.describe.configure({ mode: "serial" });
+
+  // Use a unique but natural-looking name that the LLM will extract exactly
+  // The LLM strips test-looking prefixes, so we use a realistic name with a numeric suffix
+  const uniqueSuffix = Date.now().toString().slice(-6);
+  const contextName = `Zephyrion${uniqueSuffix}`;
   let context: PersonalContext | null = null;
   let skipReason: string | null = null;
   const inboxIds: string[] = [];
@@ -71,9 +79,9 @@ test.describe("Personal Context Learning", () => {
       return;
     }
 
-    context = await findContextByToken(request, token);
+    context = await findContextByToken(request, contextName);
     if (!context) {
-      skipReason = "Context extraction did not create expected entity";
+      skipReason = `Context extraction did not create expected entity (name: ${contextName})`;
       return;
     }
 
@@ -112,9 +120,19 @@ test.describe("Personal Context Learning", () => {
       inboxIds.push(inboxId);
     }
 
-    const updated = await findContextByToken(request, token);
+    // Wait for async context extraction to complete and increment count
+    // Context extraction is fire-and-forget, so we need to poll for the update
+    let updated: PersonalContext | null = null;
+    for (let i = 0; i < 15; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      updated = await findContextByToken(request, contextName);
+      if (updated && updated.mentionCount > initialCount) {
+        break;
+      }
+    }
+
     if (!updated || updated.mentionCount <= initialCount) {
-      test.skip(true, "Mention count did not increment");
+      test.skip(true, `Mention count did not increment (initial: ${initialCount}, current: ${updated?.mentionCount})`);
       return;
     }
 
