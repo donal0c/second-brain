@@ -188,8 +188,9 @@ export function TaskEditForm({
         {showAllFields && (
           <form onSubmit={handleManualSave} className="mt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Title</label>
+              <label htmlFor="task-title" className="block text-sm font-medium text-slate-400 mb-1.5">Title</label>
               <input
+                id="task-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -199,8 +200,9 @@ export function TaskEditForm({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Next Action</label>
+              <label htmlFor="task-next-action" className="block text-sm font-medium text-slate-400 mb-1.5">Next Action</label>
               <input
+                id="task-next-action"
                 type="text"
                 value={nextAction}
                 onChange={(e) => setNextAction(e.target.value)}
@@ -210,8 +212,9 @@ export function TaskEditForm({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Due Date</label>
+              <label htmlFor="task-due-date" className="block text-sm font-medium text-slate-400 mb-1.5">Due Date</label>
               <input
+                id="task-due-date"
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
@@ -220,8 +223,9 @@ export function TaskEditForm({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Context</label>
+              <label htmlFor="task-context" className="block text-sm font-medium text-slate-400 mb-1.5">Context</label>
               <input
+                id="task-context"
                 type="text"
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
@@ -231,8 +235,9 @@ export function TaskEditForm({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Status</label>
+              <label htmlFor="task-status" className="block text-sm font-medium text-slate-400 mb-1.5">Status</label>
               <select
+                id="task-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as Task["status"])}
                 className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-150 text-sm text-white"

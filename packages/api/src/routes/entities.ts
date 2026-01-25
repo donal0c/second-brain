@@ -158,10 +158,12 @@ const EMBEDDED_FIELDS: Record<string, string[]> = {
 };
 
 export function hasEmbeddedFieldChange(
-  entityName: "task" | "project" | "idea" | "person",
+  entityName: string,
   updates: Record<string, unknown>
 ): boolean {
-  const fields = EMBEDDED_FIELDS[entityName];
+  const key = entityName.toLowerCase() as keyof typeof EMBEDDED_FIELDS;
+  const fields = EMBEDDED_FIELDS[key];
+  if (!fields) return false;
   return fields.some((field) => field in updates);
 }
 
@@ -323,7 +325,7 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
         const createdEntity = result[0];
 
         fireAndForgetEmbeddingOnCreate({
-          entityName: entityName as EmbeddableEntityName,
+          entityName: entityName.toLowerCase() as EmbeddableEntityName,
           entity: createdEntity as Record<string, unknown>,
           table,
         });
@@ -390,10 +392,10 @@ function createEntityRoutes<TEntity extends Record<string, unknown>, TQuerySchem
         }
 
         if (
-          hasEmbeddedFieldChange(entityName as "task" | "project" | "idea" | "person", bodyResult.data as Record<string, unknown>)
+          hasEmbeddedFieldChange(entityName, bodyResult.data as Record<string, unknown>)
         ) {
           void updateEmbeddingForEntity(
-            entityName as "task" | "project" | "idea" | "person",
+            entityName.toLowerCase() as "task" | "project" | "idea" | "person",
             result[0] as Record<string, unknown>,
             table
           );
