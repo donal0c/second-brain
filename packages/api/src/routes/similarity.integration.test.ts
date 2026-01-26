@@ -101,7 +101,7 @@ async function runTests() {
   try {
     await rawDb`SELECT 1`;
     console.log("✓ Database connected\n");
-  } catch (error) {
+  } catch {
     console.log("✗ Database connection failed");
     console.log("  Set DATABASE_URL to run integration tests\n");
     process.exit(1);

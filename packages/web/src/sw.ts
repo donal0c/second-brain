@@ -11,7 +11,7 @@ declare let self: ServiceWorkerGlobalScope;
 // This enables SW caching for cross-origin API requests when API is hosted elsewhere
 // Default must match the client default in lib/api.ts
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
-const API_ORIGIN = new URL(API_BASE).origin;
+const API_ORIGIN = new URL(API_BASE, self.location.origin).origin;
 
 // Helper to check if a request URL matches the API origin
 function isApiRequest(url: URL): boolean {
@@ -49,7 +49,7 @@ const bgSyncPlugin = new BackgroundSyncPlugin("capture-queue", {
 });
 
 // Cache API responses with NetworkFirst strategy
-// Falls back to cache when offline
+// Falls back to cache when offline, but keeps cache short to avoid stale data
 // Supports both same-origin and cross-origin API requests (via VITE_API_URL)
 registerRoute(
   ({ url }) => isApiRequest(url),
@@ -58,10 +58,10 @@ registerRoute(
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,
-        maxAgeSeconds: 60 * 60 * 24, // 24 hours
+        maxAgeSeconds: 60 * 5, // 5 minutes
       }),
     ],
-    networkTimeoutSeconds: 10,
+    networkTimeoutSeconds: 5,
   }),
   "GET"
 );

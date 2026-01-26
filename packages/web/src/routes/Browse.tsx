@@ -105,12 +105,14 @@ function loadProjectFilters(): ProjectFilters {
 
 // Save filters to localStorage
 function saveTaskFilters(filters: TaskFilters) {
-  const { search, ...toSave } = filters; // Don't save search
+  const { search: _search, ...toSave } = filters; // Don't save search
+  void _search;
   localStorage.setItem(TASK_FILTERS_KEY, JSON.stringify(toSave));
 }
 
 function saveProjectFilters(filters: ProjectFilters) {
-  const { search, ...toSave } = filters; // Don't save search
+  const { search: _search, ...toSave } = filters; // Don't save search
+  void _search;
   localStorage.setItem(PROJECT_FILTERS_KEY, JSON.stringify(toSave));
 }
 type EditingEntity =

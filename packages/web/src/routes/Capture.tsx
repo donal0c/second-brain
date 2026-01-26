@@ -7,8 +7,6 @@ import { useCapture } from "../lib/queries";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
 import { Spotlight } from "../components/ui/Spotlight";
-import { CardContainer, CardBody, CardItem } from "../components/ui/Card3D";
-import { TextShimmer } from "../components/ui/TextShimmer";
 import { Confetti } from "../components/ui/Confetti";
 
 export function Capture() {
@@ -72,6 +70,24 @@ export function Capture() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
+      const isNetworkFailure =
+        err instanceof TypeError ||
+        (typeof err === "object" &&
+          err !== null &&
+          "message" in err &&
+          /failed to fetch|networkerror|network error/i.test(String((err as { message?: string }).message)));
+      if (isOnline && isNetworkFailure) {
+        try {
+          await addToQueue(text.trim());
+          setText("");
+          setWasQueued(true);
+          setSuccess(true);
+          setTimeout(() => setSuccess(false), 5000);
+          return;
+        } catch (queueError) {
+          console.error("Failed to enqueue capture after network error:", queueError);
+        }
+      }
       setError(extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);

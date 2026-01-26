@@ -176,6 +176,8 @@ export interface ProcessResult {
   }>;
 }
 
+type InboxItemRow = typeof schema.inboxItems.$inferSelect;
+
 // Map config action to our action names (exported for testing)
 export function mapAction(configAction: "file" | "flag" | "clarify"): "filed" | "flagged" | "clarify" {
   if (configAction === "file") return "filed";
@@ -238,9 +240,21 @@ export async function processInboxItem(
     throw new Error("LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.");
   }
 
-  const provider = getLLMProvider();
+  const inboxItem = await claimInboxItemForProcessing(inboxItemId);
+  return processClaimedInboxItem(inboxItem, clarification);
+}
 
-  // Fetch the inbox item
+async function claimInboxItemForProcessing(inboxItemId: string): Promise<InboxItemRow> {
+  const [claimed] = await db
+    .update(schema.inboxItems)
+    .set({ status: "processing", processingStartedAt: new Date() })
+    .where(and(eq(schema.inboxItems.id, inboxItemId), eq(schema.inboxItems.status, "new")))
+    .returning();
+
+  if (claimed) {
+    return claimed;
+  }
+
   const items = await db
     .select()
     .from(schema.inboxItems)
@@ -251,11 +265,32 @@ export async function processInboxItem(
     throw new Error(`Inbox item not found: ${inboxItemId}`);
   }
 
-  const inboxItem = items[0];
+  throw new Error(`Inbox item ${inboxItemId} is not in 'new' status (current: ${items[0].status})`);
+}
 
-  if (inboxItem.status !== "new") {
-    throw new Error(`Inbox item ${inboxItemId} is not in 'new' status (current: ${inboxItem.status})`);
-  }
+async function claimBatchForProcessing(limit: number): Promise<InboxItemRow[]> {
+  const result = await db.execute(sql`
+    UPDATE inbox_items
+    SET status = 'processing',
+        processing_started_at = NOW()
+    WHERE id IN (
+      SELECT id FROM inbox_items
+      WHERE status = 'new'
+      ORDER BY captured_at DESC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING *
+  `);
+
+  return Array.from(result) as InboxItemRow[];
+}
+
+async function processClaimedInboxItem(
+  inboxItem: InboxItemRow,
+  clarification?: ClarificationContext
+): Promise<ProcessResult> {
+  const provider = getLLMProvider();
 
   // Deja Capture: check for similar existing items (best-effort)
   let similarItems: ProcessResult["similarItems"] | undefined;
@@ -290,12 +325,6 @@ export async function processInboxItem(
       console.error("[DEJA_CAPTURE] Error checking for similar items:", error);
     }
   }
-
-  // Mark as processing with timestamp for stale detection
-  await db
-    .update(schema.inboxItems)
-    .set({ status: "processing", processingStartedAt: new Date() })
-    .where(eq(schema.inboxItems.id, inboxItemId));
 
   try {
     // Step 0: Load personal context for smarter processing
@@ -359,7 +388,7 @@ export async function processInboxItem(
     await db
       .update(schema.inboxItems)
       .set({ status: finalStatus, processingStartedAt: null })
-      .where(eq(schema.inboxItems.id, inboxItemId));
+      .where(eq(schema.inboxItems.id, inboxItem.id));
 
     return result;
   } catch (error) {
@@ -373,7 +402,7 @@ export async function processInboxItem(
         processingStartedAt: null,
         errorMessage: sanitizedMessage,
       })
-      .where(eq(schema.inboxItems.id, inboxItemId));
+      .where(eq(schema.inboxItems.id, inboxItem.id));
     throw error;
   }
 }
@@ -832,18 +861,14 @@ async function handleExtraction(
 export async function processBatch(
   limit: number = 10
 ): Promise<{ processed: number; results: ProcessResult[] }> {
-  // Get pending items
-  const pendingItems = await db
-    .select()
-    .from(schema.inboxItems)
-    .where(eq(schema.inboxItems.status, "new"))
-    .limit(limit);
+  // Atomically claim pending items to avoid double-processing
+  const pendingItems = await claimBatchForProcessing(limit);
 
   const results: ProcessResult[] = [];
 
   for (const item of pendingItems) {
     try {
-      const result = await processInboxItem(item.id);
+      const result = await processClaimedInboxItem(item);
       results.push(result);
     } catch (error) {
       // Log error but continue processing other items

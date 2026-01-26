@@ -24,12 +24,12 @@ type TableName =
   | "personal_contexts";
 
 const TABLE_IDENTIFIERS: Record<TableName, ReturnType<typeof sql.identifier>> = {
-  inbox_items: sql.identifier(["inbox_items"]),
-  tasks: sql.identifier(["tasks"]),
-  projects: sql.identifier(["projects"]),
-  ideas: sql.identifier(["ideas"]),
-  persons: sql.identifier(["persons"]),
-  personal_contexts: sql.identifier(["personal_contexts"]),
+  inbox_items: sql.identifier("inbox_items"),
+  tasks: sql.identifier("tasks"),
+  projects: sql.identifier("projects"),
+  ideas: sql.identifier("ideas"),
+  persons: sql.identifier("persons"),
+  personal_contexts: sql.identifier("personal_contexts"),
 };
 
 // =============================================================================

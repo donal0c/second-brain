@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { search, extractErrorMessage, type SearchResult, type Task, type Project, type Idea } from "../lib/api";
+import { search, extractErrorMessage, type SearchResult, type Task, type Project, type Idea, type Person } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 
@@ -16,7 +16,7 @@ export function Search() {
   // Filter states
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [debouncedQuery, setDebouncedQuery] = useState(query);
-  const [typeFilter, setTypeFilter] = useState<"task" | "project" | "idea" | "">("");
+  const [typeFilter, setTypeFilter] = useState<"task" | "project" | "idea" | "person" | "">("");
   const [statusFilter, setStatusFilter] = useState("");
   const [contextFilter, setContextFilter] = useState("");
   const [searchTrigger, setSearchTrigger] = useState(0);
@@ -103,6 +103,8 @@ export function Search() {
         return "📁";
       case "idea":
         return "💡";
+      case "person":
+        return "👤";
       default:
         return "•";
     }
@@ -141,7 +143,7 @@ export function Search() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tasks, projects, ideas..."
+              placeholder="Search tasks, projects, ideas, people..."
               data-testid="search-page-input"
               className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
             />
@@ -167,6 +169,7 @@ export function Search() {
               <option value="task">Tasks</option>
               <option value="project">Projects</option>
               <option value="idea">Ideas</option>
+              <option value="person">People</option>
             </select>
           </div>
 
@@ -227,7 +230,7 @@ export function Search() {
       {!loading && results.length > 0 && (
         <div className="space-y-3">
           {results.map((result) => {
-            const entity = result.entity as Task | Project | Idea;
+            const entity = result.entity as Task | Project | Idea | Person;
             return (
               <div
                 key={`${result.type}-${result.id}`}
@@ -268,6 +271,11 @@ export function Search() {
                           {(entity as Task).context}
                         </span>
                       )}
+                      {result.type === "person" && (entity as Person).relationshipContext && (
+                        <span className="px-2 py-0.5 bg-slate-700/50 rounded">
+                          {(entity as Person).relationshipContext}
+                        </span>
+                      )}
                       <span>
                         {new Date(entity.createdAt).toLocaleDateString()}
                       </span>
@@ -291,7 +299,7 @@ export function Search() {
       {/* Initial State */}
       {!query && !loading && (
         <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
-          <p>Enter a search query to find tasks, projects, and ideas</p>
+          <p>Enter a search query to find tasks, projects, ideas, and people</p>
         </div>
       )}
     </div>

@@ -17,6 +17,7 @@ interface QueuedCapture {
   text: string;
   timestamp: number;
   retries: number;
+  nextAttemptAt?: number;
 }
 
 // In-memory mock store
@@ -57,6 +58,11 @@ class MockIDBObjectStore {
   keyPath = "id";
 
   add(value: QueuedCapture): MockIDBRequest<IDBValidKey> {
+    mockStore.set(value.id, value);
+    return new MockIDBRequest<IDBValidKey>(value.id);
+  }
+
+  put(value: QueuedCapture): MockIDBRequest<IDBValidKey> {
     mockStore.set(value.id, value);
     return new MockIDBRequest<IDBValidKey>(value.id);
   }
@@ -131,6 +137,8 @@ class TestOfflineQueue {
   private db: MockIDBDatabase | null = null;
   private syncInProgress = false;
   private listeners: Set<() => void> = new Set();
+  private readonly baseBackoffMs = 30 * 1000;
+  private readonly maxBackoffMs = 60 * 60 * 1000;
 
   async init(): Promise<void> {
     return new Promise((resolve) => {
@@ -194,6 +202,22 @@ class TestOfflineQueue {
     });
   }
 
+  async update(capture: QueuedCapture): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction();
+      const store = transaction.objectStore();
+      const request = store.put(capture);
+
+      request.onsuccess = () => {
+        this.notifyListeners();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async count(): Promise<number> {
     if (!this.db) await this.init();
 
@@ -216,13 +240,25 @@ class TestOfflineQueue {
     try {
       const captures = await this.getAll();
 
+      const now = Date.now();
       for (const capture of captures) {
+        if (capture.nextAttemptAt && now < capture.nextAttemptAt) {
+          continue;
+        }
         try {
           await captureFunction(capture.text);
           await this.remove(capture.id);
         } catch {
           // If sync fails, we'll try again later
           console.error("Failed to sync capture");
+          const nextRetries = (capture.retries ?? 0) + 1;
+          const backoff = Math.min(this.baseBackoffMs * Math.pow(2, nextRetries - 1), this.maxBackoffMs);
+          const nextAttemptAt = Date.now() + backoff;
+          await this.update({
+            ...capture,
+            retries: nextRetries,
+            nextAttemptAt,
+          });
         }
       }
     } finally {
@@ -423,7 +459,7 @@ async function runTests() {
     mockStore.clear();
     mockOnlineStatus = true;
 
-    const id = await queue.add("Failed sync");
+    await queue.add("Failed sync");
 
     await queue.sync(async () => {
       throw new Error("Sync failed");
@@ -431,6 +467,9 @@ async function runTests() {
 
     // Item should remain in queue after failed sync
     assertEqual(await queue.count(), 1, "Item should remain after failed sync");
+    const [item] = await queue.getAll();
+    assertEqual(item.retries, 1, "Retries should increment after failure");
+    assertEqual(typeof item.nextAttemptAt, "number", "nextAttemptAt should be set after failure");
   });
 
   // =============================================================================
@@ -481,12 +520,11 @@ async function runTests() {
 
     await queue.add("Sync notify test");
 
-    let notifyDuringSync = false;
     let notifyAfterSync = false;
 
     queue.onChange(() => {
       if (queue.isSyncing()) {
-        notifyDuringSync = true;
+        return;
       } else {
         notifyAfterSync = true;
       }
@@ -532,7 +570,7 @@ async function runTests() {
   console.log("=".repeat(50));
 
   if (failed > 0) {
-    process.exit(1);
+    throw new Error(`${failed} test(s) failed`);
   }
 }
 

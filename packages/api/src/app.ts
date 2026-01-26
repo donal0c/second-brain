@@ -42,9 +42,24 @@ export async function buildApp(): Promise<FastifyInstance> {
     app.log.warn("ANTHROPIC_API_KEY not configured - LLM features disabled");
   }
 
+  const corsOriginEnv = process.env.CORS_ORIGIN;
+  const corsOrigins = corsOriginEnv
+    ? corsOriginEnv.split(",").map((origin) => origin.trim()).filter(Boolean)
+    : null;
+  const corsOrigin =
+    corsOrigins && corsOrigins.length > 0
+      ? corsOrigins
+      : process.env.NODE_ENV === "production"
+        ? true
+        : ["http://localhost:5173", "http://localhost:5174"];
+
+  if (process.env.NODE_ENV === "production" && (!corsOrigins || corsOrigins.length === 0)) {
+    app.log.warn("CORS_ORIGIN not set in production - allowing all origins");
+  }
+
   // Register CORS
   await app.register(cors, {
-    origin: process.env.CORS_ORIGIN || ["http://localhost:5173", "http://localhost:5174"],
+    origin: corsOrigin,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   });
 

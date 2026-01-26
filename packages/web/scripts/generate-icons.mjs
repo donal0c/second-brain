@@ -1,3 +1,4 @@
+/* global console */
 // Generate PWA icons from SVG source
 import sharp from 'sharp';
 import { readFileSync } from 'fs';

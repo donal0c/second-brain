@@ -14,6 +14,10 @@ export function usePWA(): PWAState {
   const [updateSW, setUpdateSW] = useState<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
+    if (!import.meta.env.PROD) {
+      return;
+    }
+
     const update = registerSW({
       onNeedRefresh() {
         setNeedRefresh(true);

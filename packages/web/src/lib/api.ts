@@ -27,6 +27,7 @@ export type PersonalContext = PersonalContextApi;
 export type Nudge = NudgeApi;
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_AUTH_TOKEN = import.meta.env.VITE_API_AUTH_TOKEN;
 
 export interface ApiErrorDetail {
   code: string;
@@ -96,6 +97,7 @@ async function request<T>(
     ...options,
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(API_AUTH_TOKEN ? { Authorization: `Bearer ${API_AUTH_TOKEN}` } : {}),
       ...options.headers,
     },
   });
@@ -131,6 +133,7 @@ async function requestEnvelope<T>(
     ...options,
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(API_AUTH_TOKEN ? { Authorization: `Bearer ${API_AUTH_TOKEN}` } : {}),
       ...options.headers,
     },
   });
@@ -162,6 +165,7 @@ async function requestList<T>(
     ...options,
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(API_AUTH_TOKEN ? { Authorization: `Bearer ${API_AUTH_TOKEN}` } : {}),
       ...options.headers,
     },
   });
@@ -683,16 +687,18 @@ export const process = {
       } as ApiError;
     }
 
-    // Fetch the original inbox item
-    const originalInboxItem = await inbox.get(entity.sourceInboxItemId, signal);
+    const reprocessResponse = await inbox.reprocess(entity.sourceInboxItemId, signal);
+    if (!reprocessResponse.reprocessed || !reprocessResponse.result) {
+      throw {
+        error: {
+          code: "REPROCESS_FAILED",
+          message: reprocessResponse.processingError || "Reprocessing failed",
+        },
+        message: reprocessResponse.processingError || "Reprocessing failed",
+      } as ApiError;
+    }
 
-    // Create a new inbox item with the same rawText
-    const captureResponse = await inbox.capture(originalInboxItem.rawText, "reprocess", signal);
-
-    // Process the new inbox item
-    const result = await request<ProcessResult>(`/process/${captureResponse.inboxItem.id}`, { method: "POST", signal });
-
-    return result;
+    return reprocessResponse.result;
   },
 };
 
@@ -701,9 +707,9 @@ export const process = {
 // =============================================================================
 
 export interface SearchResult {
-  type: "task" | "project" | "idea";
+  type: "task" | "project" | "idea" | "person";
   id: string;
-  entity: Task | Project | Idea;
+  entity: Task | Project | Idea | Person;
   snippet: {
     title: string;
     content: string;
@@ -722,7 +728,7 @@ export const search = {
   query: async (
     params: {
       q: string;
-      type?: "task" | "project" | "idea";
+      type?: "task" | "project" | "idea" | "person";
       context?: string;
       status?: string;
       from?: string;

@@ -3,12 +3,16 @@
 const DB_NAME = "second-brain-offline";
 const DB_VERSION = 1;
 const STORE_NAME = "pending-captures";
+const MAX_RETRIES = 5;
+const BASE_BACKOFF_MS = 30 * 1000;
+const MAX_BACKOFF_MS = 60 * 60 * 1000;
 
 interface QueuedCapture {
   id: string;
   text: string;
   timestamp: number;
   retries: number;
+  nextAttemptAt?: number;
 }
 
 class OfflineQueue {
@@ -87,6 +91,22 @@ class OfflineQueue {
     });
   }
 
+  async update(capture: QueuedCapture): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(capture);
+
+      request.onsuccess = () => {
+        this.notifyListeners();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async count(): Promise<number> {
     if (!this.db) await this.init();
 
@@ -109,13 +129,29 @@ class OfflineQueue {
     try {
       const captures = await this.getAll();
 
+      const now = Date.now();
       for (const capture of captures) {
+        if (capture.nextAttemptAt && now < capture.nextAttemptAt) {
+          continue;
+        }
         try {
           await captureFunction(capture.text);
           await this.remove(capture.id);
         } catch (error) {
           // If sync fails, we'll try again later
           console.error("Failed to sync capture:", error);
+          const nextRetries = (capture.retries ?? 0) + 1;
+          const backoff = Math.min(BASE_BACKOFF_MS * Math.pow(2, nextRetries - 1), MAX_BACKOFF_MS);
+          const nextAttemptAt = Date.now() + backoff;
+          const updatedCapture = {
+            ...capture,
+            retries: nextRetries,
+            nextAttemptAt,
+          };
+          await this.update(updatedCapture);
+          if (nextRetries >= MAX_RETRIES) {
+            console.error(`Capture ${capture.id} reached max retries (${MAX_RETRIES}). Will retry later.`);
+          }
         }
       }
     } finally {

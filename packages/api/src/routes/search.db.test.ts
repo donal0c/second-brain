@@ -72,7 +72,7 @@ async function testDatabaseConnection(): Promise<boolean> {
   try {
     await rawDb`SELECT 1 as connected`;
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

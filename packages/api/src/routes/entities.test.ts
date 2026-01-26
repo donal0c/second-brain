@@ -61,7 +61,7 @@ test("fireAndForgetEmbeddingOnCreate skips when OpenAI is unavailable", () => {
   fireAndForgetEmbeddingOnCreate({
     entityName: "task",
     entity: { id: "1", title: "Test" },
-    table: {} as typeof import("../db/schema.js").schema.tasks,
+    table: {} as typeof import("../db/schema.js").tasks,
     hasClient: false,
     embedFn: async () => {
       called = true;
@@ -75,7 +75,7 @@ test("fireAndForgetEmbeddingOnCreate invokes embedder when OpenAI is available",
   fireAndForgetEmbeddingOnCreate({
     entityName: "project",
     entity: { id: "2", name: "Test" },
-    table: {} as typeof import("../db/schema.js").schema.projects,
+    table: {} as typeof import("../db/schema.js").projects,
     hasClient: true,
     embedFn: async () => {
       called = true;
