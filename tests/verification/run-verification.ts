@@ -82,7 +82,7 @@ async function runSuiteVerification(
 
   // Send verification prompt to LLM
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929",
     max_tokens: 4096,
     messages: [
       {
@@ -238,7 +238,7 @@ async function generateReport(suitesToRun?: string[]): Promise<VerificationRepor
     git_commit: gitCommit,
     git_branch: gitBranch,
     environment: process.env.NODE_ENV || "development",
-    llm_model: "claude-sonnet-4-20250514",
+    llm_model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929",
     triggered_by: "manual",
   });
 
