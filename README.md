@@ -105,7 +105,7 @@ Capture → Process → File (or Clarify) → Digest → Nudge → Fix
 - **Backend**: Fastify (TypeScript)
 - **Frontend**: React 18 + Vite + Tailwind CSS
 - **Database**: PostgreSQL + Drizzle ORM + pgvector
-- **AI Classification**: Anthropic Claude API (claude-sonnet-4.5, configurable via ANTHROPIC_MODEL)
+- **AI Classification**: Anthropic Claude API (claude-sonnet-4.5, configurable via SECOND_BRAIN_LLM_MODEL)
 - **AI Embeddings**: OpenAI API (text-embedding-3-small, 1536 dimensions)
 - **Package Manager**: pnpm (monorepo with workspaces)
 - **Runtime**: Node.js ≥20.0.0

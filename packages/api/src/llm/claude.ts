@@ -34,7 +34,8 @@ import {
   buildClarificationPrompt,
 } from "@second-brain/config";
 
-const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+// Use SECOND_BRAIN_LLM_MODEL to avoid conflicts with other tools using ANTHROPIC_MODEL
+const DEFAULT_MODEL = process.env.SECOND_BRAIN_LLM_MODEL || "claude-sonnet-4-5-20250929";
 
 // =============================================================================
 // Retry Configuration
