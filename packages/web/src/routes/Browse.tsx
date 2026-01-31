@@ -33,6 +33,8 @@ import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { Modal } from "../components/Modal";
 import { TaskEditForm } from "../components/TaskEditForm";
+import { motion } from "framer-motion";
+import { EntityBadge, NeuralCard } from "../components/ui/neural";
 
 type TabType = "tasks" | "projects" | "ideas" | "persons";
 type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
@@ -551,37 +553,74 @@ export function Browse() {
   ];
 
   return (
-    <div className="p-6 md:p-8 min-h-full space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white font-display">Browse</h2>
-        <button
-          onClick={loadData}
-          className="px-3 py-1 text-sm text-slate-400 hover:text-white"
-        >
-          Refresh
-        </button>
+    <div className="p-6 md:p-8 min-h-full space-y-6 neural-bg">
+      {/* Ambient glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 right-20 w-96 h-96 bg-neural-pulse-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-40 left-20 w-80 h-80 bg-neural-memory-500/5 rounded-full blur-[100px]" />
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-slate-700/50">
-        <nav className="flex gap-4">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? "border-indigo-500 text-white"
-                  : "border-transparent text-slate-400 hover:text-white"
-              }`}
-            >
-              {tab.label}
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-700/50">
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </nav>
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-6">
+          <motion.h2
+            className="text-3xl font-bold text-white font-display tracking-wide"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            Browse
+          </motion.h2>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-void-50/50 rounded-neural transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {/* Entity Type Tabs */}
+        <div className="border-b border-void-border">
+          <nav className="flex gap-1">
+            {tabs.map((tab, i) => {
+              const entityColors: Record<string, string> = {
+                tasks: "neural-fire",
+                projects: "neural-pulse",
+                ideas: "neural-memory",
+                persons: "entity-person",
+              };
+              const colorClass = entityColors[tab.id] || "neural-memory";
+              const isActive = activeTab === tab.id;
+
+              return (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative pb-3 px-4 text-sm font-semibold transition-colors ${
+                    isActive ? "text-white" : "text-slate-400 hover:text-white"
+                  }`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  {tab.label}
+                  <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                    isActive
+                      ? `bg-${colorClass}-500/20 text-${colorClass}-400`
+                      : "bg-void-50 text-slate-500"
+                  }`}>
+                    {tab.count}
+                  </span>
+                  {isActive && (
+                    <motion.div
+                      className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${colorClass}-500`}
+                      layoutId="browseTabIndicator"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       {error && (
@@ -599,8 +638,8 @@ export function Browse() {
           {activeTab === "tasks" && (
             <div className="space-y-3">
               {/* Task Filter Bar */}
-              <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3">
-                <div className="flex flex-wrap gap-3 items-center">
+              <div className="glass rounded-neural p-4">
+                <div className="flex flex-wrap gap-4 items-center">
                   {/* Search */}
                   <div className="flex-1 min-w-[200px]">
                     <input
@@ -608,17 +647,17 @@ export function Browse() {
                       value={taskFilters.search}
                       onChange={(e) => setTaskFilters(prev => ({ ...prev, search: e.target.value }))}
                       placeholder="Search tasks..."
-                      className="w-full px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
+                      className="w-full px-4 py-2 text-sm bg-void-100/50 border border-void-border text-white placeholder:text-slate-500 rounded-neural focus:outline-none focus:border-neural-fire-500/50 focus:ring-1 focus:ring-neural-fire-500/20 transition-all"
                     />
                   </div>
 
                   {/* Sort */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-400">Sort:</label>
+                    <label className="text-xs text-slate-500 font-medium">Sort:</label>
                     <select
                       value={taskFilters.sort}
                       onChange={(e) => updateTaskFilters({ sort: e.target.value as TaskSortField })}
-                      className="px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
+                      className="px-3 py-2 text-sm bg-void-100/50 border border-void-border text-white rounded-neural focus:outline-none focus:border-neural-fire-500/50"
                     >
                       <option value="createdAt">Created</option>
                       <option value="dueDate">Due Date</option>
@@ -626,7 +665,7 @@ export function Browse() {
                     </select>
                     <button
                       onClick={() => updateTaskFilters({ sortDir: taskFilters.sortDir === "asc" ? "desc" : "asc" })}
-                      className="p-1.5 text-slate-400 hover:text-white border border-slate-700 rounded-lg hover:bg-slate-800"
+                      className="p-2 text-slate-400 hover:text-neural-fire-400 border border-void-border rounded-neural hover:bg-void-50/50 transition-colors"
                       title={taskFilters.sortDir === "asc" ? "Ascending" : "Descending"}
                     >
                       {taskFilters.sortDir === "asc" ? (
@@ -647,18 +686,18 @@ export function Browse() {
                       <button
                         key={status}
                         onClick={() => updateTaskFilters({ status })}
-                        className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
                           taskFilters.status === status
                             ? status === "all"
-                              ? "bg-indigo-600 text-white"
+                              ? "bg-neural-fire-500/20 text-neural-fire-400 border border-neural-fire-500/30"
                               : status === "active"
-                              ? "bg-green-600 text-white"
+                              ? "bg-success/20 text-success border border-success/30"
                               : status === "waiting"
-                              ? "bg-yellow-600 text-white"
+                              ? "bg-warning/20 text-warning border border-warning/30"
                               : status === "someday"
-                              ? "bg-blue-600 text-white"
-                              : "bg-slate-600 text-white"
-                            : "bg-slate-700/50 text-slate-400 hover:bg-slate-800"
+                              ? "bg-neural-pulse-500/20 text-neural-pulse-400 border border-neural-pulse-500/30"
+                              : "bg-slate-500/20 text-slate-400 border border-slate-500/30"
+                            : "bg-void-50/30 text-slate-500 hover:text-white hover:bg-void-50/50 border border-transparent"
                         }`}
                       >
                         {status === "all" ? "All" : status.charAt(0).toUpperCase() + status.slice(1)}
@@ -669,38 +708,49 @@ export function Browse() {
               </div>
 
               {taskList.length === 0 ? (
-                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
-                  {rawTaskList.length === 0
-                    ? "No tasks yet. Capture something to get started!"
-                    : "No tasks match your filters."}
-                </div>
+                <NeuralCard interactive={false} padding="lg" className="text-center">
+                  <p className="text-slate-400">
+                    {rawTaskList.length === 0
+                      ? "No tasks yet. Capture something to get started!"
+                      : "No tasks match your filters."}
+                  </p>
+                </NeuralCard>
               ) : (
-                taskList.map((task) => (
-                  <div
+                taskList.map((task, i) => (
+                  <motion.div
                     key={task.id}
-                    onClick={() => setEditing({ type: "task", item: task })}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
                   >
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-medium text-white truncate">{task.title}</h4>
-                        <p className="text-sm text-slate-400 mt-1 line-clamp-2">{task.nextAction}</p>
+                    <NeuralCard
+                      entityType="task"
+                      onClick={() => setEditing({ type: "task", item: task })}
+                      className="hover:-translate-y-0.5"
+                    >
+                      <div className="flex items-start justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-semibold text-white truncate">{task.title}</h4>
+                          <p className="text-sm text-slate-400 mt-1 line-clamp-2">{task.nextAction}</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                          task.status === "active" ? "bg-success/20 text-success border border-success/30" :
+                          task.status === "completed" ? "bg-slate-500/20 text-slate-400 border border-slate-500/30" :
+                          task.status === "waiting" ? "bg-neural-fire-500/20 text-neural-fire-400 border border-neural-fire-500/30" :
+                          "bg-neural-pulse-500/20 text-neural-pulse-400 border border-neural-pulse-500/30"
+                        }`}>
+                          {task.status}
+                        </span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
-                        task.status === "active" ? "bg-green-500/20 text-green-400" :
-                        task.status === "completed" ? "bg-slate-500/20 text-slate-400" :
-                        task.status === "waiting" ? "bg-yellow-500/20 text-yellow-400" :
-                        "bg-primary-subtle text-primary-active"
-                      }`}>
-                        {task.status}
-                      </span>
-                    </div>
-                    {task.context && (
-                      <span className="mt-2 inline-block text-xs px-2 py-1 bg-slate-700/50 rounded text-slate-400">
-                        {task.context}
-                      </span>
-                    )}
-                  </div>
+                      {task.context && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="text-xs px-2 py-1 bg-void-50/50 border border-void-border rounded-full text-slate-400">
+                            {task.context}
+                          </span>
+                        </div>
+                      )}
+                    </NeuralCard>
+                  </motion.div>
                 ))
               )}
             </div>
@@ -779,38 +829,49 @@ export function Browse() {
               </div>
 
               {projectList.length === 0 ? (
-                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
-                  {rawProjectList.length === 0
-                    ? "No projects yet."
-                    : "No projects match your filters."}
-                </div>
+                <NeuralCard interactive={false} padding="lg" className="text-center">
+                  <p className="text-slate-400">
+                    {rawProjectList.length === 0
+                      ? "No projects yet."
+                      : "No projects match your filters."}
+                  </p>
+                </NeuralCard>
               ) : (
-                projectList.map((project) => (
-                  <div
+                projectList.map((project, i) => (
+                  <motion.div
                     key={project.id}
-                    onClick={() => setEditing({ type: "project", item: project })}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
                   >
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-medium text-white truncate">{project.name}</h4>
-                        {project.desiredOutcome && (
-                          <p className="text-sm text-slate-400 mt-1 line-clamp-2">{project.desiredOutcome}</p>
-                        )}
-                        {project.nextAction && (
-                          <p className="text-sm text-slate-400 mt-1 truncate">Next: {project.nextAction}</p>
-                        )}
+                    <NeuralCard
+                      entityType="project"
+                      onClick={() => setEditing({ type: "project", item: project })}
+                      className="hover:-translate-y-0.5"
+                    >
+                      <div className="flex items-start justify-between gap-3 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-semibold text-white truncate">{project.name}</h4>
+                          {project.desiredOutcome && (
+                            <p className="text-sm text-slate-400 mt-1 line-clamp-2">{project.desiredOutcome}</p>
+                          )}
+                          {project.nextAction && (
+                            <p className="text-sm text-neural-pulse-400 mt-2 truncate">
+                              <span className="text-slate-500">Next:</span> {project.nextAction}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                          project.status === "active" ? "bg-success/20 text-success border border-success/30" :
+                          project.status === "completed" ? "bg-slate-500/20 text-slate-400 border border-slate-500/30" :
+                          project.status === "on_hold" ? "bg-neural-fire-500/20 text-neural-fire-400 border border-neural-fire-500/30" :
+                          "bg-neural-pulse-500/20 text-neural-pulse-400 border border-neural-pulse-500/30"
+                        }`}>
+                          {project.status.replace("_", " ")}
+                        </span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
-                        project.status === "active" ? "bg-green-500/20 text-green-400" :
-                        project.status === "completed" ? "bg-slate-500/20 text-slate-400" :
-                        project.status === "on_hold" ? "bg-yellow-500/20 text-yellow-400" :
-                        "bg-primary-subtle text-primary-active"
-                      }`}>
-                        {project.status.replace("_", " ")}
-                      </span>
-                    </div>
-                  </div>
+                    </NeuralCard>
+                  </motion.div>
                 ))
               )}
             </div>
@@ -820,37 +881,44 @@ export function Browse() {
           {activeTab === "ideas" && (
             <div className="space-y-3">
               {ideaList.length === 0 ? (
-                <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-8 text-center text-slate-400">
-                  No ideas yet.
-                </div>
+                <NeuralCard interactive={false} padding="lg" className="text-center">
+                  <p className="text-slate-400">No ideas yet.</p>
+                </NeuralCard>
               ) : (
-                ideaList.map((idea) => (
-                  <div
+                ideaList.map((idea, i) => (
+                  <motion.div
                     key={idea.id}
-                    onClick={() => setEditing({ type: "idea", item: idea })}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all min-w-0"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
                   >
-                    <h4 className="font-medium text-white truncate">{idea.title}</h4>
-                    {idea.summary && (
-                      <p className="text-sm text-slate-400 mt-1 line-clamp-2">{idea.summary}</p>
-                    )}
-                    {idea.links.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {idea.links.map((link, i) => (
-                          <a
-                            key={i}
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary-hover hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {new URL(link).hostname}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    <NeuralCard
+                      entityType="idea"
+                      onClick={() => setEditing({ type: "idea", item: idea })}
+                      className="hover:-translate-y-0.5"
+                    >
+                      <h4 className="font-semibold text-white truncate">{idea.title}</h4>
+                      {idea.summary && (
+                        <p className="text-sm text-slate-400 mt-1 line-clamp-2">{idea.summary}</p>
+                      )}
+                      {idea.links.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {idea.links.map((link, linkIdx) => (
+                            <a
+                              key={linkIdx}
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-neural-memory-400 hover:text-neural-memory-300 hover:underline transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {new URL(link).hostname}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </NeuralCard>
+                  </motion.div>
                 ))
               )}
             </div>

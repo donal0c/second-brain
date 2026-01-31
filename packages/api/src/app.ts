@@ -13,7 +13,7 @@ import { jobRoutes } from "./routes/jobs.js";
 import { contextRoutes } from "./routes/context.js";
 import { searchRoutes } from "./routes/search.js";
 import { similarityRoutes } from "./routes/similarity.js";
-import { createClaudeProvider, setLLMProvider, hasLLMProvider } from "./llm/index.js";
+import { createOpenAIProvider, setLLMProvider, hasLLMProvider } from "./llm/index.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -33,13 +33,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // Initialize LLM provider if API key is configured
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey && anthropicKey !== "your-api-key-here") {
-    const provider = createClaudeProvider({ apiKey: anthropicKey });
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey && openaiKey !== "your-openai-key-here") {
+    const provider = createOpenAIProvider({ apiKey: openaiKey });
     setLLMProvider(provider);
     app.log.info(`LLM provider initialized: ${provider.name} (${provider.model})`);
   } else {
-    app.log.warn("ANTHROPIC_API_KEY not configured - LLM features disabled");
+    app.log.warn("OPENAI_API_KEY not configured - LLM features disabled");
   }
 
   const corsOriginEnv = process.env.CORS_ORIGIN;

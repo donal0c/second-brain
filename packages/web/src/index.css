@@ -2,22 +2,465 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ================================================
+   NEURAL NETWORK AESTHETIC - Design System v1.0
+   ================================================ */
+
 @layer base {
-  /* Base typography: Quicksand for body, Staatliches for display */
+  /* === CSS Custom Properties === */
+  :root {
+    /* Neural Core Colors */
+    --neural-fire: #F59E0B;
+    --neural-fire-50: #FFFBEB;
+    --neural-fire-100: #FEF3C7;
+    --neural-fire-200: #FDE68A;
+    --neural-fire-300: #FCD34D;
+    --neural-fire-400: #FBBF24;
+    --neural-fire-500: #F59E0B;
+    --neural-fire-600: #D97706;
+    --neural-fire-700: #B45309;
+    --neural-fire-800: #92400E;
+    --neural-fire-900: #78350F;
+
+    --neural-pulse: #06B6D4;
+    --neural-pulse-50: #ECFEFF;
+    --neural-pulse-100: #CFFAFE;
+    --neural-pulse-200: #A5F3FC;
+    --neural-pulse-300: #67E8F9;
+    --neural-pulse-400: #22D3EE;
+    --neural-pulse-500: #06B6D4;
+    --neural-pulse-600: #0891B2;
+    --neural-pulse-700: #0E7490;
+    --neural-pulse-800: #155E75;
+    --neural-pulse-900: #164E63;
+
+    --neural-memory: #8B5CF6;
+    --neural-memory-50: #F5F3FF;
+    --neural-memory-100: #EDE9FE;
+    --neural-memory-200: #DDD6FE;
+    --neural-memory-300: #C4B5FD;
+    --neural-memory-400: #A78BFA;
+    --neural-memory-500: #8B5CF6;
+    --neural-memory-600: #7C3AED;
+    --neural-memory-700: #6D28D9;
+    --neural-memory-800: #5B21B6;
+    --neural-memory-900: #4C1D95;
+
+    /* Entity Colors */
+    --entity-task: #F59E0B;
+    --entity-task-subtle: #FEF3C7;
+    --entity-task-glow: rgba(245, 158, 11, 0.4);
+
+    --entity-project: #06B6D4;
+    --entity-project-subtle: #CFFAFE;
+    --entity-project-glow: rgba(6, 182, 212, 0.4);
+
+    --entity-idea: #8B5CF6;
+    --entity-idea-subtle: #EDE9FE;
+    --entity-idea-glow: rgba(139, 92, 246, 0.4);
+
+    --entity-person: #EC4899;
+    --entity-person-subtle: #FCE7F3;
+    --entity-person-glow: rgba(236, 72, 153, 0.4);
+
+    /* Void (Background) Colors */
+    --void: #0B1120;
+    --void-50: #1E293B;
+    --void-100: #172033;
+    --void-200: #0F172A;
+    --void-300: #0B1120;
+    --void-border: rgba(148, 163, 184, 0.1);
+    --void-glow: rgba(139, 92, 246, 0.15);
+
+    /* Semantic Colors */
+    --success: #10B981;
+    --success-subtle: #D1FAE5;
+    --success-glow: rgba(16, 185, 129, 0.4);
+
+    --warning: #F59E0B;
+    --warning-subtle: #FEF3C7;
+    --warning-glow: rgba(245, 158, 11, 0.4);
+
+    --error: #EF4444;
+    --error-subtle: #FEE2E2;
+    --error-glow: rgba(239, 68, 68, 0.4);
+
+    /* Animation Timings */
+    --ease-neural: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-synapse: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --duration-fast: 150ms;
+    --duration-normal: 300ms;
+    --duration-slow: 500ms;
+    --duration-neural: 400ms;
+
+    /* Spacing */
+    --space-neural: 1rem;
+    --radius-neural: 1rem;
+
+    /* Shadows */
+    --shadow-neural-sm: 0 0 10px -2px var(--neural-memory);
+    --shadow-neural-md: 0 0 20px -4px var(--neural-memory);
+    --shadow-neural-lg: 0 0 40px -8px var(--neural-memory);
+  }
+
+  /* Base Typography */
   html {
     font-family: "Quicksand", system-ui, sans-serif;
+    background-color: var(--void-200);
+    color: #E2E8F0;
   }
 
   .font-display {
     font-family: "Staatliches", system-ui, sans-serif;
   }
+
+  .font-hero {
+    font-family: "Outfit", "Quicksand", system-ui, sans-serif;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Better focus visibility for accessibility */
+  :focus-visible {
+    outline: 2px solid var(--neural-memory);
+    outline-offset: 2px;
+  }
+
+  /* Selection styling */
+  ::selection {
+    background-color: var(--neural-memory-400);
+    color: white;
+  }
 }
 
-/* Voice capture animation delays */
-.delay-75 {
-  animation-delay: 75ms;
+@layer components {
+  /* === Neural Card === */
+  .neural-card {
+    background: linear-gradient(
+      135deg,
+      rgba(30, 41, 59, 0.8) 0%,
+      rgba(15, 23, 42, 0.9) 100%
+    );
+    border: 1px solid var(--void-border);
+    border-radius: var(--radius-neural);
+    backdrop-filter: blur(12px);
+    transition: all var(--duration-neural) var(--ease-neural);
+  }
+
+  .neural-card:hover {
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 30px -10px var(--neural-memory);
+  }
+
+  /* === Neural Input === */
+  .neural-input {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--void-border);
+    border-radius: var(--radius-neural);
+    padding: 0.75rem 1rem;
+    color: #E2E8F0;
+    transition: all var(--duration-neural) var(--ease-neural);
+  }
+
+  .neural-input::placeholder {
+    color: rgba(148, 163, 184, 0.6);
+  }
+
+  .neural-input:focus {
+    outline: none;
+    border-color: var(--neural-memory-400);
+    box-shadow:
+      0 0 0 3px rgba(139, 92, 246, 0.1),
+      0 0 20px -4px var(--neural-memory);
+  }
+
+  /* === Synapse Button === */
+  .synapse-btn {
+    position: relative;
+    background: linear-gradient(135deg, var(--neural-memory-600) 0%, var(--neural-memory-700) 100%);
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-neural);
+    border: none;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all var(--duration-neural) var(--ease-neural);
+  }
+
+  .synapse-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--neural-memory-500) 0%, var(--neural-memory-600) 100%);
+    opacity: 0;
+    transition: opacity var(--duration-normal) ease;
+  }
+
+  .synapse-btn:hover::before {
+    opacity: 1;
+  }
+
+  .synapse-btn:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 2px rgba(139, 92, 246, 0.2),
+      0 0 30px -4px var(--neural-memory);
+  }
+
+  .synapse-btn:active {
+    transform: translateY(0);
+  }
+
+  .synapse-btn > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* === Entity Badges === */
+  .entity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .entity-badge-task {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--neural-fire-400);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  .entity-badge-project {
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--neural-pulse-400);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+  }
+
+  .entity-badge-idea {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--neural-memory-400);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+  }
+
+  .entity-badge-person {
+    background: rgba(236, 72, 153, 0.15);
+    color: #F472B6;
+    border: 1px solid rgba(236, 72, 153, 0.3);
+  }
+
+  /* === Neural Background Effect === */
+  .neural-bg {
+    position: relative;
+    background: var(--void-200);
+  }
+
+  .neural-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 40% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 0%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 0% 100%, rgba(6, 182, 212, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* === Neural Glow Ring === */
+  .neural-ring {
+    position: relative;
+  }
+
+  .neural-ring::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from 0deg,
+      var(--neural-memory-500),
+      var(--neural-pulse-500),
+      var(--neural-fire-500),
+      var(--neural-memory-500)
+    );
+    opacity: 0;
+    z-index: -1;
+    transition: opacity var(--duration-neural) var(--ease-neural);
+  }
+
+  .neural-ring:hover::after,
+  .neural-ring:focus-within::after {
+    opacity: 0.5;
+  }
+
+  /* === Neural Border Animation === */
+  .neural-border-animated {
+    position: relative;
+    background: var(--void-100);
+    border-radius: var(--radius-neural);
+  }
+
+  .neural-border-animated::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      var(--neural-memory-500),
+      var(--neural-pulse-500),
+      var(--neural-fire-500)
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.5;
+    transition: opacity var(--duration-neural) var(--ease-neural);
+  }
+
+  .neural-border-animated:hover::before {
+    opacity: 1;
+  }
 }
 
-.delay-150 {
-  animation-delay: 150ms;
+@layer utilities {
+  /* Animation delays for staggered effects */
+  .delay-75 {
+    animation-delay: 75ms;
+  }
+
+  .delay-150 {
+    animation-delay: 150ms;
+  }
+
+  .delay-225 {
+    animation-delay: 225ms;
+  }
+
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .delay-450 {
+    animation-delay: 450ms;
+  }
+
+  .delay-600 {
+    animation-delay: 600ms;
+  }
+
+  /* Neural text glow */
+  .text-glow {
+    text-shadow: 0 0 20px currentColor;
+  }
+
+  .text-glow-sm {
+    text-shadow: 0 0 10px currentColor;
+  }
+
+  .text-glow-lg {
+    text-shadow: 0 0 40px currentColor;
+  }
+
+  /* Entity text colors with glow */
+  .text-entity-task {
+    color: var(--entity-task);
+    text-shadow: 0 0 20px var(--entity-task-glow);
+  }
+
+  .text-entity-project {
+    color: var(--entity-project);
+    text-shadow: 0 0 20px var(--entity-project-glow);
+  }
+
+  .text-entity-idea {
+    color: var(--entity-idea);
+    text-shadow: 0 0 20px var(--entity-idea-glow);
+  }
+
+  .text-entity-person {
+    color: var(--entity-person);
+    text-shadow: 0 0 20px var(--entity-person-glow);
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--void-border);
+  }
+
+  .glass-heavy {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--void-border);
+  }
+
+  /* Gradient text */
+  .text-gradient-neural {
+    background: linear-gradient(135deg, var(--neural-memory) 0%, var(--neural-pulse) 50%, var(--neural-fire) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Neural scrollbar styling */
+  .scrollbar-neural {
+    scrollbar-width: thin;
+    scrollbar-color: var(--neural-memory-700) transparent;
+  }
+
+  .scrollbar-neural::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-neural::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-neural::-webkit-scrollbar-thumb {
+    background: var(--neural-memory-700);
+    border-radius: 3px;
+  }
+
+  .scrollbar-neural::-webkit-scrollbar-thumb:hover {
+    background: var(--neural-memory-600);
+  }
 }

@@ -98,7 +98,7 @@ export interface LLMProvider {
 // =============================================================================
 
 export type LLMProviderConfig = {
-  provider: "claude";
+  provider: "claude" | "openai";
   apiKey: string;
   model?: string;
 };

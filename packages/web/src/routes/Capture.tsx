@@ -1,21 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { extractErrorMessage } from "../lib/api";
 import { useCapture } from "../lib/queries";
 import { useVoiceCapture } from "../hooks/useVoiceCapture";
 import { useOfflineQueue } from "../hooks/useOfflineQueue";
-import { Spotlight } from "../components/ui/Spotlight";
+import { NeuralBackground, SynapseButton, NeuralNode } from "../components/ui/neural";
 import { Confetti } from "../components/ui/Confetti";
+
+type CaptureMode = "stream" | "atomic";
 
 export function Capture() {
   const [text, setText] = useState("");
+  const [mode, setMode] = useState<CaptureMode>("stream");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [wasQueued, setWasQueued] = useState(false);
   const [clarificationCreated, setClarificationCreated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recentCaptures, setRecentCaptures] = useState<{ id: number; text: string }[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     isListening,
@@ -57,17 +62,32 @@ export function Capture() {
     setSuccess(false);
     setClarificationCreated(false);
 
+    const capturedText = text.trim();
+
     try {
       const queued = !isOnline;
       if (isOnline) {
-        const response = await captureMutation.mutateAsync(text.trim());
+        const response = await captureMutation.mutateAsync(capturedText);
         setClarificationCreated(!!response.result?.clarification);
       } else {
-        await addToQueue(text.trim());
+        await addToQueue(capturedText);
       }
+
+      // Add to recent captures for visual feedback
+      setRecentCaptures((prev) => [
+        { id: Date.now(), text: capturedText.slice(0, 50) },
+        ...prev.slice(0, 4),
+      ]);
+
       setText("");
       setWasQueued(queued);
       setSuccess(true);
+
+      // Auto-resize textarea
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       const isNetworkFailure =
@@ -78,7 +98,11 @@ export function Capture() {
           /failed to fetch|networkerror|network error/i.test(String((err as { message?: string }).message)));
       if (isOnline && isNetworkFailure) {
         try {
-          await addToQueue(text.trim());
+          await addToQueue(capturedText);
+          setRecentCaptures((prev) => [
+            { id: Date.now(), text: capturedText.slice(0, 50) },
+            ...prev.slice(0, 4),
+          ]);
           setText("");
           setWasQueued(true);
           setSuccess(true);
@@ -101,146 +125,332 @@ export function Capture() {
     }
   };
 
+  const hasContent = text.trim().length > 0;
+
   return (
-    <div className="min-h-full relative overflow-hidden">
-      {/* Spotlight Effect */}
-      <Spotlight className="-top-40 left-0 md:left-20 md:-top-20" fill="#6366f1" />
+    <div className="min-h-full relative overflow-hidden neural-bg">
+      {/* Neural Network Background */}
+      <NeuralBackground
+        nodeCount={40}
+        showConnections={true}
+        connectionDistance={120}
+        intensity={hasContent ? 0.8 : 0.4}
+        focalPoint={hasContent ? { x: 0.5, y: 0.4 } : null}
+      />
 
-      {/* Secondary ambient light */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-20 left-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Ambient glow effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-neural-memory-500/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-neural-pulse-500/10 rounded-full blur-[80px]" />
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-neural-fire-500/5 rounded-full blur-[60px]" />
+      </div>
 
-      <div className="relative z-10 max-w-4xl px-6 sm:px-12 py-12 sm:py-24">
+      <div className="relative z-10 max-w-4xl mx-auto px-6 sm:px-12 py-12 sm:py-20">
         <motion.form
           onSubmit={handleSubmit}
           className="relative"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.6 }}
         >
-          {/* Main Writing Area */}
-          <div className="min-h-[300px]">
-            <textarea
-              value={text + (interimTranscript ? ` ${interimTranscript}` : "")}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-2xl sm:text-4xl leading-tight placeholder:text-slate-500 text-slate-100 font-medium overflow-hidden"
-              placeholder="What's on your mind?"
-              aria-label="Capture your thought"
-              disabled={isSubmitting || isListening}
-              rows={1}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = "auto";
-                target.style.height = `${target.scrollHeight}px`;
-              }}
-              autoFocus
-            />
-          </div>
+          {/* Hero Title */}
+          <motion.h1
+            className="font-hero text-hero-lg sm:text-hero-xl text-slate-400 mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            What's on your mind?
+          </motion.h1>
 
-          {/* Action Bar (Floating at bottom of container) */}
-          <div className="mt-12 flex items-center justify-between border-t border-slate-800/50 pt-8">
-            <div className="flex items-center gap-6">
+          {/* Main Writing Area */}
+          <motion.div
+            className="relative min-h-[200px] neural-border-animated rounded-neural p-1"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="bg-void-100/50 backdrop-blur-xl rounded-[calc(1rem-4px)] p-6">
+              <textarea
+                ref={textareaRef}
+                value={text + (interimTranscript ? ` ${interimTranscript}` : "")}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-xl sm:text-2xl leading-relaxed placeholder:text-slate-600 text-slate-100 font-medium"
+                placeholder={mode === "stream"
+                  ? "Let your thoughts flow freely..."
+                  : "One clear thought..."}
+                aria-label="Capture your thought"
+                disabled={isSubmitting || isListening}
+                rows={4}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  target.style.height = `${Math.max(100, target.scrollHeight)}px`;
+                }}
+                autoFocus
+              />
+
+              {/* Character indicator for atomic mode */}
+              {mode === "atomic" && text.length > 0 && (
+                <motion.div
+                  className="absolute bottom-4 right-4 text-xs text-slate-500"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  {text.length} chars
+                </motion.div>
+              )}
+            </div>
+
+            {/* Typing indicator glow */}
+            <AnimatePresence>
+              {hasContent && (
+                <motion.div
+                  className="absolute inset-0 rounded-neural pointer-events-none"
+                  style={{
+                    boxShadow: "0 0 40px -10px rgba(139, 92, 246, 0.4)",
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                />
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Action Bar */}
+          <motion.div
+            className="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <div className="flex items-center gap-4">
+              {/* Voice Button */}
               {isSupported && (
-                <button
+                <motion.button
                   type="button"
                   onClick={() => isListening ? stopListening() : startListening()}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
-                    isListening
-                      ? "bg-rose-500/10 text-rose-500"
-                      : "text-slate-500 hover:text-white"
-                  }`}
+                  className={`
+                    flex items-center gap-2 px-4 py-2.5 rounded-neural
+                    transition-all duration-neural
+                    ${isListening
+                      ? "bg-error/20 text-error border border-error/30 shadow-[0_0_20px_-4px_rgba(239,68,68,0.4)]"
+                      : "bg-void-50/50 text-slate-400 border border-void-border hover:text-white hover:border-neural-memory-500/30"
+                    }
+                  `}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                  <span className="text-xs font-bold uppercase tracking-wider">{isListening ? "Listening..." : "Voice"}</span>
-                </button>
+                  {/* Microphone icon with animation */}
+                  <div className="relative">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    {isListening && (
+                      <motion.div
+                        className="absolute inset-0 rounded-full bg-error/30"
+                        animate={{ scale: [1, 1.5, 1] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                      />
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold">
+                    {isListening ? "Listening..." : "Voice"}
+                  </span>
+                </motion.button>
               )}
 
-              <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-slate-700 uppercase tracking-widest">
-                <kbd className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded">⌘</kbd>
-                <kbd className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded">Enter</kbd>
-                <span className="ml-1">to capture</span>
+              {/* Keyboard hint */}
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600">
+                <kbd className="px-2 py-1 bg-void-100 border border-void-border rounded-md font-mono">⌘</kbd>
+                <kbd className="px-2 py-1 bg-void-100 border border-void-border rounded-md font-mono">Enter</kbd>
+                <span className="ml-1 text-slate-500">to capture</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              {(!isOnline || queueCount > 0) && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/5 border border-amber-500/10 rounded-full">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-amber-500" : "bg-amber-500 animate-pulse"}`} />
-                  <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">
-                    {!isOnline ? "Offline" : ""}{!isOnline && queueCount > 0 ? " · " : ""}{queueCount > 0 ? `${queueCount} queued` : ""}
-                  </span>
-                </div>
-              )}
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              {/* Offline/Queue indicator */}
+              <AnimatePresence>
+                {(!isOnline || queueCount > 0) && (
+                  <motion.div
+                    className="flex items-center gap-2 px-3 py-2 bg-neural-fire-500/10 border border-neural-fire-500/20 rounded-full"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                  >
+                    <NeuralNode type="task" size="xs" pulse={!isOnline} />
+                    <span className="text-xs font-semibold text-neural-fire-400">
+                      {!isOnline ? "Offline" : ""}{!isOnline && queueCount > 0 ? " · " : ""}{queueCount > 0 ? `${queueCount} queued` : ""}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <button
+              {/* Capture Button */}
+              <SynapseButton
                 type="submit"
-                disabled={!text.trim() || isSubmitting}
-                className="px-8 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-sm transition-all disabled:opacity-20"
+                disabled={!hasContent || isSubmitting}
+                loading={isSubmitting}
+                size="lg"
+                className="flex-1 sm:flex-none sm:min-w-[140px]"
               >
-                {isSubmitting ? "Capturing..." : "Capture"}
-              </button>
+                Capture
+              </SynapseButton>
             </div>
-          </div>
+          </motion.div>
 
           {/* Status Messages */}
-          <div className="mt-8">
-            {(error || voiceError) && (
-              <motion.div
-                role="alert"
-                className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm font-medium flex items-center gap-3"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full flex-shrink-0" />
-                <span className="truncate">{error || voiceError}</span>
-              </motion.div>
-            )}
+          <div className="mt-6 space-y-3">
+            <AnimatePresence mode="wait">
+              {(error || voiceError) && (
+                <motion.div
+                  key="error"
+                  role="alert"
+                  className="p-4 bg-error/10 border border-error/20 rounded-neural text-error text-sm font-medium flex items-center gap-3"
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                >
+                  <NeuralNode type="task" size="xs" color="#EF4444" />
+                  <span>{error || voiceError}</span>
+                </motion.div>
+              )}
 
-            {success && (
+              {success && (
+                <motion.div
+                  key="success"
+                  role="status"
+                  className={`
+                    p-4 rounded-neural text-sm font-medium flex items-center gap-3
+                    ${wasQueued
+                      ? "bg-neural-fire-500/10 border border-neural-fire-500/20 text-neural-fire-400"
+                      : clarificationCreated
+                        ? "bg-neural-pulse-500/10 border border-neural-pulse-500/20 text-neural-pulse-400"
+                        : "bg-success/10 border border-success/20 text-success"
+                    }
+                  `}
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                >
+                  <NeuralNode
+                    type={wasQueued ? "task" : clarificationCreated ? "project" : "idea"}
+                    size="xs"
+                    pulse
+                    color={wasQueued ? "#F59E0B" : clarificationCreated ? "#06B6D4" : "#10B981"}
+                  />
+                  {wasQueued ? (
+                    "Thought queued for sync"
+                  ) : clarificationCreated ? (
+                    <span>
+                      Clarification needed.{" "}
+                      <Link to="/clarifications" className="underline hover:text-neural-pulse-300 transition-colors">
+                        View
+                      </Link>
+                    </span>
+                  ) : (
+                    "Captured to your second brain"
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Recent captures visualization */}
+          <AnimatePresence>
+            {recentCaptures.length > 0 && (
               <motion.div
-                role="status"
-                className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-emerald-500/80 text-sm font-medium flex items-center gap-3"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                className="mt-8 flex flex-wrap gap-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                <span className={`w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0 ${wasQueued ? "bg-amber-400" : clarificationCreated ? "bg-blue-400" : "bg-emerald-400"}`} />
-                {wasQueued ? (
-                  "Thought queued for later"
-                ) : clarificationCreated ? (
-                  <span>
-                    Clarification needed.{" "}
-                    <Link to="/clarifications" className="underline hover:text-emerald-300">
-                      View
-                    </Link>
-                  </span>
-                ) : (
-                  "Captured to brain"
-                )}
+                {recentCaptures.map((capture, i) => (
+                  <motion.div
+                    key={capture.id}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-void-50/30 border border-void-border rounded-full text-xs text-slate-500"
+                    initial={{ opacity: 0, scale: 0, x: -20 }}
+                    animate={{ opacity: 0.5 - i * 0.1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                  >
+                    <NeuralNode type="idea" size="xs" />
+                    <span className="truncate max-w-[150px]">{capture.text}</span>
+                  </motion.div>
+                ))}
               </motion.div>
             )}
-          </div>
+          </AnimatePresence>
         </motion.form>
 
         {/* Confetti celebration */}
         <Confetti trigger={success && !wasQueued && !clarificationCreated} />
 
-        {/* Footer info */}
+        {/* Mode Toggle */}
         <motion.div
-          className="mt-32 flex items-center gap-8 text-[10px] font-bold text-slate-700 uppercase tracking-[0.2em]"
+          className="mt-24 flex items-center justify-center gap-2"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <button
+            type="button"
+            onClick={() => setMode("stream")}
+            className={`
+              group flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-neural
+              ${mode === "stream"
+                ? "bg-neural-memory-500/20 text-neural-memory-400 border border-neural-memory-500/30"
+                : "text-slate-600 hover:text-slate-400 border border-transparent"
+              }
+            `}
+          >
+            <span className="text-lg">✍️</span>
+            <span className="text-sm font-medium">Stream of Consciousness</span>
+            {mode === "stream" && (
+              <motion.div
+                className="w-1.5 h-1.5 rounded-full bg-neural-memory-400"
+                layoutId="mode-indicator"
+              />
+            )}
+          </button>
+
+          <div className="w-px h-6 bg-void-border" />
+
+          <button
+            type="button"
+            onClick={() => setMode("atomic")}
+            className={`
+              group flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-neural
+              ${mode === "atomic"
+                ? "bg-neural-pulse-500/20 text-neural-pulse-400 border border-neural-pulse-500/30"
+                : "text-slate-600 hover:text-slate-400 border border-transparent"
+              }
+            `}
+          >
+            <span className="text-lg">🎯</span>
+            <span className="text-sm font-medium">Atomic Thoughts</span>
+            {mode === "atomic" && (
+              <motion.div
+                className="w-1.5 h-1.5 rounded-full bg-neural-pulse-400"
+                layoutId="mode-indicator"
+              />
+            )}
+          </button>
+        </motion.div>
+
+        {/* Mode description */}
+        <motion.p
+          className="mt-4 text-center text-xs text-slate-600 max-w-md mx-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.7 }}
         >
-          <div className="flex items-center gap-2">
-             <span className="text-sm opacity-30">✍️</span> Stream of Consciousness
-          </div>
-          <div className="flex items-center gap-2">
-             <span className="text-sm opacity-30">🎯</span> Atomic Thoughts
-          </div>
-        </motion.div>
+          {mode === "stream"
+            ? "Let your thoughts flow freely. Write as much as you want - we'll extract the key insights."
+            : "One clear, focused thought per capture. Best for tasks, ideas, or notes."}
+        </motion.p>
       </div>
     </div>
   );

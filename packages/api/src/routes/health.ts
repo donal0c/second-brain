@@ -23,19 +23,12 @@ async function checkDatabase(): Promise<{ connected: boolean; error?: string }> 
 
 function checkEnvironmentVariables(): string[] {
   const errors: string[] = [];
-  const required = ["DATABASE_URL"];
-  const recommended = ["ANTHROPIC_API_KEY"];
+  const required = ["DATABASE_URL", "OPENAI_API_KEY"];
 
   for (const envVar of required) {
-    if (!process.env[envVar]) {
-      errors.push(`Missing required environment variable: ${envVar}`);
-    }
-  }
-
-  for (const envVar of recommended) {
     const value = process.env[envVar];
-    if (!value || value === "your-api-key-here") {
-      errors.push(`Missing ${envVar} - LLM features disabled`);
+    if (!value || value === "your-openai-key-here") {
+      errors.push(`Missing required environment variable: ${envVar}`);
     }
   }
 
