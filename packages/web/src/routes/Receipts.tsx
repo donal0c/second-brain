@@ -266,7 +266,7 @@ export function Receipts() {
                 <div
                   key={receipt.id}
                   onClick={() => setSelectedReceipt(receipt)}
-                  className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-sm transition-all"
+                  className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 transition-all"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">

@@ -200,15 +200,15 @@ export function Digest() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-600 transition-all duration-150" data-testid="stat-active-tasks">
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-500/30 hover:shadow-indigo-500/10 transition-all duration-150" data-testid="stat-active-tasks">
           <div className="text-3xl font-bold text-indigo-400 mb-1" data-testid="stat-active-tasks-value">{data?.stats.activeTasks}</div>
           <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-tasks-label">Active Tasks</div>
         </div>
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-600 transition-all duration-150" data-testid="stat-active-projects">
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-500/30 hover:shadow-indigo-500/10 transition-all duration-150" data-testid="stat-active-projects">
           <div className="text-3xl font-bold text-purple-400 mb-1" data-testid="stat-active-projects-value">{data?.stats.activeProjects}</div>
           <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-projects-label">Active Projects</div>
         </div>
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-600 transition-all duration-150" data-testid="stat-ideas">
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 text-center shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-500/30 hover:shadow-indigo-500/10 transition-all duration-150" data-testid="stat-ideas">
           <div className="text-3xl font-bold text-purple-400 mb-1" data-testid="stat-ideas-value">{data?.stats.ideas}</div>
           <div className="text-sm text-slate-400 font-medium" data-testid="stat-ideas-label">Ideas</div>
         </div>
@@ -233,7 +233,7 @@ export function Digest() {
                 <div
                   key={task.id}
                   onClick={() => setEditingTask(task)}
-                  className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 cursor-pointer hover:border-slate-600 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 shadow-sm"
+                  className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all duration-150 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -321,7 +321,7 @@ export function Digest() {
                   <div
                     key={task.id}
                     onClick={() => setEditingTask(task)}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-sm transition-all duration-150"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-150"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">

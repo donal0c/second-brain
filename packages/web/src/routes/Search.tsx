@@ -236,7 +236,7 @@ export function Search() {
                 key={`${result.type}-${result.id}`}
                 onClick={() => handleResultClick(result)}
                 data-testid="search-result"
-                className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-sm transition-all"
+                className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 transition-all"
               >
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">{getEntityIcon(result.type)}</span>

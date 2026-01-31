@@ -228,7 +228,7 @@ export function Today() {
                 <div
                   key={task.id}
                   onClick={() => setEditingTask(task)}
-                  className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                  className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -310,7 +310,7 @@ export function Today() {
                   <div
                     key={task.id}
                     onClick={() => setEditingTask(task)}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3 cursor-pointer hover:border-slate-600 transition-all"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3 cursor-pointer hover:border-indigo-500/30 hover:shadow-indigo-500/10 transition-all"
                   >
                     <div className="flex items-start justify-between">
                       <div>

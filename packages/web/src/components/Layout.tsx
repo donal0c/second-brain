@@ -69,7 +69,7 @@ export function Layout() {
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div data-design-version="v5-dark" className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 font-sans antialiased text-white overflow-hidden">
+    <div data-design-version="v6-dark" className="flex h-screen bg-[#1a1f2e] font-sans antialiased text-white overflow-hidden">
       {/* Mobile Header */}
       <div className="fixed top-0 left-0 right-0 h-16 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between px-4 md:hidden z-40">
         <div className="flex items-center gap-3">

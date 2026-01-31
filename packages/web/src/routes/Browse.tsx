@@ -679,7 +679,7 @@ export function Browse() {
                   <div
                     key={task.id}
                     onClick={() => setEditing({ type: "task", item: task })}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all"
                   >
                     <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="min-w-0 flex-1">
@@ -789,7 +789,7 @@ export function Browse() {
                   <div
                     key={project.id}
                     onClick={() => setEditing({ type: "project", item: project })}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all"
                   >
                     <div className="flex items-start justify-between gap-2 min-w-0">
                       <div className="min-w-0 flex-1">
@@ -828,7 +828,7 @@ export function Browse() {
                   <div
                     key={idea.id}
                     onClick={() => setEditing({ type: "idea", item: idea })}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-slate-600 hover:shadow-lg hover:-translate-y-0.5 transition-all min-w-0"
+                    className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 cursor-pointer hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-all min-w-0"
                   >
                     <h4 className="font-medium text-white truncate">{idea.title}</h4>
                     {idea.summary && (
@@ -948,7 +948,7 @@ sortedPersonList.map((person) => {
                           ? "border-yellow-500/50 bg-yellow-500/10 hover:border-yellow-500"
                           : hasFollowUp
                           ? "border-blue-500/50 bg-blue-500/10 hover:border-blue-500"
-                          : "bg-slate-800/50 border-slate-700/50 hover:border-slate-600"
+                          : "bg-slate-800/50 border-slate-700/50 hover:border-indigo-500/30 hover:shadow-indigo-500/10"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 min-w-0">

@@ -124,7 +124,7 @@ export function Capture() {
               value={text + (interimTranscript ? ` ${interimTranscript}` : "")}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-2xl sm:text-4xl leading-tight placeholder:text-slate-800 text-slate-100 font-medium overflow-hidden"
+              className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none resize-none text-2xl sm:text-4xl leading-tight placeholder:text-slate-500 text-slate-100 font-medium overflow-hidden"
               placeholder="What's on your mind?"
               aria-label="Capture your thought"
               disabled={isSubmitting || isListening}
