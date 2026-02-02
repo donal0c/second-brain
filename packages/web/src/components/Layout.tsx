@@ -309,16 +309,15 @@ export function Layout() {
                     Toggle AI-selected views
                   </div>
                 </div>
-                <label className="inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     className="sr-only peer"
                     checked={genUiEnabled}
                     onChange={(event) => setGenUiEnabled(event.target.checked)}
                   />
-                  <div className="w-10 h-5 bg-void-100/70 border border-void-border rounded-full peer peer-checked:bg-neural-memory-500/40 peer-checked:border-neural-memory-500/40 transition-colors relative">
-                    <div className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-slate-500 peer-checked:bg-neural-memory-400 peer-checked:translate-x-5 transition-transform" />
-                  </div>
+                  <span className="w-10 h-5 bg-void-100/70 border border-void-border rounded-full peer-checked:bg-neural-memory-500/40 peer-checked:border-neural-memory-500/40 transition-colors" />
+                  <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-slate-500 transition-transform peer-checked:translate-x-5 peer-checked:bg-neural-memory-400" />
                 </label>
               </div>
             </div>
