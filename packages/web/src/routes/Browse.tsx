@@ -35,6 +35,13 @@ import { Modal } from "../components/Modal";
 import { TaskEditForm } from "../components/TaskEditForm";
 import { motion } from "framer-motion";
 import { EntityBadge, NeuralCard } from "../components/ui/neural";
+import { useUIStream, type UIMessageChunk } from "../lib/stream";
+import {
+  BrowseTaskList,
+  BrowseKanban,
+  BrowseTimeline,
+  BrowseCalendar,
+} from "../components/browse";
 
 type TabType = "tasks" | "projects" | "ideas" | "persons";
 type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
@@ -132,6 +139,17 @@ export function Browse() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [personSort, setPersonSort] = useState<PersonSortOption>("name-asc");
   const [personFilter, setPersonFilter] = useState<PersonFilter>("all");
+  const apiBase = useMemo(
+    () => import.meta.env.VITE_API_URL || "http://localhost:3001",
+    []
+  );
+  const browseStreamEndpoint = useMemo(() => `${apiBase}/browse/stream`, [apiBase]);
+  const {
+    parts: browseParts,
+    status: browseStreamStatus,
+    error: browseStreamError,
+    start: startBrowseStream,
+  } = useUIStream(browseStreamEndpoint);
 
   // Filter state (loaded from localStorage)
   const [taskFilters, setTaskFilters] = useState<TaskFilters>(loadTaskFilters);
@@ -333,6 +351,74 @@ export function Browse() {
     ideasQuery.refetch();
     personsQuery.refetch();
   };
+
+  useEffect(() => {
+    if (!loading && !error) {
+      startBrowseStream({
+        viewContext: {
+          tab: activeTab,
+          search: searchParams.get("q") || undefined,
+        },
+        counts: {
+          tasks: taskList.length,
+          projects: projectList.length,
+          ideas: ideaList.length,
+          persons: personList.length,
+        },
+      });
+    }
+  }, [
+    loading,
+    error,
+    activeTab,
+    searchParams,
+    taskList.length,
+    projectList.length,
+    ideaList.length,
+    personList.length,
+    startBrowseStream,
+  ]);
+
+  const streamedBrowseOutput = useMemo(() => {
+    const outputs = browseParts.filter(
+      (part: UIMessageChunk) => part.type === "tool-output-available"
+    );
+    const latest = outputs[outputs.length - 1] as { output?: Record<string, unknown> } | undefined;
+    return latest?.output ?? null;
+  }, [browseParts]);
+
+  const streamedBrowseView = useMemo(() => {
+    if (browseStreamError || !streamedBrowseOutput) {
+      return null;
+    }
+    const componentType = streamedBrowseOutput.componentType;
+    if (componentType === "BrowseTaskList") {
+      return <BrowseTaskList tasks={taskList} onSelectTask={(task) => setEditing({ type: "task", item: task })} />;
+    }
+    if (componentType === "BrowseKanban") {
+      return <BrowseKanban projects={projectList} />;
+    }
+    if (componentType === "BrowseTimeline") {
+      const items = taskList.map((task) => ({
+        id: task.id,
+        title: task.title,
+        date: task.dueDate ?? null,
+        type: "task",
+      }));
+      return <BrowseTimeline items={items} />;
+    }
+    if (componentType === "BrowseCalendar") {
+      const items = taskList
+        .filter((task) => !!task.dueDate)
+        .map((task) => ({
+          id: task.id,
+          title: task.title,
+          date: task.dueDate ?? null,
+        }));
+      return <BrowseCalendar items={items} />;
+    }
+    return null;
+  }, [browseStreamError, streamedBrowseOutput, taskList, projectList]);
 
   // Handle URL parameters for deep linking from search results
   useEffect(() => {
@@ -632,6 +718,13 @@ export function Browse() {
 
       {loading ? (
         <LoadingSkeleton />
+      ) : streamedBrowseView ? (
+        <div className="relative z-10 space-y-4">
+          <div className="text-xs uppercase tracking-wide text-slate-500">
+            Adaptive View {browseStreamStatus === "loading" ? "(updating)" : ""}
+          </div>
+          {streamedBrowseView}
+        </div>
       ) : (
         <>
           {/* Tasks Tab */}

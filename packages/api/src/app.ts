@@ -14,6 +14,7 @@ import { contextRoutes } from "./routes/context.js";
 import { searchRoutes } from "./routes/search.js";
 import { similarityRoutes } from "./routes/similarity.js";
 import { streamRoutes } from "./routes/stream.js";
+import { browseRoutes } from "./routes/browse.js";
 import {
   createClaudeProvider,
   createOpenAIProvider,
@@ -92,6 +93,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(similarityRoutes, { preHandler: authMiddleware });
   await app.register(nudgeRoutes, { preHandler: authMiddleware });
   await app.register(streamRoutes, { preHandler: authMiddleware });
+  await app.register(browseRoutes, { preHandler: authMiddleware });
 
   return app;
 }

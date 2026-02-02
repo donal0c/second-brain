@@ -16,6 +16,15 @@ import { NeuralCard } from "../components/ui/neural/NeuralCard";
 import { NeuralNode } from "../components/ui/neural/NeuralNode";
 import { EntityBadge } from "../components/ui/neural/EntityBadge";
 import { SynapseButton } from "../components/ui/neural/SynapseButton";
+import { useUIStream, type UIMessageChunk } from "../lib/stream";
+import {
+  DigestUrgentTasks,
+  DigestStaleProjects,
+  DigestTimeline,
+  DigestIdeaNudge,
+  DigestPersonReminder,
+  DigestStats,
+} from "../components/digest";
 
 /** Get time-aware greeting based on current hour */
 function getGreeting(): { greeting: string; emoji: string; message: string } {
@@ -185,6 +194,99 @@ export function Today() {
   };
 
   const timeGreeting = useMemo(() => getGreeting(), []);
+  const apiBase = useMemo(
+    () => import.meta.env.VITE_API_URL || "http://localhost:3001",
+    []
+  );
+  const digestStreamEndpoint = useMemo(() => `${apiBase}/digest/stream`, [apiBase]);
+  const {
+    parts: digestParts,
+    status: digestStreamStatus,
+    error: digestStreamError,
+    start: startDigestStream,
+  } = useUIStream(digestStreamEndpoint);
+
+  useEffect(() => {
+    if (!loading && !error && data) {
+      startDigestStream({});
+    }
+  }, [loading, error, data, startDigestStream]);
+
+  const streamedDigestOutputs = useMemo(() => {
+    const outputs = digestParts.filter(
+      (part: UIMessageChunk) => part.type === "tool-output-available"
+    );
+    return outputs.map((part) => (part as { output?: Record<string, unknown> }).output).filter(Boolean);
+  }, [digestParts]);
+
+  const streamedDigestContent = useMemo(() => {
+    if (digestStreamError || streamedDigestOutputs.length === 0) {
+      return null;
+    }
+    return (
+      <div className="space-y-6">
+        {streamedDigestOutputs.map((output, index) => {
+          const componentType = output?.componentType;
+          if (!componentType) {
+            return null;
+          }
+          switch (componentType) {
+            case "DigestUrgentTasks":
+              return (
+                <DigestUrgentTasks
+                  key={`digest-urgent-${index}`}
+                  tasks={(output?.tasks as any[]) ?? []}
+                  onSelectTask={(id) => {
+                    const task = data?.nextActions.find((t) => t.id === id);
+                    if (task) setEditingTask(task);
+                  }}
+                />
+              );
+            case "DigestStaleProjects":
+              return (
+                <DigestStaleProjects
+                  key={`digest-stale-${index}`}
+                  projects={(output?.projects as any[]) ?? []}
+                  staleDays={Number(output?.staleDays ?? 7)}
+                />
+              );
+            case "DigestTimeline":
+              return (
+                <DigestTimeline
+                  key={`digest-timeline-${index}`}
+                  items={(output?.items as any[]) ?? []}
+                />
+              );
+            case "DigestIdeaNudge":
+              return (
+                <DigestIdeaNudge
+                  key={`digest-idea-${index}`}
+                  idea={output?.idea as any}
+                  reason={String(output?.reason ?? "")}
+                />
+              );
+            case "DigestPersonReminder":
+              return (
+                <DigestPersonReminder
+                  key={`digest-person-${index}`}
+                  person={output?.person as any}
+                  suggestion={String(output?.suggestion ?? "")}
+                />
+              );
+            case "DigestStats":
+              return (
+                <DigestStats
+                  key={`digest-stats-${index}`}
+                  stats={output?.stats as any}
+                />
+              );
+            default:
+              return null;
+          }
+        })}
+      </div>
+    );
+  }, [digestStreamError, streamedDigestOutputs, data]);
 
   if (loading) {
     return (
@@ -241,62 +343,71 @@ export function Today() {
         </SynapseButton>
       </motion.div>
 
-      {/* Neural Stats Grid */}
-      <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
-        {/* Active Tasks */}
-        <motion.div
-          className="relative overflow-hidden bg-gradient-to-br from-neural-fire-500/10 to-neural-fire-500/5 rounded-xl border border-neural-fire-500/20 p-5 text-center group hover:border-neural-fire-500/40 hover:shadow-glow-task transition-all duration-300"
-          data-testid="stat-active-tasks"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          whileHover={{ y: -2 }}
-        >
-          <NeuralNode type="task" size="sm" className="absolute top-3 right-3 opacity-60" />
-          <div className="text-3xl font-bold text-neural-fire-400 font-display mb-1" data-testid="stat-active-tasks-value">
-            {data?.stats.activeTasks}
-          </div>
-          <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-tasks-label">
-            Active Tasks
-          </div>
-        </motion.div>
+      {streamedDigestContent ? (
+        <div className="space-y-6">
+          {streamedDigestContent}
+          {digestStreamStatus === "loading" && (
+            <div className="text-sm text-slate-400">Loading personalized sections...</div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Neural Stats Grid */}
+          <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
+            {/* Active Tasks */}
+            <motion.div
+              className="relative overflow-hidden bg-gradient-to-br from-neural-fire-500/10 to-neural-fire-500/5 rounded-xl border border-neural-fire-500/20 p-5 text-center group hover:border-neural-fire-500/40 hover:shadow-glow-task transition-all duration-300"
+              data-testid="stat-active-tasks"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ y: -2 }}
+            >
+              <NeuralNode type="task" size="sm" className="absolute top-3 right-3 opacity-60" />
+              <div className="text-3xl font-bold text-neural-fire-400 font-display mb-1" data-testid="stat-active-tasks-value">
+                {data?.stats.activeTasks}
+              </div>
+              <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-tasks-label">
+                Active Tasks
+              </div>
+            </motion.div>
 
-        {/* Active Projects */}
-        <motion.div
-          className="relative overflow-hidden bg-gradient-to-br from-neural-pulse-500/10 to-neural-pulse-500/5 rounded-xl border border-neural-pulse-500/20 p-5 text-center group hover:border-neural-pulse-500/40 hover:shadow-glow-project transition-all duration-300"
-          data-testid="stat-active-projects"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.15 }}
-          whileHover={{ y: -2 }}
-        >
-          <NeuralNode type="project" size="sm" className="absolute top-3 right-3 opacity-60" />
-          <div className="text-3xl font-bold text-neural-pulse-400 font-display mb-1" data-testid="stat-active-projects-value">
-            {data?.stats.activeProjects}
-          </div>
-          <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-projects-label">
-            Active Projects
-          </div>
-        </motion.div>
+            {/* Active Projects */}
+            <motion.div
+              className="relative overflow-hidden bg-gradient-to-br from-neural-pulse-500/10 to-neural-pulse-500/5 rounded-xl border border-neural-pulse-500/20 p-5 text-center group hover:border-neural-pulse-500/40 hover:shadow-glow-project transition-all duration-300"
+              data-testid="stat-active-projects"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15 }}
+              whileHover={{ y: -2 }}
+            >
+              <NeuralNode type="project" size="sm" className="absolute top-3 right-3 opacity-60" />
+              <div className="text-3xl font-bold text-neural-pulse-400 font-display mb-1" data-testid="stat-active-projects-value">
+                {data?.stats.activeProjects}
+              </div>
+              <div className="text-sm text-slate-400 font-medium" data-testid="stat-active-projects-label">
+                Active Projects
+              </div>
+            </motion.div>
 
-        {/* Ideas */}
-        <motion.div
-          className="relative overflow-hidden bg-gradient-to-br from-neural-memory-500/10 to-neural-memory-500/5 rounded-xl border border-neural-memory-500/20 p-5 text-center group hover:border-neural-memory-500/40 hover:shadow-glow-idea transition-all duration-300"
-          data-testid="stat-ideas"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          whileHover={{ y: -2 }}
-        >
-          <NeuralNode type="idea" size="sm" className="absolute top-3 right-3 opacity-60" />
-          <div className="text-3xl font-bold text-neural-memory-400 font-display mb-1" data-testid="stat-ideas-value">
-            {data?.stats.ideas}
+            {/* Ideas */}
+            <motion.div
+              className="relative overflow-hidden bg-gradient-to-br from-neural-memory-500/10 to-neural-memory-500/5 rounded-xl border border-neural-memory-500/20 p-5 text-center group hover:border-neural-memory-500/40 hover:shadow-glow-idea transition-all duration-300"
+              data-testid="stat-ideas"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ y: -2 }}
+            >
+              <NeuralNode type="idea" size="sm" className="absolute top-3 right-3 opacity-60" />
+              <div className="text-3xl font-bold text-neural-memory-400 font-display mb-1" data-testid="stat-ideas-value">
+                {data?.stats.ideas}
+              </div>
+              <div className="text-sm text-slate-400 font-medium" data-testid="stat-ideas-label">
+                Ideas
+              </div>
+            </motion.div>
           </div>
-          <div className="text-sm text-slate-400 font-medium" data-testid="stat-ideas-label">
-            Ideas
-          </div>
-        </motion.div>
-      </div>
 
       {/* Next Actions - Main Focus Area */}
       <motion.div
@@ -565,6 +676,9 @@ export function Today() {
             </SynapseButton>
           </div>
         </motion.div>
+      )}
+
+        </>
       )}
 
       {/* Edit Task Modal */}
