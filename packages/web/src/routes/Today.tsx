@@ -223,6 +223,12 @@ export function Today() {
     if (digestStreamError || streamedDigestOutputs.length === 0) {
       return null;
     }
+    const hasNonStats = streamedDigestOutputs.some(
+      (output) => output?.componentType && output.componentType !== "DigestStats"
+    );
+    if (!hasNonStats) {
+      return null;
+    }
     return (
       <div className="space-y-6">
         {streamedDigestOutputs.map((output, index) => {

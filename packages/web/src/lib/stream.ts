@@ -61,15 +61,26 @@ export function useUIStream(endpoint: string): UIStreamResult {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(API_AUTH_TOKEN ? { Authorization: `Bearer ${API_AUTH_TOKEN}` } : {}),
-        },
-        body: JSON.stringify(payload ?? {}),
-        signal: controller.signal,
-      });
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(API_AUTH_TOKEN ? { Authorization: `Bearer ${API_AUTH_TOKEN}` } : {}),
+          },
+          body: JSON.stringify(payload ?? {}),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if (controller.signal.aborted) {
+          setStatus("idle");
+          return;
+        }
+        setError(err instanceof Error ? err.message : "Stream request failed");
+        setStatus("error");
+        return;
+      }
 
       if (!response.ok || !response.body) {
         const message = response.ok ? "Streaming response missing body" : response.statusText;
