@@ -14,10 +14,13 @@
     "db:backfill-embeddings": "tsx src/scripts/backfill-embeddings.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.35",
+    "@ai-sdk/openai": "^3.0.25",
     "@anthropic-ai/sdk": "^0.71.2",
     "@fastify/cors": "^10.0.0",
     "@second-brain/config": "workspace:*",
     "@second-brain/shared": "workspace:*",
+    "ai": "^6.0.68",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "fastify": "^5.0.0",

@@ -8,6 +8,9 @@ export async function authMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  if (request.method === "OPTIONS") {
+    return;
+  }
   // Skip auth if no token is configured (development mode)
   const configuredToken = process.env.API_AUTH_TOKEN;
   if (!configuredToken || configuredToken === "your-secret-token-here") {
@@ -55,6 +58,9 @@ export async function optionalAuthMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  if (request.method === "OPTIONS") {
+    return;
+  }
   const configuredToken = process.env.API_AUTH_TOKEN;
   if (!configuredToken || configuredToken === "your-secret-token-here") {
     return;

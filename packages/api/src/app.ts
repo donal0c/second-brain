@@ -13,7 +13,14 @@ import { jobRoutes } from "./routes/jobs.js";
 import { contextRoutes } from "./routes/context.js";
 import { searchRoutes } from "./routes/search.js";
 import { similarityRoutes } from "./routes/similarity.js";
-import { createOpenAIProvider, setLLMProvider, hasLLMProvider } from "./llm/index.js";
+import { streamRoutes } from "./routes/stream.js";
+import {
+  createClaudeProvider,
+  createOpenAIProvider,
+  setLLMProvider,
+  hasLLMProvider,
+} from "./llm/index.js";
+import { resolveLLMProviderChoice } from "./llm/provider-selection.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -33,13 +40,16 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // Initialize LLM provider if API key is configured
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey && openaiKey !== "your-openai-key-here") {
-    const provider = createOpenAIProvider({ apiKey: openaiKey });
+  const providerChoice = resolveLLMProviderChoice();
+  if (providerChoice && providerChoice.apiKey !== "your-openai-key-here") {
+    const provider =
+      providerChoice.provider === "openai"
+        ? createOpenAIProvider({ apiKey: providerChoice.apiKey })
+        : createClaudeProvider({ apiKey: providerChoice.apiKey });
     setLLMProvider(provider);
     app.log.info(`LLM provider initialized: ${provider.name} (${provider.model})`);
   } else {
-    app.log.warn("OPENAI_API_KEY not configured - LLM features disabled");
+    app.log.warn("LLM provider not configured - set OPENAI_API_KEY (or ANTHROPIC_API_KEY)");
   }
 
   const corsOriginEnv = process.env.CORS_ORIGIN;
@@ -81,6 +91,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(searchRoutes, { preHandler: authMiddleware });
   await app.register(similarityRoutes, { preHandler: authMiddleware });
   await app.register(nudgeRoutes, { preHandler: authMiddleware });
+  await app.register(streamRoutes, { preHandler: authMiddleware });
 
   return app;
 }

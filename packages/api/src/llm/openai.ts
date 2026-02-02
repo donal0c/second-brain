@@ -3,6 +3,8 @@
 // =============================================================================
 
 import OpenAI from "openai";
+import { streamText, type CoreMessage, type Tool, type UIMessageChunk } from "ai";
+import { openai } from "@ai-sdk/openai";
 import type { LLMProvider } from "./provider.js";
 import type {
   ClassificationResult,
@@ -212,7 +214,7 @@ export class OpenAIProvider implements LLMProvider {
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 256,
+        max_completion_tokens: 256,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: buildClassifierPrompt(text) },
@@ -258,7 +260,7 @@ export class OpenAIProvider implements LLMProvider {
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 256,
+        max_completion_tokens: 256,
         messages: [
           { role: "system", content: CLARIFICATION_SYSTEM_PROMPT },
           { role: "user", content: prompt },
@@ -304,7 +306,7 @@ Respond with JSON only:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 512,
+        max_completion_tokens: 512,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -369,7 +371,7 @@ Respond with JSON only:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 1024,
+        max_completion_tokens: 1024,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -419,7 +421,7 @@ Respond with JSON matching this structure:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 512,
+        max_completion_tokens: 512,
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -454,7 +456,7 @@ Respond with JSON matching this structure:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 512,
+        max_completion_tokens: 512,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: buildTaskExtractorPrompt(text) },
@@ -483,7 +485,7 @@ Respond with JSON matching this structure:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 512,
+        max_completion_tokens: 512,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: buildProjectExtractorPrompt(text) },
@@ -512,7 +514,7 @@ Respond with JSON matching this structure:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 512,
+        max_completion_tokens: 512,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: buildIdeaExtractorPrompt(text) },
@@ -541,7 +543,7 @@ Respond with JSON matching this structure:
     return this.withRetry(async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
-        max_tokens: 512,
+        max_completion_tokens: 512,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: buildPersonExtractorPrompt(text) },
@@ -613,6 +615,34 @@ ${context.map(formatContext).join("\n")}`;
     } catch {
       throw new Error("LLM_JSON_PARSE_ERROR: Failed to parse JSON response");
     }
+  }
+
+  streamUI(params: {
+    messages: CoreMessage[];
+    tools: Record<string, Tool>;
+    onToolCall?: (toolCall: unknown) => void;
+  }): AsyncIterable<UIMessageChunk> {
+    const result = streamText({
+      model: openai(this.model),
+      messages: params.messages,
+      tools: params.tools,
+      onChunk: params.onToolCall
+        ? (event: unknown) => {
+            const payload =
+              event && typeof event === "object" && "chunk" in event
+                ? (event as { chunk: unknown }).chunk
+                : event;
+            if (payload && typeof payload === "object" && "type" in payload) {
+              const type = (payload as { type?: string }).type;
+              if (type === "tool-call" || type === "tool-result") {
+                params.onToolCall?.(payload);
+              }
+            }
+          }
+        : undefined,
+    });
+
+    return result.toUIMessageStream();
   }
 }
 

@@ -1,7 +1,15 @@
 // @second-brain/api
 // Fastify backend API
 
-import "dotenv/config";
+import { config } from "dotenv";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+// Load .env from monorepo root (two levels up from packages/api/src)
+// Use override: true so .env takes precedence over shell environment variables
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, "../../../.env"), override: true });
+
 import { buildApp } from "./app.js";
 import { startProcessorJob, stopProcessorJob, isProcessorJobRunning } from "./jobs/processor.js";
 import { hasLLMProvider } from "./llm/index.js";

@@ -16,6 +16,7 @@ const navItems = [
 const secondaryItems = [
   { to: "/clarifications", label: "Clarify", icon: "help" },
   { to: "/receipts", label: "Receipts", icon: "receipt" },
+  { to: "/stream-demo", label: "Stream", icon: "spark" },
 ];
 
 function Icon({ name, className }: { name: string; className?: string }) {
@@ -29,7 +30,8 @@ function Icon({ name, className }: { name: string; className?: string }) {
     "receipt": "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01",
     "search": "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
     "menu": "M4 6h16M4 12h16M4 18h16",
-    "close": "M6 18L18 6M6 6l12 12"
+    "close": "M6 18L18 6M6 6l12 12",
+    "spark": "M12 2l2.5 6.5L21 11l-6.5 2.5L12 20l-2.5-6.5L3 11l6.5-2.5L12 2z"
   };
 
   return (

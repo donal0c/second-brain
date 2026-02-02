@@ -4,6 +4,7 @@
 // Abstract interface for LLM operations. Implementations can swap providers
 // (Claude, GPT, local models) without changing the processing pipeline.
 
+import type { CoreMessage, Tool, UIMessageChunk } from "ai";
 import type {
   ClassificationResult,
   ExtractionResult,
@@ -91,6 +92,15 @@ export interface LLMProvider {
    * @param text - The raw inbox item text
    */
   extractContextEntities(text: string): Promise<ContextExtractionResult>;
+
+  /**
+   * Stream UI message parts (text + tool parts) for generative UI flows
+   */
+  streamUI(params: {
+    messages: CoreMessage[];
+    tools: Record<string, Tool>;
+    onToolCall?: (toolCall: unknown) => void;
+  }): AsyncIterable<UIMessageChunk>;
 }
 
 // =============================================================================

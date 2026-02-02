@@ -758,7 +758,7 @@ async function fixRoutes(app: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ) => {
       if (!hasLLMProvider()) {
-        return sendServiceUnavailable(reply, "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.");
+        return sendServiceUnavailable(reply, "LLM provider not configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) to enable processing.");
       }
 
       const paramsResult = FixParamsSchema.safeParse(request.params);

@@ -3,6 +3,8 @@
 // =============================================================================
 
 import Anthropic from "@anthropic-ai/sdk";
+import { streamText, type CoreMessage, type Tool, type UIMessageChunk } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
 import type { LLMProvider } from "./provider.js";
 import type {
   ClassificationResult,
@@ -618,6 +620,34 @@ ${context.map(formatContext).join("\n")}`;
       // Don't include content in error - may contain sensitive user data
       throw new Error("LLM_JSON_PARSE_ERROR: Failed to parse JSON response");
     }
+  }
+
+  streamUI(params: {
+    messages: CoreMessage[];
+    tools: Record<string, Tool>;
+    onToolCall?: (toolCall: unknown) => void;
+  }): AsyncIterable<UIMessageChunk> {
+    const result = streamText({
+      model: anthropic(this.model),
+      messages: params.messages,
+      tools: params.tools,
+      onChunk: params.onToolCall
+        ? (event: unknown) => {
+            const payload =
+              event && typeof event === "object" && "chunk" in event
+                ? (event as { chunk: unknown }).chunk
+                : event;
+            if (payload && typeof payload === "object" && "type" in payload) {
+              const type = (payload as { type?: string }).type;
+              if (type === "tool-call" || type === "tool-result") {
+                params.onToolCall?.(payload);
+              }
+            }
+          }
+        : undefined,
+    });
+
+    return result.toUIMessageStream();
   }
 }
 

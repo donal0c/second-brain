@@ -237,7 +237,7 @@ export async function processInboxItem(
   clarification?: ClarificationContext
 ): Promise<ProcessResult> {
   if (!hasLLMProvider()) {
-    throw new Error("LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing.");
+    throw new Error("LLM provider not configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) to enable processing.");
   }
 
   const inboxItem = await claimInboxItemForProcessing(inboxItemId);

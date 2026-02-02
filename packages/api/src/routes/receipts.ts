@@ -161,7 +161,7 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
       if (!hasLLMProvider()) {
         return sendServiceUnavailable(
           reply,
-          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable context extraction."
+          "LLM provider not configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) to enable context extraction."
         );
       }
 
@@ -352,7 +352,7 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
       if (!hasLLMProvider()) {
         return sendServiceUnavailable(
           reply,
-          "LLM provider not configured. Set ANTHROPIC_API_KEY to enable processing."
+          "LLM provider not configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) to enable processing."
         );
       }
 

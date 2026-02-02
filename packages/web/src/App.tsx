@@ -13,6 +13,7 @@ import { Receipts } from "./routes/Receipts";
 import { Search } from "./routes/Search";
 import { Digest } from "./routes/Digest";
 import { WeeklyReview } from "./routes/WeeklyReview";
+import { StreamDemo } from "./routes/StreamDemo";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -103,6 +104,14 @@ export function App() {
                 element={
                   <RouteErrorBoundary routeName="WeeklyReview">
                     <WeeklyReview />
+                  </RouteErrorBoundary>
+                }
+              />
+              <Route
+                path="stream-demo"
+                element={
+                  <RouteErrorBoundary routeName="StreamDemo">
+                    <StreamDemo />
                   </RouteErrorBoundary>
                 }
               />
