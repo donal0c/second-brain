@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { registerTool } from "./registry.js";
+import { UISpecSchema } from "../ui-spec.js";
 
 registerTool({
   name: "browseTaskListView",
@@ -43,4 +44,13 @@ registerTool({
   }),
   execute: async (input) => input,
   componentType: "BrowseCalendar",
+});
+
+registerTool({
+  name: "browseUiSpec",
+  description: "Return a declarative UI specification for browse views.",
+  contexts: ["browse-spec"],
+  inputSchema: UISpecSchema,
+  execute: async (input) => input,
+  componentType: "UISpec",
 });

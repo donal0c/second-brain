@@ -17,15 +17,18 @@ import { NeuralNode } from "../components/ui/neural/NeuralNode";
 import { EntityBadge } from "../components/ui/neural/EntityBadge";
 import { SynapseButton } from "../components/ui/neural/SynapseButton";
 import { useUIStream, type UIMessageChunk } from "../lib/stream";
-import {
-  DigestUrgentTasks,
-  DigestStaleProjects,
-  DigestTimeline,
-  DigestIdeaNudge,
-  DigestPersonReminder,
-  DigestStats,
-} from "../components/digest";
 import { useGenerativeUI } from "../hooks/useGenerativeUI";
+import { UISpecRenderer, type UISpecSection } from "../components/generative/UISpecRenderer";
+import {
+  AlertSection,
+  EntityListSection,
+  ActionListSection,
+  SummarySection,
+  EmptyStateSection,
+  TimelineSection,
+  CalendarSection,
+  ChartSection,
+} from "../components/generative/sections";
 
 /** Get time-aware greeting based on current hour */
 function getGreeting(): { greeting: string; emoji: string; message: string } {
@@ -228,76 +231,68 @@ export function Today() {
     if (digestStreamError || streamedDigestOutputs.length === 0 || !genUiEnabled) {
       return null;
     }
-    const hasNonStats = streamedDigestOutputs.some(
-      (output) => output?.componentType && output.componentType !== "DigestStats"
-    );
-    if (!hasNonStats) {
+    const specOutput = streamedDigestOutputs.find(
+      (output) => output?.componentType === "UISpec"
+    ) as { sections?: UISpecSection[] } | undefined;
+    if (!specOutput?.sections || specOutput.sections.length === 0) {
       return null;
     }
+
     return (
-      <div className="space-y-6">
-        {streamedDigestOutputs.map((output, index) => {
-          const componentType = output?.componentType;
-          if (!componentType) {
-            return null;
-          }
-          switch (componentType) {
-            case "DigestUrgentTasks":
+      <UISpecRenderer
+        spec={specOutput as any}
+        renderSection={(section) => {
+          const data = section.data || {};
+          switch (section.type) {
+            case "alert":
               return (
-                <DigestUrgentTasks
-                  key={`digest-urgent-${index}`}
-                  tasks={(output?.tasks as any[]) ?? []}
-                  onSelectTask={(id) => {
-                    const task = data?.nextActions.find((t) => t.id === id);
-                    if (task) setEditingTask(task);
-                  }}
+                <AlertSection
+                  title={section.title}
+                  content={String((data as any).content || "")}
+                  style={section.style}
                 />
               );
-            case "DigestStaleProjects":
+            case "entity-list":
               return (
-                <DigestStaleProjects
-                  key={`digest-stale-${index}`}
-                  projects={(output?.projects as any[]) ?? []}
-                  staleDays={Number(output?.staleDays ?? 7)}
+                <EntityListSection
+                  title={section.title}
+                  entities={((data as any).entities as any[]) || []}
                 />
               );
-            case "DigestTimeline":
+            case "action-list":
               return (
-                <DigestTimeline
-                  key={`digest-timeline-${index}`}
-                  items={(output?.items as any[]) ?? []}
+                <ActionListSection
+                  title={section.title}
+                  items={((data as any).items as any[]) || []}
                 />
               );
-            case "DigestIdeaNudge":
+            case "summary":
               return (
-                <DigestIdeaNudge
-                  key={`digest-idea-${index}`}
-                  idea={output?.idea as any}
-                  reason={String(output?.reason ?? "")}
+                <SummarySection
+                  title={section.title}
+                  content={String((data as any).content || "")}
                 />
               );
-            case "DigestPersonReminder":
+            case "timeline":
+              return <TimelineSection title={section.title} data={data as any} />;
+            case "calendar":
+              return <CalendarSection title={section.title} data={data as any} />;
+            case "chart":
+              return <ChartSection title={section.title} data={data as any} />;
+            case "empty-state":
               return (
-                <DigestPersonReminder
-                  key={`digest-person-${index}`}
-                  person={output?.person as any}
-                  suggestion={String(output?.suggestion ?? "")}
-                />
-              );
-            case "DigestStats":
-              return (
-                <DigestStats
-                  key={`digest-stats-${index}`}
-                  stats={output?.stats as any}
+                <EmptyStateSection
+                  title={section.title}
+                  message={String((data as any).message || "")}
                 />
               );
             default:
               return null;
           }
-        })}
-      </div>
+        }}
+      />
     );
-  }, [digestStreamError, streamedDigestOutputs, data]);
+  }, [digestStreamError, streamedDigestOutputs, genUiEnabled]);
 
   if (loading) {
     return (

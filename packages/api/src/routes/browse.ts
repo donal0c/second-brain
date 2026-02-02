@@ -4,6 +4,7 @@ import { consumeStream, streamText } from "ai";
 import { Readable } from "node:stream";
 import { getToolsForContext } from "../llm/tools/index.js";
 import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
+import { BROWSE_UI_SPEC_SYSTEM_PROMPT } from "../llm/prompts/ui-generation.js";
 import { sendServiceUnavailable, sendValidationError } from "../utils/response.js";
 
 const BrowseStreamSchema = z.object({
@@ -11,6 +12,14 @@ const BrowseStreamSchema = z.object({
     tab: z.enum(["tasks", "projects", "ideas", "persons"]),
     search: z.string().optional(),
   }),
+  entities: z
+    .object({
+      tasks: z.array(z.object({ title: z.string(), type: z.literal("task") })).optional(),
+      projects: z.array(z.object({ title: z.string(), type: z.literal("project") })).optional(),
+      ideas: z.array(z.object({ title: z.string(), type: z.literal("idea") })).optional(),
+      persons: z.array(z.object({ title: z.string(), type: z.literal("person") })).optional(),
+    })
+    .optional(),
   counts: z
     .object({
       tasks: z.number().int().min(0).optional(),
@@ -34,6 +43,20 @@ function mergeCorsHeaders(headers: Record<string, string>, origin: string | unde
   headers["vary"] = "Origin";
   headers["access-control-allow-methods"] = "POST,OPTIONS";
   headers["access-control-allow-headers"] = "authorization,content-type";
+}
+
+function detectBrowseIntent(tab: "tasks" | "projects" | "ideas" | "persons", search?: string) {
+  const query = (search ?? "").toLowerCase().trim();
+  if (query) {
+    if (/(urgent|overdue|asap|today|now)\b/.test(query)) return "urgent";
+    if (/(plan|planning|schedule|week|calendar|roadmap)\b/.test(query)) return "planning";
+    if (/(idea|brainstorm|explore|inspire|discover)\b/.test(query)) return "explore";
+    if (/(review|status|progress|health|summary)\b/.test(query)) return "review";
+  }
+  if (tab === "ideas") return "explore";
+  if (tab === "projects") return "review";
+  if (tab === "tasks") return "planning";
+  return "review";
 }
 
 export async function browseRoutes(app: FastifyInstance): Promise<void> {
@@ -69,19 +92,26 @@ export async function browseRoutes(app: FastifyInstance): Promise<void> {
 
       const result = streamText({
         model: modelConfig.model,
-        tools: getToolsForContext("browse"),
+        tools: getToolsForContext("browse-spec"),
         messages: [
           {
             role: "system",
             content:
-              "Choose the best browse layout for the user's current tab and search context. " +
-              "Use browseTaskListView for task-focused views, browseProjectKanbanView for project overviews, " +
-              "browseTimelineView for time-based queries, and browseCalendarView for scheduling-focused queries. " +
-              "Always call exactly one tool.",
+              BROWSE_UI_SPEC_SYSTEM_PROMPT +
+              "\nReturn a UISpec in JSON by calling the tool `browseUiSpec`.",
           },
           {
             role: "user",
-            content: JSON.stringify(parseResult.data),
+            content: JSON.stringify({
+              ...parseResult.data,
+              intent: detectBrowseIntent(
+                parseResult.data.viewContext.tab,
+                parseResult.data.viewContext.search
+              ),
+              examples: {
+                tasks: parseResult.data.viewContext.tab === "tasks" ? "task list" : undefined,
+              },
+            }),
           },
         ],
         abortSignal: controller.signal,

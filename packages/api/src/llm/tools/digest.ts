@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { registerTool } from "./registry.js";
+import { UISpecSchema } from "../ui-spec.js";
 
 const taskSchema = z.object({
   id: z.string().uuid(),
@@ -47,6 +48,15 @@ registerTool({
   }),
   execute: async (input) => input,
   componentType: "DigestUrgentTasks",
+});
+
+registerTool({
+  name: "digestUiSpec",
+  description: "Return a declarative UI specification for the digest.",
+  contexts: ["digest-spec"],
+  inputSchema: UISpecSchema,
+  execute: async (input) => input,
+  componentType: "UISpec",
 });
 
 registerTool({

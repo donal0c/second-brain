@@ -7,6 +7,8 @@ import { Readable } from "node:stream";
 import { sendData, sendValidationError, sendServiceUnavailable } from "../utils/response.js";
 import { getToolsForContext } from "../llm/tools/index.js";
 import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
+import { DIGEST_UI_SPEC_SYSTEM_PROMPT } from "../llm/prompts/ui-generation.js";
+import { UISpecSchema } from "../llm/ui-spec.js";
 
 // =============================================================================
 // Request Schemas
@@ -242,6 +244,23 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const digestData = await buildDailyDigestData(parseResult.data);
+      const now = new Date();
+      const startOfToday = new Date(now);
+      startOfToday.setHours(0, 0, 0, 0);
+      const endOfToday = new Date(now);
+      endOfToday.setHours(23, 59, 59, 999);
+      const timeOfDay =
+        now.getHours() < 12 ? "morning" : now.getHours() < 17 ? "afternoon" : "evening";
+      const overdueCount = digestData.nextActions.filter((task) => {
+        if (!task.dueDate) return false;
+        const due = new Date(task.dueDate);
+        return due < startOfToday;
+      }).length;
+      const dueTodayCount = digestData.nextActions.filter((task) => {
+        if (!task.dueDate) return false;
+        const due = new Date(task.dueDate);
+        return due >= startOfToday && due <= endOfToday;
+      }).length;
 
       const controller = new AbortController();
       request.raw.on("aborted", () => controller.abort());
@@ -254,24 +273,26 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
 
       const result = streamText({
         model: modelConfig.model,
-        tools: getToolsForContext("digest"),
+        tools: getToolsForContext("digest-spec"),
         messages: [
           {
             role: "system",
             content:
-              "Select the most relevant digest components. " +
-              "Call tools for the most important sections only (2-4 tools). " +
-              "If urgent tasks exist (due date today or overdue), include digestUrgentTasksCard. " +
-              "If stale projects exist, include digestStaleProjectsAlert. " +
-              "If multiple upcoming deadlines exist, include digestUpcomingDeadlines. " +
-              "If there is a standout idea to revisit, include digestIdeaNudge. " +
-              "If a person reminder is warranted, include digestPersonReminder. " +
-              "Always include digestStatsOverview when no other tool is clearly selected.",
+              DIGEST_UI_SPEC_SYSTEM_PROMPT +
+              "\nReturn a UISpec in JSON by calling the tool `digestUiSpec`.",
           },
           {
             role: "user",
             content: JSON.stringify({
               date: digestData.date,
+              localTime: now.toISOString(),
+              timeOfDay,
+              weekday: now.toLocaleDateString("en-US", { weekday: "long" }),
+              urgency: {
+                overdueCount,
+                dueTodayCount,
+                staleTasks: digestData.staleTasks.length,
+              },
               stats: digestData.stats,
               nextActions: digestData.nextActions.map((task) => ({
                 id: task.id,

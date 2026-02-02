@@ -6,12 +6,20 @@ import { useUIStream, type UIMessageChunk } from "../lib/stream";
 import { useGenerativeUI } from "../hooks/useGenerativeUI";
 import {
   ClarificationMultipleChoice,
-  ClarificationFreeText,
-  ClarificationDatePicker,
-  ClarificationEntityPicker,
   type ClarificationChoiceOption,
-  type ClarificationEntityCandidate,
 } from "../components/clarification";
+import { UISpecRenderer, type UISpecSection } from "../components/generative/UISpecRenderer";
+import {
+  AlertSection,
+  EntityListSection,
+  ActionListSection,
+  SummarySection,
+  EmptyStateSection,
+  EntityCardSection,
+  TimelineSection,
+  CalendarSection,
+  ChartSection,
+} from "../components/generative/sections";
 
 export function Clarifications() {
   const [items, setItems] = useState<Clarification[]>([]);
@@ -171,65 +179,81 @@ export function Clarifications() {
       );
     }
 
-    const componentType = toolOutput.componentType;
-    if (componentType === "ClarificationMultipleChoice") {
-      const options = (toolOutput.options as ClarificationChoiceOption[]) || [];
-      return (
-        <ClarificationMultipleChoice
-          question={String(toolOutput.question ?? item.question)}
-          options={options}
-          selectedValue={answers[item.id]}
-          onSelect={(value) => updateAnswer(item.id, value)}
-        />
-      );
+    if (toolOutput.componentType !== "UISpec") {
+      return renderFallback(item);
     }
 
-    if (componentType === "ClarificationFreeText") {
-      return (
-        <ClarificationFreeText
-          prompt={String(toolOutput.prompt ?? item.question)}
-          placeholder={toolOutput.placeholder ? String(toolOutput.placeholder) : undefined}
-          value={answers[item.id] || ""}
-          onChange={(value) => updateAnswer(item.id, value)}
-        />
-      );
-    }
-
-    if (componentType === "ClarificationDatePicker") {
-      return (
-        <ClarificationDatePicker
-          prompt={String(toolOutput.prompt ?? item.question)}
-          value={answers[item.id] || ""}
-          suggestedDates={
-            Array.isArray(toolOutput.suggestedDates)
-              ? (toolOutput.suggestedDates as string[])
-              : undefined
+    return (
+      <UISpecRenderer
+        spec={toolOutput as any}
+        renderSection={(section: UISpecSection) => {
+          const data = section.data || {};
+          switch (section.type) {
+            case "alert":
+              return (
+                <AlertSection
+                  title={section.title}
+                  content={String((data as any).content || item.question)}
+                  style={section.style}
+                />
+              );
+            case "entity-card":
+              return (
+                <EntityCardSection
+                  title={section.title}
+                  entity={(data as any).entity}
+                />
+              );
+            case "entity-list":
+              return (
+                <EntityListSection
+                  title={section.title}
+                  entities={((data as any).entities as any[]) || []}
+                />
+              );
+            case "action-list": {
+              const items = ((data as any).items as any[]) || [];
+              if (items.length > 0) {
+                return (
+                  <ClarificationMultipleChoice
+                    question={section.title || item.question}
+                    options={items.map((option: any) => ({
+                      label: String(option.label ?? option.value ?? option),
+                      value: String(option.value ?? option.label ?? option),
+                    })) as ClarificationChoiceOption[]}
+                    selectedValue={answers[item.id]}
+                    onSelect={(value) => updateAnswer(item.id, value)}
+                  />
+                );
+              }
+              return null;
+            }
+            case "summary":
+              return (
+                <SummarySection
+                  title={section.title}
+                  content={String((data as any).content || "")}
+                />
+              );
+            case "timeline":
+              return <TimelineSection title={section.title} data={data as any} />;
+            case "calendar":
+              return <CalendarSection title={section.title} data={data as any} />;
+            case "chart":
+              return <ChartSection title={section.title} data={data as any} />;
+            case "empty-state":
+              return (
+                <EmptyStateSection
+                  title={section.title}
+                  message={String((data as any).message || "")}
+                />
+              );
+            default:
+              return null;
           }
-          onChange={(value) => updateAnswer(item.id, value)}
-        />
-      );
-    }
-
-    if (componentType === "ClarificationEntityPicker") {
-      const candidates = (toolOutput.candidates as ClarificationEntityCandidate[]) || [];
-      const preview = toolOutput.newItemPreview as
-        | { name?: string; type?: ClarificationEntityCandidate["type"] }
-        | undefined;
-      if (!preview?.name || !preview?.type) {
-        return renderFallback(item);
-      }
-      return (
-        <ClarificationEntityPicker
-          candidates={candidates}
-          newItemPreview={{ name: preview.name, type: preview.type }}
-          selectedValue={answers[item.id]}
-          onSelect={(value) => updateAnswer(item.id, value)}
-          onCreateNew={() => updateAnswer(item.id, preview.name || "")}
-        />
-      );
-    }
-
-    return renderFallback(item);
+        }}
+      />
+    );
   };
 
   return (

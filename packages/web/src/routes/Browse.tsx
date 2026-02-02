@@ -36,13 +36,18 @@ import { TaskEditForm } from "../components/TaskEditForm";
 import { motion } from "framer-motion";
 import { EntityBadge, NeuralCard } from "../components/ui/neural";
 import { useUIStream, type UIMessageChunk } from "../lib/stream";
-import {
-  BrowseTaskList,
-  BrowseKanban,
-  BrowseTimeline,
-  BrowseCalendar,
-} from "../components/browse";
 import { useGenerativeUI } from "../hooks/useGenerativeUI";
+import { UISpecRenderer, type UISpecSection } from "../components/generative/UISpecRenderer";
+import {
+  AlertSection,
+  EntityListSection,
+  ActionListSection,
+  SummarySection,
+  EmptyStateSection,
+  TimelineSection,
+  CalendarSection,
+  ChartSection,
+} from "../components/generative/sections";
 
 type TabType = "tasks" | "projects" | "ideas" | "persons";
 type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
@@ -364,6 +369,12 @@ export function Browse() {
           tab: activeTab,
           search: searchParams.get("q") || undefined,
         },
+        entities: {
+          tasks: taskList.slice(0, 6).map((task) => ({ title: task.title, type: "task" })),
+          projects: projectList.slice(0, 6).map((project) => ({ title: project.name, type: "project" })),
+          ideas: ideaList.slice(0, 6).map((idea) => ({ title: idea.title, type: "idea" })),
+          persons: personList.slice(0, 6).map((person) => ({ title: person.name, type: "person" })),
+        },
         counts: {
           tasks: taskList.length,
           projects: projectList.length,
@@ -397,34 +408,64 @@ export function Browse() {
     if (browseStreamError || !streamedBrowseOutput || !genUiEnabled) {
       return null;
     }
-    const componentType = streamedBrowseOutput.componentType;
-    if (componentType === "BrowseTaskList") {
-      return <BrowseTaskList tasks={taskList} onSelectTask={(task) => setEditing({ type: "task", item: task })} />;
+    if (streamedBrowseOutput.componentType !== "UISpec") {
+      return null;
     }
-    if (componentType === "BrowseKanban") {
-      return <BrowseKanban projects={projectList} />;
-    }
-    if (componentType === "BrowseTimeline") {
-      const items = taskList.map((task) => ({
-        id: task.id,
-        title: task.title,
-        date: task.dueDate ?? null,
-        type: "task",
-      }));
-      return <BrowseTimeline items={items} />;
-    }
-    if (componentType === "BrowseCalendar") {
-      const items = taskList
-        .filter((task) => !!task.dueDate)
-        .map((task) => ({
-          id: task.id,
-          title: task.title,
-          date: task.dueDate ?? null,
-        }));
-      return <BrowseCalendar items={items} />;
-    }
-    return null;
-  }, [browseStreamError, streamedBrowseOutput, taskList, projectList]);
+    return (
+      <UISpecRenderer
+        spec={streamedBrowseOutput as any}
+        renderSection={(section: UISpecSection) => {
+          const data = section.data || {};
+          switch (section.type) {
+            case "alert":
+              return (
+                <AlertSection
+                  title={section.title}
+                  content={String((data as any).content || "")}
+                  style={section.style}
+                />
+              );
+            case "entity-list":
+              return (
+                <EntityListSection
+                  title={section.title}
+                  entities={((data as any).entities as any[]) || []}
+                />
+              );
+            case "action-list":
+              return (
+                <ActionListSection
+                  title={section.title}
+                  items={((data as any).items as any[]) || []}
+                />
+              );
+            case "summary":
+              return (
+                <SummarySection
+                  title={section.title}
+                  content={String((data as any).content || "")}
+                />
+              );
+            case "timeline":
+              return <TimelineSection title={section.title} data={data as any} />;
+            case "calendar":
+              return <CalendarSection title={section.title} data={data as any} />;
+            case "chart":
+              return <ChartSection title={section.title} data={data as any} />;
+            case "empty-state":
+              return (
+                <EmptyStateSection
+                  title={section.title}
+                  message={String((data as any).message || "")}
+                />
+              );
+            default:
+              return null;
+          }
+        }}
+      />
+    );
+  }, [browseStreamError, streamedBrowseOutput, genUiEnabled]);
 
   // Handle URL parameters for deep linking from search results
   useEffect(() => {

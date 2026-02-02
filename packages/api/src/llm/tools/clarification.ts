@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { registerTool } from "./registry.js";
+import { UISpecSchema } from "../ui-spec.js";
 
 const optionSchema = z.object({
   label: z.string().min(1),
@@ -62,4 +63,13 @@ registerTool({
   }),
   execute: async (input) => input,
   componentType: "ClarificationDatePicker",
+});
+
+registerTool({
+  name: "clarificationUiSpec",
+  description: "Return a declarative UI specification for clarification flows.",
+  contexts: ["clarification-spec"],
+  inputSchema: UISpecSchema,
+  execute: async (input) => input,
+  componentType: "UISpec",
 });

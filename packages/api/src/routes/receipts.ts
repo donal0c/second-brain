@@ -8,6 +8,7 @@ import { consumeStream, streamText } from "ai";
 import { Readable } from "node:stream";
 import { getToolsForContext } from "../llm/tools/index.js";
 import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
+import { CLARIFICATION_UI_SPEC_SYSTEM_PROMPT } from "../llm/prompts/ui-generation.js";
 import {
   sendData,
   sendList,
@@ -401,6 +402,18 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
 
       const inboxItem = inboxItems[0];
+      const receipts = await db
+        .select({
+          classification: schema.receipts.classification,
+          extractedFields: schema.receipts.extractedFields,
+          confidenceScore: schema.receipts.confidenceScore,
+          timestamp: schema.receipts.timestamp,
+        })
+        .from(schema.receipts)
+        .where(eq(schema.receipts.inboxItemId, clarification.inboxItemId))
+        .orderBy(desc(schema.receipts.timestamp))
+        .limit(1);
+      const receipt = receipts[0] ?? null;
       const options = clarification.options?.map((option) => ({
         label: option,
         value: option,
@@ -417,16 +430,13 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
 
       const result = streamText({
         model: modelConfig.model,
-        tools: getToolsForContext("clarification"),
+        tools: getToolsForContext("clarification-spec"),
         messages: [
           {
             role: "system",
             content:
-              "You are selecting the best clarification UI component. " +
-              "Always choose exactly one tool. " +
-              "If options are provided, use clarificationMultipleChoice with the question and options. " +
-              "Otherwise, use clarificationFreeText with a concise prompt. " +
-              "Only use clarificationEntityPicker or clarificationDatePicker if the necessary data is provided.",
+              CLARIFICATION_UI_SPEC_SYSTEM_PROMPT +
+              "\nReturn a UISpec in JSON by calling the tool `clarificationUiSpec`.",
           },
           {
             role: "user",
@@ -434,6 +444,7 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
               originalText: inboxItem?.rawText ?? null,
               question: clarification.question,
               options,
+              receipt,
             }),
           },
         ],
