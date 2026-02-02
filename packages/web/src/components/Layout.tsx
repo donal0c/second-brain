@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { digest } from "../lib/api";
 import { NeuralNode } from "./ui/neural";
+import { useGenerativeUI } from "../hooks/useGenerativeUI";
 
 const navItems = [
   { to: "/capture", label: "Capture", icon: "plus", entityType: "idea" as const },
@@ -47,6 +48,7 @@ export function Layout() {
   const [pendingClarifications, setPendingClarifications] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const { enabled: genUiEnabled, setEnabled: setGenUiEnabled } = useGenerativeUI();
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -297,6 +299,29 @@ export function Layout() {
                 );
               })}
             </nav>
+            <div className="mt-3 px-4 py-3 rounded-neural border border-void-border bg-void-50/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                    Generative UI
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Toggle AI-selected views
+                  </div>
+                </div>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={genUiEnabled}
+                    onChange={(event) => setGenUiEnabled(event.target.checked)}
+                  />
+                  <div className="w-10 h-5 bg-void-100/70 border border-void-border rounded-full peer peer-checked:bg-neural-memory-500/40 peer-checked:border-neural-memory-500/40 transition-colors relative">
+                    <div className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-slate-500 peer-checked:bg-neural-memory-400 peer-checked:translate-x-5 transition-transform" />
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 

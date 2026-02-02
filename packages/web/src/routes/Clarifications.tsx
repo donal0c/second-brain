@@ -3,6 +3,7 @@ import { clarifications, inbox, extractErrorMessage, type Clarification } from "
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { useUIStream, type UIMessageChunk } from "../lib/stream";
+import { useGenerativeUI } from "../hooks/useGenerativeUI";
 import {
   ClarificationMultipleChoice,
   ClarificationFreeText,
@@ -19,6 +20,7 @@ export function Clarifications() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [inboxTexts, setInboxTexts] = useState<Record<string, string>>({});
+  const { enabled: genUiEnabled } = useGenerativeUI();
   const apiBase = useMemo(
     () => import.meta.env.VITE_API_URL || "http://localhost:3001",
     []
@@ -134,11 +136,16 @@ export function Clarifications() {
 
   const ClarificationStreamCard = ({ item }: { item: Clarification }) => {
     const endpoint = `${apiBase}/clarifications/${item.id}/stream`;
-    const { parts, status, error: streamError, start } = useUIStream(endpoint);
+    const { parts, status, error: streamError, start } = useUIStream(endpoint, {
+      enabled: genUiEnabled,
+    });
 
     useEffect(() => {
+      if (!genUiEnabled) {
+        return;
+      }
       start({});
-    }, [start]);
+    }, [start, genUiEnabled]);
 
     const toolOutput = useMemo(() => {
       const outputs = parts.filter(
@@ -152,7 +159,7 @@ export function Clarifications() {
       return latest?.output ?? null;
     }, [parts]);
 
-    if (streamError) {
+    if (streamError || !genUiEnabled) {
       return renderFallback(item);
     }
 

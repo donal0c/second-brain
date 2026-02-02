@@ -35,11 +35,15 @@ function extractData(lineBlock: string): string[] {
     .filter(Boolean);
 }
 
-export function useUIStream(endpoint: string): UIStreamResult {
-  const [parts, setParts] = useState<UIStreamPart[]>([]);
+export function useUIStream(
+  endpoint: string,
+  options?: { enabled?: boolean }
+): UIStreamResult {
+  const [parts, setParts] = useState<UIMessageChunk[]>([]);
   const [status, setStatus] = useState<UIStreamStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const enabled = options?.enabled ?? true;
 
   const reset = useCallback(() => {
     setParts([]);
@@ -55,6 +59,10 @@ export function useUIStream(endpoint: string): UIStreamResult {
 
   const start = useCallback(
     async (payload: unknown) => {
+      if (!enabled) {
+        setStatus("idle");
+        return;
+      }
       setStatus("loading");
       setError(null);
       abortRef.current?.abort();
@@ -126,7 +134,7 @@ export function useUIStream(endpoint: string): UIStreamResult {
         setStatus("done");
       }
     },
-    [endpoint]
+    [endpoint, enabled]
   );
 
   return { parts, status, error, start, stop, reset };

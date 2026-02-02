@@ -25,6 +25,7 @@ import {
   DigestPersonReminder,
   DigestStats,
 } from "../components/digest";
+import { useGenerativeUI } from "../hooks/useGenerativeUI";
 
 /** Get time-aware greeting based on current hour */
 function getGreeting(): { greeting: string; emoji: string; message: string } {
@@ -199,18 +200,22 @@ export function Today() {
     []
   );
   const digestStreamEndpoint = useMemo(() => `${apiBase}/digest/stream`, [apiBase]);
+  const { enabled: genUiEnabled } = useGenerativeUI();
   const {
     parts: digestParts,
     status: digestStreamStatus,
     error: digestStreamError,
     start: startDigestStream,
-  } = useUIStream(digestStreamEndpoint);
+  } = useUIStream(digestStreamEndpoint, { enabled: genUiEnabled });
 
   useEffect(() => {
+    if (!genUiEnabled) {
+      return;
+    }
     if (!loading && !error && data) {
       startDigestStream({});
     }
-  }, [loading, error, data, startDigestStream]);
+  }, [loading, error, data, startDigestStream, genUiEnabled]);
 
   const streamedDigestOutputs = useMemo(() => {
     const outputs = digestParts.filter(
@@ -220,7 +225,7 @@ export function Today() {
   }, [digestParts]);
 
   const streamedDigestContent = useMemo(() => {
-    if (digestStreamError || streamedDigestOutputs.length === 0) {
+    if (digestStreamError || streamedDigestOutputs.length === 0 || !genUiEnabled) {
       return null;
     }
     const hasNonStats = streamedDigestOutputs.some(

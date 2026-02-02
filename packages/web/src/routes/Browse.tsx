@@ -42,6 +42,7 @@ import {
   BrowseTimeline,
   BrowseCalendar,
 } from "../components/browse";
+import { useGenerativeUI } from "../hooks/useGenerativeUI";
 
 type TabType = "tasks" | "projects" | "ideas" | "persons";
 type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
@@ -144,12 +145,13 @@ export function Browse() {
     []
   );
   const browseStreamEndpoint = useMemo(() => `${apiBase}/browse/stream`, [apiBase]);
+  const { enabled: genUiEnabled } = useGenerativeUI();
   const {
     parts: browseParts,
     status: browseStreamStatus,
     error: browseStreamError,
     start: startBrowseStream,
-  } = useUIStream(browseStreamEndpoint);
+  } = useUIStream(browseStreamEndpoint, { enabled: genUiEnabled });
 
   // Filter state (loaded from localStorage)
   const [taskFilters, setTaskFilters] = useState<TaskFilters>(loadTaskFilters);
@@ -353,6 +355,9 @@ export function Browse() {
   };
 
   useEffect(() => {
+    if (!genUiEnabled) {
+      return;
+    }
     if (!loading && !error) {
       startBrowseStream({
         viewContext: {
@@ -377,6 +382,7 @@ export function Browse() {
     ideaList.length,
     personList.length,
     startBrowseStream,
+    genUiEnabled,
   ]);
 
   const streamedBrowseOutput = useMemo(() => {
@@ -388,7 +394,7 @@ export function Browse() {
   }, [browseParts]);
 
   const streamedBrowseView = useMemo(() => {
-    if (browseStreamError || !streamedBrowseOutput) {
+    if (browseStreamError || !streamedBrowseOutput || !genUiEnabled) {
       return null;
     }
     const componentType = streamedBrowseOutput.componentType;

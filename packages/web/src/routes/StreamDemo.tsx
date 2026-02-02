@@ -3,6 +3,7 @@ import { NeuralCard } from "../components/ui/neural/NeuralCard";
 import { NeuralInput } from "../components/ui/neural/NeuralInput";
 import { SynapseButton } from "../components/ui/neural/SynapseButton";
 import { useUIStream } from "../lib/stream";
+import { useGenerativeUI } from "../hooks/useGenerativeUI";
 
 const DEFAULT_PROMPT =
   "Use the echo tool to echo back: Hello from the streaming demo.";
@@ -14,9 +15,13 @@ export function StreamDemo() {
     () => `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/stream`,
     []
   );
-  const { parts, status, error, start, stop, reset } = useUIStream(endpoint);
+  const { enabled: genUiEnabled } = useGenerativeUI();
+  const { parts, status, error, start, stop, reset } = useUIStream(endpoint, {
+    enabled: genUiEnabled,
+  });
 
   const handleStart = async () => {
+    if (!genUiEnabled) return;
     reset();
     const messages = [];
     if (includeSystemHint) {
