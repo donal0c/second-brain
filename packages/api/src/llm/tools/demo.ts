@@ -4,6 +4,7 @@ import { registerTool } from "./registry.js";
 registerTool({
   name: "echo",
   description: "Echo back text with a timestamp for UI streaming demos.",
+  contexts: ["demo"],
   inputSchema: z.object({
     text: z.string().min(1, "Text is required"),
   }),

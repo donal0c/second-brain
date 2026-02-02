@@ -4,6 +4,10 @@ import { eq, sql, desc, isNull, isNotNull, and, gte, lte } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { processInboxItem, extractAndStoreContext } from "../services/processor.js";
 import { hasLLMProvider } from "../llm/index.js";
+import { consumeStream, streamText } from "ai";
+import { Readable } from "node:stream";
+import { getToolsForContext } from "../llm/tools/index.js";
+import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
 import {
   sendData,
   sendList,
@@ -249,6 +253,29 @@ export async function receiptRoutes(app: FastifyInstance): Promise<void> {
 // =============================================================================
 
 export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
+  const applyCorsHeaders = (reply: FastifyReply, origin: string | undefined): void => {
+    const resolvedOrigin = origin ?? "*";
+    reply.header("access-control-allow-origin", resolvedOrigin);
+    reply.header("vary", "Origin");
+    reply.header("access-control-allow-methods", "POST,OPTIONS");
+    reply.header("access-control-allow-headers", "authorization,content-type");
+  };
+
+  const mergeCorsHeaders = (
+    headers: Record<string, string>,
+    origin: string | undefined
+  ): void => {
+    headers["access-control-allow-origin"] = origin ?? "*";
+    headers["vary"] = "Origin";
+    headers["access-control-allow-methods"] = "POST,OPTIONS";
+    headers["access-control-allow-headers"] = "authorization,content-type";
+  };
+
+  app.options("/clarifications/:id/stream", async (request, reply) => {
+    applyCorsHeaders(reply, request.headers.origin);
+    return reply.status(204).send();
+  });
+
   // GET /clarifications - List clarifications
   app.get(
     "/clarifications",
@@ -335,6 +362,102 @@ export async function clarificationRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return sendData(reply, items[0]);
+    }
+  );
+
+  // POST /clarifications/:id/stream - Stream clarification UI tool selection
+  app.post(
+    "/clarifications/:id/stream",
+    async (
+      request: FastifyRequest<{ Params: z.infer<typeof IdParamsSchema> }>,
+      reply: FastifyReply
+    ) => {
+      const paramsResult = IdParamsSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        return sendBadRequest(reply, "Invalid ID format");
+      }
+
+      const modelConfig = resolveStreamingModel();
+      if (!modelConfig) {
+        return sendServiceUnavailable(reply, `LLM provider not configured. ${getStreamingProviderHint()}`);
+      }
+
+      const clarifications = await db
+        .select()
+        .from(schema.clarifications)
+        .where(eq(schema.clarifications.id, paramsResult.data.id))
+        .limit(1);
+
+      if (clarifications.length === 0) {
+        return sendNotFound(reply, "Clarification");
+      }
+
+      const clarification = clarifications[0];
+
+      const inboxItems = await db
+        .select()
+        .from(schema.inboxItems)
+        .where(eq(schema.inboxItems.id, clarification.inboxItemId))
+        .limit(1);
+
+      const inboxItem = inboxItems[0];
+      const options = clarification.options?.map((option) => ({
+        label: option,
+        value: option,
+      })) ?? [];
+
+      const controller = new AbortController();
+      request.raw.on("aborted", () => controller.abort());
+      reply.raw.on("close", () => {
+        if (!reply.raw.writableEnded) {
+          controller.abort();
+        }
+      });
+      reply.raw.on("error", () => controller.abort());
+
+      const result = streamText({
+        model: modelConfig.model,
+        tools: getToolsForContext("clarification"),
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are selecting the best clarification UI component. " +
+              "Always choose exactly one tool. " +
+              "If options are provided, use clarificationMultipleChoice with the question and options. " +
+              "Otherwise, use clarificationFreeText with a concise prompt. " +
+              "Only use clarificationEntityPicker or clarificationDatePicker if the necessary data is provided.",
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              originalText: inboxItem?.rawText ?? null,
+              question: clarification.question,
+              options,
+            }),
+          },
+        ],
+        abortSignal: controller.signal,
+      });
+
+      const response = result.toUIMessageStreamResponse({
+        consumeSseStream: consumeStream,
+      });
+
+      const headers = Object.fromEntries(response.headers.entries());
+      mergeCorsHeaders(headers, request.headers.origin);
+      for (const [key, value] of Object.entries(headers)) {
+        reply.raw.setHeader(key, value);
+      }
+      reply.raw.statusCode = response.status;
+
+      if (!response.body) {
+        reply.raw.end();
+        return reply;
+      }
+
+      Readable.fromWeb(response.body as unknown as ReadableStream).pipe(reply.raw);
+      return reply;
     }
   );
 

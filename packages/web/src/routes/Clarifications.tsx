@@ -1,7 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { clarifications, inbox, extractErrorMessage, type Clarification } from "../lib/api";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { useUIStream, type UIMessageChunk } from "../lib/stream";
+import {
+  ClarificationMultipleChoice,
+  ClarificationFreeText,
+  ClarificationDatePicker,
+  ClarificationEntityPicker,
+  type ClarificationChoiceOption,
+  type ClarificationEntityCandidate,
+} from "../components/clarification";
 
 export function Clarifications() {
   const [items, setItems] = useState<Clarification[]>([]);
@@ -10,6 +19,10 @@ export function Clarifications() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [inboxTexts, setInboxTexts] = useState<Record<string, string>>({});
+  const apiBase = useMemo(
+    () => import.meta.env.VITE_API_URL || "http://localhost:3001",
+    []
+  );
 
   const loadClarifications = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -75,6 +88,143 @@ export function Clarifications() {
     }
   };
 
+  const updateAnswer = (id: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const renderFallback = (item: Clarification) => (
+    <div className="mb-4">
+      <h4 className="font-medium text-white mb-2">{item.question}</h4>
+      {item.options && item.options.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {item.options.map((option, i) => (
+            <button
+              key={i}
+              onClick={() => updateAnswer(item.id, option)}
+              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                answers[item.id] === option
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-800"
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={answers[item.id] || ""}
+          onChange={(e) => updateAnswer(item.id, e.target.value)}
+          placeholder="Or type your answer..."
+          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
+          disabled={resolvingId === item.id}
+        />
+        <button
+          onClick={() => handleResolve(item.id)}
+          disabled={!answers[item.id]?.trim() || resolvingId === item.id}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {resolvingId === item.id ? "Resolving..." : "Resolve"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const ClarificationStreamCard = ({ item }: { item: Clarification }) => {
+    const endpoint = `${apiBase}/clarifications/${item.id}/stream`;
+    const { parts, status, error: streamError, start } = useUIStream(endpoint);
+
+    useEffect(() => {
+      start({});
+    }, [start]);
+
+    const toolOutput = useMemo(() => {
+      const outputs = parts.filter(
+        (part: UIMessageChunk) => part.type === "tool-output-available"
+      );
+      const latest = outputs[outputs.length - 1] as
+        | {
+            output?: Record<string, unknown>;
+          }
+        | undefined;
+      return latest?.output ?? null;
+    }, [parts]);
+
+    if (streamError) {
+      return renderFallback(item);
+    }
+
+    if (!toolOutput) {
+      return (
+        <div className="text-sm text-slate-400">
+          {status === "loading" ? "Loading suggestion..." : "No suggestion available."}
+        </div>
+      );
+    }
+
+    const componentType = toolOutput.componentType;
+    if (componentType === "ClarificationMultipleChoice") {
+      const options = (toolOutput.options as ClarificationChoiceOption[]) || [];
+      return (
+        <ClarificationMultipleChoice
+          question={String(toolOutput.question ?? item.question)}
+          options={options}
+          selectedValue={answers[item.id]}
+          onSelect={(value) => updateAnswer(item.id, value)}
+        />
+      );
+    }
+
+    if (componentType === "ClarificationFreeText") {
+      return (
+        <ClarificationFreeText
+          prompt={String(toolOutput.prompt ?? item.question)}
+          placeholder={toolOutput.placeholder ? String(toolOutput.placeholder) : undefined}
+          value={answers[item.id] || ""}
+          onChange={(value) => updateAnswer(item.id, value)}
+        />
+      );
+    }
+
+    if (componentType === "ClarificationDatePicker") {
+      return (
+        <ClarificationDatePicker
+          prompt={String(toolOutput.prompt ?? item.question)}
+          value={answers[item.id] || ""}
+          suggestedDates={
+            Array.isArray(toolOutput.suggestedDates)
+              ? (toolOutput.suggestedDates as string[])
+              : undefined
+          }
+          onChange={(value) => updateAnswer(item.id, value)}
+        />
+      );
+    }
+
+    if (componentType === "ClarificationEntityPicker") {
+      const candidates = (toolOutput.candidates as ClarificationEntityCandidate[]) || [];
+      const preview = toolOutput.newItemPreview as
+        | { name?: string; type?: ClarificationEntityCandidate["type"] }
+        | undefined;
+      if (!preview?.name || !preview?.type) {
+        return renderFallback(item);
+      }
+      return (
+        <ClarificationEntityPicker
+          candidates={candidates}
+          newItemPreview={{ name: preview.name, type: preview.type }}
+          selectedValue={answers[item.id]}
+          onSelect={(value) => updateAnswer(item.id, value)}
+          onCreateNew={() => updateAnswer(item.id, preview.name || "")}
+        />
+      );
+    }
+
+    return renderFallback(item);
+  };
+
   return (
     <div className="p-6 md:p-8 min-h-full space-y-4">
       <div className="flex items-center justify-between">
@@ -118,40 +268,9 @@ export function Clarifications() {
               </div>
 
               {/* Question */}
-              <div className="mb-4">
-                <h4 className="font-medium text-white mb-2">{item.question}</h4>
-
-                {/* Options */}
-                {item.options && item.options.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {item.options.map((option, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setAnswers((prev) => ({ ...prev, [item.id]: option }))}
-                        className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                          answers[item.id] === option
-                            ? "bg-indigo-600 text-white border-indigo-600"
-                            : "bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-800"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Custom answer input */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={answers[item.id] || ""}
-                    onChange={(e) =>
-                      setAnswers((prev) => ({ ...prev, [item.id]: e.target.value }))
-                    }
-                    placeholder="Or type your answer..."
-                    className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
-                    disabled={resolvingId === item.id}
-                  />
+              <div className="mb-4 space-y-4">
+                <ClarificationStreamCard item={item} />
+                <div className="flex justify-end">
                   <button
                     onClick={() => handleResolve(item.id)}
                     disabled={!answers[item.id]?.trim() || resolvingId === item.id}

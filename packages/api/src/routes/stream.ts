@@ -1,40 +1,15 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { consumeStream, streamText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { Readable } from "node:stream";
 import { getEnabledTools } from "../llm/tools/index.js";
 import { sendServiceUnavailable, sendValidationError } from "../utils/response.js";
-import { getLLMProviderHint, resolveLLMProviderChoice } from "../llm/provider-selection.js";
+import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
 
 const StreamRequestSchema = z.object({
   messages: z.array(z.any()),
   context: z.unknown().optional(),
 });
-
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
-const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929";
-
-function resolveStreamModel() {
-  const choice = resolveLLMProviderChoice();
-  if (!choice) {
-    return null;
-  }
-
-  const preferredModel = process.env.SECOND_BRAIN_LLM_MODEL;
-  if (choice.provider === "openai") {
-    return {
-      provider: "openai" as const,
-      model: createOpenAI({ apiKey: choice.apiKey })(preferredModel || DEFAULT_OPENAI_MODEL),
-    };
-  }
-
-  return {
-    provider: "anthropic" as const,
-    model: createAnthropic({ apiKey: choice.apiKey })(preferredModel || DEFAULT_ANTHROPIC_MODEL),
-  };
-}
 
 function applyCorsHeaders(reply: FastifyReply, origin: string | undefined): void {
   const resolvedOrigin = origin ?? "*";
@@ -68,9 +43,9 @@ export async function streamRoutes(app: FastifyInstance): Promise<void> {
         return sendValidationError(reply, "Invalid stream payload", parsed.error.flatten());
       }
 
-      const modelConfig = resolveStreamModel();
+      const modelConfig = resolveStreamingModel();
       if (!modelConfig) {
-        return sendServiceUnavailable(reply, `LLM provider not configured. ${getLLMProviderHint()}`);
+        return sendServiceUnavailable(reply, `LLM provider not configured. ${getStreamingProviderHint()}`);
       }
 
       const controller = new AbortController();

@@ -7,6 +7,7 @@ export interface UITool<TInput, TOutput extends Record<string, unknown>> {
   inputSchema: z.ZodType<TInput>;
   execute: (input: TInput) => Promise<TOutput>;
   componentType: string; // Maps to React component
+  contexts?: string[]; // Optional context scoping (e.g., "clarification")
 }
 
 const toolRegistry = new Map<string, UITool<unknown, Record<string, unknown>>>();
