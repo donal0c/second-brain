@@ -2,13 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { eq, sql, desc, isNull, and, lt, gte, or } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { consumeStream, streamText } from "ai";
-import { Readable } from "node:stream";
-import { sendData, sendValidationError, sendServiceUnavailable } from "../utils/response.js";
-import { getToolsForContext } from "../llm/tools/index.js";
-import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
-import { DIGEST_UI_SPEC_SYSTEM_PROMPT } from "../llm/prompts/ui-generation.js";
-import { UISpecSchema } from "../llm/ui-spec.js";
+import { sendData, sendValidationError } from "../utils/response.js";
 
 // =============================================================================
 // Request Schemas
@@ -175,28 +169,6 @@ async function buildDailyDigestData(params: z.infer<typeof DigestQuerySchema>): 
 }
 
 export async function digestRoutes(app: FastifyInstance): Promise<void> {
-  const applyCorsHeaders = (reply: FastifyReply, origin: string | undefined): void => {
-    const resolvedOrigin = origin ?? "*";
-    reply.header("access-control-allow-origin", resolvedOrigin);
-    reply.header("vary", "Origin");
-    reply.header("access-control-allow-methods", "POST,OPTIONS");
-    reply.header("access-control-allow-headers", "authorization,content-type");
-  };
-
-  const mergeCorsHeaders = (
-    headers: Record<string, string>,
-    origin: string | undefined
-  ): void => {
-    headers["access-control-allow-origin"] = origin ?? "*";
-    headers["vary"] = "Origin";
-    headers["access-control-allow-methods"] = "POST,OPTIONS";
-    headers["access-control-allow-headers"] = "authorization,content-type";
-  };
-
-  app.options("/digest/stream", async (request, reply) => {
-    applyCorsHeaders(reply, request.headers.origin);
-    return reply.status(204).send();
-  });
   /**
    * GET /digest/daily - Get daily digest
    */
@@ -217,123 +189,6 @@ export async function digestRoutes(app: FastifyInstance): Promise<void> {
 
       const digestData = await buildDailyDigestData(parseResult.data);
       return sendData(reply, digestData);
-    }
-  );
-
-  /**
-   * POST /digest/stream - Stream digest component selection
-   */
-  app.post(
-    "/digest/stream",
-    async (
-      request: FastifyRequest<{ Querystring: z.infer<typeof DigestQuerySchema> }>,
-      reply: FastifyReply
-    ) => {
-      const parseResult = DigestQuerySchema.safeParse(request.query);
-      if (!parseResult.success) {
-        return sendValidationError(
-          reply,
-          "Validation failed",
-          parseResult.error.flatten().fieldErrors
-        );
-      }
-
-      const modelConfig = resolveStreamingModel();
-      if (!modelConfig) {
-        return sendServiceUnavailable(reply, `LLM provider not configured. ${getStreamingProviderHint()}`);
-      }
-
-      const digestData = await buildDailyDigestData(parseResult.data);
-      const now = new Date();
-      const startOfToday = new Date(now);
-      startOfToday.setHours(0, 0, 0, 0);
-      const endOfToday = new Date(now);
-      endOfToday.setHours(23, 59, 59, 999);
-      const timeOfDay =
-        now.getHours() < 12 ? "morning" : now.getHours() < 17 ? "afternoon" : "evening";
-      const overdueCount = digestData.nextActions.filter((task) => {
-        if (!task.dueDate) return false;
-        const due = new Date(task.dueDate);
-        return due < startOfToday;
-      }).length;
-      const dueTodayCount = digestData.nextActions.filter((task) => {
-        if (!task.dueDate) return false;
-        const due = new Date(task.dueDate);
-        return due >= startOfToday && due <= endOfToday;
-      }).length;
-
-      const controller = new AbortController();
-      request.raw.on("aborted", () => controller.abort());
-      reply.raw.on("close", () => {
-        if (!reply.raw.writableEnded) {
-          controller.abort();
-        }
-      });
-      reply.raw.on("error", () => controller.abort());
-
-      const result = streamText({
-        model: modelConfig.model,
-        tools: getToolsForContext("digest-spec"),
-        messages: [
-          {
-            role: "system",
-            content:
-              DIGEST_UI_SPEC_SYSTEM_PROMPT +
-              "\nReturn a UISpec in JSON by calling the tool `digestUiSpec`.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              date: digestData.date,
-              localTime: now.toISOString(),
-              timeOfDay,
-              weekday: now.toLocaleDateString("en-US", { weekday: "long" }),
-              urgency: {
-                overdueCount,
-                dueTodayCount,
-                staleTasks: digestData.staleTasks.length,
-              },
-              stats: digestData.stats,
-              nextActions: digestData.nextActions.map((task) => ({
-                id: task.id,
-                title: task.title,
-                dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
-              })),
-              staleTasks: digestData.staleTasks.map((task) => ({
-                id: task.id,
-                title: task.title,
-                dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
-              })),
-              projectsWithoutNextAction: digestData.projectsWithoutNextAction.map((project) => ({
-                id: project.id,
-                name: project.name,
-                updatedAt: project.updatedAt ? new Date(project.updatedAt).toISOString() : undefined,
-              })),
-              ideas: [],
-              persons: [],
-            }),
-          },
-        ],
-        abortSignal: controller.signal,
-      });
-
-      const response = result.toUIMessageStreamResponse({
-        consumeSseStream: consumeStream,
-      });
-      const headers = Object.fromEntries(response.headers.entries());
-      mergeCorsHeaders(headers, request.headers.origin);
-      for (const [key, value] of Object.entries(headers)) {
-        reply.raw.setHeader(key, value);
-      }
-      reply.raw.statusCode = response.status;
-
-      if (!response.body) {
-        reply.raw.end();
-        return reply;
-      }
-
-      Readable.fromWeb(response.body as unknown as ReadableStream).pipe(reply.raw);
-      return reply;
     }
   );
 

@@ -13,10 +13,6 @@ function test(name: string, fn: () => Promise<void>) {
   return { name, fn };
 }
 
-function assert(condition: boolean, message: string) {
-  if (!condition) throw new Error(message);
-}
-
 function assertEqual<T>(actual: T, expected: T, message?: string) {
   if (actual !== expected) {
     throw new Error(

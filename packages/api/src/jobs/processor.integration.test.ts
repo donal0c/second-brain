@@ -143,6 +143,12 @@ class MockLLMProvider implements LLMProvider {
   async extractContextEntities(_text: string): Promise<ContextExtractionResult> {
     return { entities: [] };
   }
+
+  async *streamUI(
+    _params: Parameters<LLMProvider["streamUI"]>[0]
+  ): AsyncIterable<import("ai").UIMessageChunk> {
+    return;
+  }
 }
 
 // =============================================================================

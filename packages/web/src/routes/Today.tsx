@@ -16,19 +16,9 @@ import { NeuralCard } from "../components/ui/neural/NeuralCard";
 import { NeuralNode } from "../components/ui/neural/NeuralNode";
 import { EntityBadge } from "../components/ui/neural/EntityBadge";
 import { SynapseButton } from "../components/ui/neural/SynapseButton";
-import { useUIStream, type UIMessageChunk } from "../lib/stream";
-import { useGenerativeUI } from "../hooks/useGenerativeUI";
-import { UISpecRenderer, type UISpecSection } from "../components/generative/UISpecRenderer";
-import {
-  AlertSection,
-  EntityListSection,
-  ActionListSection,
-  SummarySection,
-  EmptyStateSection,
-  TimelineSection,
-  CalendarSection,
-  ChartSection,
-} from "../components/generative/sections";
+import { useCopilotReadable } from "@copilotkit/react-core";
+import { useAgent } from "../hooks/useAgent";
+import { DeclarativePanel } from "../components/agent/DeclarativePanel";
 
 /** Get time-aware greeting based on current hour */
 function getGreeting(): { greeting: string; emoji: string; message: string } {
@@ -54,6 +44,34 @@ export function Today() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const { latestText: agentDigestText, status: agentStatus, state: agentState, run: runAgentDigest } = useAgent({
+    feature: "digest",
+  });
+
+  useCopilotReadable(
+    {
+      description: "Daily digest state including active stats and top tasks.",
+      value: data
+        ? {
+            date: data.date,
+            stats: data.stats,
+            nextActions: data.nextActions.slice(0, 8).map((task) => ({
+              id: task.id,
+              title: task.title,
+              dueDate: task.dueDate,
+              context: task.context,
+            })),
+            staleTasks: data.staleTasks.slice(0, 8).map((task) => ({
+              id: task.id,
+              title: task.title,
+              dueDate: task.dueDate,
+            })),
+          }
+        : null,
+      available: !!data,
+    },
+    [data]
+  );
 
   const loadDigest = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -77,6 +95,21 @@ export function Today() {
     loadDigest(controller.signal);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (loading || error || !data) {
+      return;
+    }
+    void runAgentDigest({
+      date: data.date,
+      stats: data.stats,
+      nextActions: data.nextActions.slice(0, 8),
+      staleTasks: data.staleTasks.slice(0, 8),
+      projectsWithoutNextAction: data.projectsWithoutNextAction.slice(0, 8),
+      pendingClarifications: data.pendingClarifications.length,
+      flaggedItems: data.flaggedItems.length,
+    });
+  }, [loading, error, data, runAgentDigest]);
 
   const handleSave = async (taskData: Partial<Task>) => {
     if (!editingTask) return;
@@ -198,102 +231,6 @@ export function Today() {
   };
 
   const timeGreeting = useMemo(() => getGreeting(), []);
-  const apiBase = useMemo(
-    () => import.meta.env.VITE_API_URL || "http://localhost:3001",
-    []
-  );
-  const digestStreamEndpoint = useMemo(() => `${apiBase}/digest/stream`, [apiBase]);
-  const { enabled: genUiEnabled } = useGenerativeUI();
-  const {
-    parts: digestParts,
-    status: digestStreamStatus,
-    error: digestStreamError,
-    start: startDigestStream,
-  } = useUIStream(digestStreamEndpoint, { enabled: genUiEnabled });
-
-  useEffect(() => {
-    if (!genUiEnabled) {
-      return;
-    }
-    if (!loading && !error && data) {
-      startDigestStream({});
-    }
-  }, [loading, error, data, startDigestStream, genUiEnabled]);
-
-  const streamedDigestOutputs = useMemo(() => {
-    const outputs = digestParts.filter(
-      (part: UIMessageChunk) => part.type === "tool-output-available"
-    );
-    return outputs.map((part) => (part as { output?: Record<string, unknown> }).output).filter(Boolean);
-  }, [digestParts]);
-
-  const streamedDigestContent = useMemo(() => {
-    if (digestStreamError || streamedDigestOutputs.length === 0 || !genUiEnabled) {
-      return null;
-    }
-    const specOutput = streamedDigestOutputs.find(
-      (output) => output?.componentType === "UISpec"
-    ) as { sections?: UISpecSection[] } | undefined;
-    if (!specOutput?.sections || specOutput.sections.length === 0) {
-      return null;
-    }
-
-    return (
-      <UISpecRenderer
-        spec={specOutput as any}
-        renderSection={(section) => {
-          const data = section.data || {};
-          switch (section.type) {
-            case "alert":
-              return (
-                <AlertSection
-                  title={section.title}
-                  content={String((data as any).content || "")}
-                  style={section.style}
-                />
-              );
-            case "entity-list":
-              return (
-                <EntityListSection
-                  title={section.title}
-                  entities={((data as any).entities as any[]) || []}
-                />
-              );
-            case "action-list":
-              return (
-                <ActionListSection
-                  title={section.title}
-                  items={((data as any).items as any[]) || []}
-                />
-              );
-            case "summary":
-              return (
-                <SummarySection
-                  title={section.title}
-                  content={String((data as any).content || "")}
-                />
-              );
-            case "timeline":
-              return <TimelineSection title={section.title} data={data as any} />;
-            case "calendar":
-              return <CalendarSection title={section.title} data={data as any} />;
-            case "chart":
-              return <ChartSection title={section.title} data={data as any} />;
-            case "empty-state":
-              return (
-                <EmptyStateSection
-                  title={section.title}
-                  message={String((data as any).message || "")}
-                />
-              );
-            default:
-              return null;
-          }
-        }}
-      />
-    );
-  }, [digestStreamError, streamedDigestOutputs, genUiEnabled]);
-
   if (loading) {
     return (
       <div className="p-6 md:p-8 min-h-full space-y-6 animate-fade-in">
@@ -349,15 +286,24 @@ export function Today() {
         </SynapseButton>
       </motion.div>
 
-      {streamedDigestContent ? (
-        <div className="space-y-6">
-          {streamedDigestContent}
-          {digestStreamStatus === "loading" && (
-            <div className="text-sm text-slate-400">Loading personalized sections...</div>
-          )}
+      {agentDigestText && (
+        <div className="glass rounded-neural p-4 border border-neural-memory-500/20">
+          <div className="text-xs uppercase tracking-wide text-neural-memory-400 mb-2">
+            Agent Insights {agentStatus === "loading" ? "(updating)" : ""}
+          </div>
+          <p className="text-sm text-slate-200 whitespace-pre-wrap">{agentDigestText}</p>
         </div>
-      ) : (
-        <>
+      )}
+      <DeclarativePanel
+        state={agentState}
+        onAction={(action) => {
+          if (action.action === "navigate" && typeof action.payload?.href === "string") {
+            window.location.href = action.payload.href;
+          }
+        }}
+      />
+
+      <>
           {/* Neural Stats Grid */}
           <div className="grid grid-cols-3 gap-4" data-testid="stats-grid">
             {/* Active Tasks */}
@@ -684,8 +630,7 @@ export function Today() {
         </motion.div>
       )}
 
-        </>
-      )}
+      </>
 
       {/* Edit Task Modal */}
       <Modal

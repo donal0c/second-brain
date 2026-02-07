@@ -3,7 +3,7 @@
 // =============================================================================
 
 import OpenAI from "openai";
-import { streamText, type CoreMessage, type Tool, type UIMessageChunk } from "ai";
+import { streamText, type ModelMessage, type Tool, type UIMessageChunk } from "ai";
 import { openai } from "@ai-sdk/openai";
 import type { LLMProvider } from "./provider.js";
 import type {
@@ -618,7 +618,7 @@ ${context.map(formatContext).join("\n")}`;
   }
 
   streamUI(params: {
-    messages: CoreMessage[];
+    messages: ModelMessage[];
     tools: Record<string, Tool>;
     onToolCall?: (toolCall: unknown) => void;
   }): AsyncIterable<UIMessageChunk> {

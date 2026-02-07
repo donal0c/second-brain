@@ -1,9 +1,6 @@
 import type { Tool } from "ai";
 import { buildToolSet, getToolRegistry } from "./registry.js";
 import "./demo.js";
-import "./clarification.js";
-import "./digest.js";
-import "./browse.js";
 
 export * from "./registry.js";
 

@@ -35,19 +35,9 @@ import { Modal } from "../components/Modal";
 import { TaskEditForm } from "../components/TaskEditForm";
 import { motion } from "framer-motion";
 import { EntityBadge, NeuralCard } from "../components/ui/neural";
-import { useUIStream, type UIMessageChunk } from "../lib/stream";
-import { useGenerativeUI } from "../hooks/useGenerativeUI";
-import { UISpecRenderer, type UISpecSection } from "../components/generative/UISpecRenderer";
-import {
-  AlertSection,
-  EntityListSection,
-  ActionListSection,
-  SummarySection,
-  EmptyStateSection,
-  TimelineSection,
-  CalendarSection,
-  ChartSection,
-} from "../components/generative/sections";
+import { useCopilotReadable } from "@copilotkit/react-core";
+import { useAgent } from "../hooks/useAgent";
+import { DeclarativePanel } from "../components/agent/DeclarativePanel";
 
 type TabType = "tasks" | "projects" | "ideas" | "persons";
 type PersonSortOption = "name-asc" | "name-desc" | "lastTouched-desc" | "lastTouched-asc";
@@ -145,18 +135,9 @@ export function Browse() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [personSort, setPersonSort] = useState<PersonSortOption>("name-asc");
   const [personFilter, setPersonFilter] = useState<PersonFilter>("all");
-  const apiBase = useMemo(
-    () => import.meta.env.VITE_API_URL || "http://localhost:3001",
-    []
-  );
-  const browseStreamEndpoint = useMemo(() => `${apiBase}/browse/stream`, [apiBase]);
-  const { enabled: genUiEnabled } = useGenerativeUI();
-  const {
-    parts: browseParts,
-    status: browseStreamStatus,
-    error: browseStreamError,
-    start: startBrowseStream,
-  } = useUIStream(browseStreamEndpoint, { enabled: genUiEnabled });
+  const { latestText: agentBrowseText, status: agentStatus, state: agentState, run: runBrowseAgent } = useAgent({
+    feature: "browse",
+  });
 
   // Filter state (loaded from localStorage)
   const [taskFilters, setTaskFilters] = useState<TaskFilters>(loadTaskFilters);
@@ -336,6 +317,56 @@ export function Browse() {
 
     return sorted;
   }, [rawProjectList, projectFilters]);
+
+  useCopilotReadable(
+    {
+      description: "Browse page context with active tab, query, and entity totals.",
+      value: {
+        activeTab,
+        query: searchParams.get("q") || "",
+        counts: {
+          tasks: taskList.length,
+          projects: projectList.length,
+          ideas: ideaList.length,
+          persons: personList.length,
+        },
+      },
+      available: !loading,
+    },
+    [activeTab, searchParams, taskList.length, projectList.length, ideaList.length, personList.length, loading]
+  );
+
+  useEffect(() => {
+    if (loading || error) {
+      return;
+    }
+    void runBrowseAgent({
+      activeTab,
+      query: searchParams.get("q") || "",
+      counts: {
+        tasks: taskList.length,
+        projects: projectList.length,
+        ideas: ideaList.length,
+        persons: personList.length,
+      },
+      sample: {
+        tasks: taskList.slice(0, 5).map((item) => item.title),
+        projects: projectList.slice(0, 5).map((item) => item.name),
+        ideas: ideaList.slice(0, 5).map((item) => item.title),
+        persons: personList.slice(0, 5).map((item) => item.name),
+      },
+    });
+  }, [
+    loading,
+    error,
+    activeTab,
+    searchParams,
+    taskList,
+    projectList,
+    ideaList,
+    personList,
+    runBrowseAgent,
+  ]);
   const saving =
     updateTask.isPending ||
     updateProject.isPending ||
@@ -358,114 +389,6 @@ export function Browse() {
     ideasQuery.refetch();
     personsQuery.refetch();
   };
-
-  useEffect(() => {
-    if (!genUiEnabled) {
-      return;
-    }
-    if (!loading && !error) {
-      startBrowseStream({
-        viewContext: {
-          tab: activeTab,
-          search: searchParams.get("q") || undefined,
-        },
-        entities: {
-          tasks: taskList.slice(0, 6).map((task) => ({ title: task.title, type: "task" })),
-          projects: projectList.slice(0, 6).map((project) => ({ title: project.name, type: "project" })),
-          ideas: ideaList.slice(0, 6).map((idea) => ({ title: idea.title, type: "idea" })),
-          persons: personList.slice(0, 6).map((person) => ({ title: person.name, type: "person" })),
-        },
-        counts: {
-          tasks: taskList.length,
-          projects: projectList.length,
-          ideas: ideaList.length,
-          persons: personList.length,
-        },
-      });
-    }
-  }, [
-    loading,
-    error,
-    activeTab,
-    searchParams,
-    taskList.length,
-    projectList.length,
-    ideaList.length,
-    personList.length,
-    startBrowseStream,
-    genUiEnabled,
-  ]);
-
-  const streamedBrowseOutput = useMemo(() => {
-    const outputs = browseParts.filter(
-      (part: UIMessageChunk) => part.type === "tool-output-available"
-    );
-    const latest = outputs[outputs.length - 1] as { output?: Record<string, unknown> } | undefined;
-    return latest?.output ?? null;
-  }, [browseParts]);
-
-  const streamedBrowseView = useMemo(() => {
-    if (browseStreamError || !streamedBrowseOutput || !genUiEnabled) {
-      return null;
-    }
-    if (streamedBrowseOutput.componentType !== "UISpec") {
-      return null;
-    }
-    return (
-      <UISpecRenderer
-        spec={streamedBrowseOutput as any}
-        renderSection={(section: UISpecSection) => {
-          const data = section.data || {};
-          switch (section.type) {
-            case "alert":
-              return (
-                <AlertSection
-                  title={section.title}
-                  content={String((data as any).content || "")}
-                  style={section.style}
-                />
-              );
-            case "entity-list":
-              return (
-                <EntityListSection
-                  title={section.title}
-                  entities={((data as any).entities as any[]) || []}
-                />
-              );
-            case "action-list":
-              return (
-                <ActionListSection
-                  title={section.title}
-                  items={((data as any).items as any[]) || []}
-                />
-              );
-            case "summary":
-              return (
-                <SummarySection
-                  title={section.title}
-                  content={String((data as any).content || "")}
-                />
-              );
-            case "timeline":
-              return <TimelineSection title={section.title} data={data as any} />;
-            case "calendar":
-              return <CalendarSection title={section.title} data={data as any} />;
-            case "chart":
-              return <ChartSection title={section.title} data={data as any} />;
-            case "empty-state":
-              return (
-                <EmptyStateSection
-                  title={section.title}
-                  message={String((data as any).message || "")}
-                />
-              );
-            default:
-              return null;
-          }
-        }}
-      />
-    );
-  }, [browseStreamError, streamedBrowseOutput, genUiEnabled]);
 
   // Handle URL parameters for deep linking from search results
   useEffect(() => {
@@ -763,15 +686,25 @@ export function Browse() {
         />
       )}
 
+      {agentBrowseText && (
+        <div className="glass rounded-neural p-4 border border-neural-memory-500/20">
+          <div className="text-xs uppercase tracking-wide text-neural-memory-400 mb-2">
+            Agent Insights {agentStatus === "loading" ? "(updating)" : ""}
+          </div>
+          <p className="text-sm text-slate-200 whitespace-pre-wrap">{agentBrowseText}</p>
+        </div>
+      )}
+      <DeclarativePanel
+        state={agentState}
+        onAction={(action) => {
+          if (action.action === "navigate" && typeof action.payload?.href === "string") {
+            window.location.href = action.payload.href;
+          }
+        }}
+      />
+
       {loading ? (
         <LoadingSkeleton />
-      ) : streamedBrowseView ? (
-        <div className="relative z-10 space-y-4">
-          <div className="text-xs uppercase tracking-wide text-slate-500">
-            Adaptive View {browseStreamStatus === "loading" ? "(updating)" : ""}
-          </div>
-          {streamedBrowseView}
-        </div>
       ) : (
         <>
           {/* Tasks Tab */}

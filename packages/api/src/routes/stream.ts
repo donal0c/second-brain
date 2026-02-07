@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { consumeStream, streamText } from "ai";
 import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { getEnabledTools } from "../llm/tools/index.js";
 import { sendServiceUnavailable, sendValidationError } from "../utils/response.js";
 import { getStreamingProviderHint, resolveStreamingModel } from "../llm/streaming.js";
@@ -79,7 +80,7 @@ export async function streamRoutes(app: FastifyInstance): Promise<void> {
         return reply;
       }
 
-      Readable.fromWeb(response.body as unknown as ReadableStream).pipe(reply.raw);
+      Readable.fromWeb(response.body as unknown as NodeReadableStream<Uint8Array>).pipe(reply.raw);
       return reply;
     }
   );

@@ -233,6 +233,13 @@ class MockLLMProvider implements LLMProvider {
     return { entities: [] };
   }
 
+  async *streamUI(
+    _params: Parameters<LLMProvider["streamUI"]>[0]
+  ): AsyncIterable<import("ai").UIMessageChunk> {
+    this.callLog.push({ method: "streamUI", args: [_params] });
+    return;
+  }
+
   reset(): void {
     this.callLog = [];
     this.classifyBehavior.clear();

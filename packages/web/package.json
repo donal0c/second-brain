@@ -11,6 +11,8 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@copilotkit/react-core": "^1.51.3",
+    "@copilotkit/react-ui": "^1.51.3",
     "@second-brain/shared": "workspace:*",
     "@tanstack/react-query": "^5.90.16",
     "clsx": "^2.1.1",

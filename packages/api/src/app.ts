@@ -15,6 +15,8 @@ import { searchRoutes } from "./routes/search.js";
 import { similarityRoutes } from "./routes/similarity.js";
 import { streamRoutes } from "./routes/stream.js";
 import { browseRoutes } from "./routes/browse.js";
+import { aguiRoutes } from "./routes/agui.js";
+import { copilotKitRoutes } from "./routes/copilotkit.js";
 import {
   createClaudeProvider,
   createOpenAIProvider,
@@ -43,12 +45,18 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Initialize LLM provider if API key is configured
   const providerChoice = resolveLLMProviderChoice();
   if (providerChoice && providerChoice.apiKey !== "your-openai-key-here") {
-    const provider =
-      providerChoice.provider === "openai"
-        ? createOpenAIProvider({ apiKey: providerChoice.apiKey })
-        : createClaudeProvider({ apiKey: providerChoice.apiKey });
-    setLLMProvider(provider);
-    app.log.info(`LLM provider initialized: ${provider.name} (${provider.model})`);
+    if (providerChoice.provider === "google" || providerChoice.provider === "vertex") {
+      app.log.info(
+        "Gemini configured for AG-UI/CopilotKit generation; core processor provider unchanged."
+      );
+    } else {
+      const provider =
+        providerChoice.provider === "openai"
+          ? createOpenAIProvider({ apiKey: providerChoice.apiKey })
+          : createClaudeProvider({ apiKey: providerChoice.apiKey });
+      setLLMProvider(provider);
+      app.log.info(`LLM provider initialized: ${provider.name} (${provider.model})`);
+    }
   } else {
     app.log.warn("LLM provider not configured - set OPENAI_API_KEY (or ANTHROPIC_API_KEY)");
   }
@@ -93,6 +101,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(similarityRoutes, { preHandler: authMiddleware });
   await app.register(nudgeRoutes, { preHandler: authMiddleware });
   await app.register(streamRoutes, { preHandler: authMiddleware });
+  await app.register(aguiRoutes, { preHandler: authMiddleware });
+  await app.register(copilotKitRoutes, { preHandler: authMiddleware });
   await app.register(browseRoutes, { preHandler: authMiddleware });
 
   return app;
